@@ -237,4 +237,92 @@ This document guides the user through manually verifying the architecture, front
   5. Click **Reactivate School** and confirm.
 - **Expected Result**: School status toggles safely between ACTIVE and INACTIVE; records are preserved and audit events are logged.
 
+---
+
+## Test Scenario 15: Teacher Directory Oversight & Real Database Data
+- **URL**: `http://localhost:3000/teachers`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. In the navigation sidebar, click **Teachers & Faculty** (or open `http://localhost:3000/teachers`).
+  3. Verify the directory displays the seed teacher **Marcus Holloway**:
+     - Email: `teacher@stjude.ems.local`
+     - Employee Code: `TCH-1001`
+     - Specialization: `Advanced Calculus & Analytical Geometry`
+     - Qualification: `M.Sc. in Applied Mathematics`
+     - Status: `Active Faculty`
+  4. Test search input: type `Marcus` or `Calculus` and verify filtering works.
+  5. Test status filter: select `Active Faculty Only` or `All Employment Statuses`.
+- **Expected Result**: Directory displays authentic database records without simulated or placeholder values.
+
+---
+
+## Test Scenario 16: Onboard a New Faculty Member
+- **URL**: `http://localhost:3000/teachers/new`
+- **Steps**:
+  1. While logged in as School Admin or Platform Admin, click **Onboard New Teacher**.
+  2. Enter:
+     - **First Name**: `Sophia`
+     - **Last Name**: `Rodriguez`
+     - **Email**: `sophia.rodriguez@stjude.ems.local`
+     - Click **Generate** next to Employee Code to auto-fill (e.g. `TCH-4812`).
+     - **Phone**: `+1-555-019-8833`
+     - **Highest Qualification**: `Ph.D. in Molecular Biology`
+     - **Specialization**: `AP Biology & Genetic Sciences`
+     - **Bio**: `Former laboratory researcher and secondary department head with 10 years experience.`
+  3. Click **Confirm Onboarding**.
+- **Expected Result**: Teacher is created in PostgreSQL and user is redirected to `/teachers/[id]` showing the detailed faculty profile.
+
+---
+
+## Test Scenario 17: Edit Faculty Profile & Verify RBAC Guard on Employee Code
+- **URL**: `http://localhost:3000/teachers/[id]/edit`
+- **Steps**:
+  1. From Sophia Rodriguez's profile page, click **Edit Profile**.
+  2. Notice the administrator can update phone, qualification, and employee code.
+  3. Change the phone number to `+1-555-019-9944` and click **Save Profile Changes**.
+  4. Verify the updated phone displays on the profile.
+  5. Log out and log in as **Teacher** (`teacher@stjude.ems.local` / `Password123!`).
+  6. Navigate to `http://localhost:3000/teachers/8e42396c-4a37-47c7-b222-f7e5e26f3c7b/edit`.
+  7. Notice the **Employee Identifier Code** field is disabled and marked with a lock icon: **"Locked for Educator Role"**.
+- **Expected Result**: Teachers cannot modify their own employee code or elevate permissions; administrators retain full management rights.
+
+---
+
+## Test Scenario 18: Secondary Campus Affiliation / Multi-School Membership
+- **URL**: `http://localhost:3000/teachers/[id]`
+- **Steps**:
+  1. Log in as **Platform Admin** (`platform.admin@ems.local` / `Password123!`).
+  2. Open Marcus Holloway's profile at `http://localhost:3000/teachers/8e42396c-4a37-47c7-b222-f7e5e26f3c7b`.
+  3. Click **Assign Campus**.
+  4. Select a secondary campus (e.g. `Apex STEM Academy` or another school tenant).
+  5. Enter a campus-scoped employee code (e.g. `TCH-APX-01`) and click **Assign Faculty**.
+- **Expected Result**: Teacher profile now reflects multiple campus memberships under **Institutional Campus Memberships**.
+
+---
+
+## Test Scenario 19: Deactivate and Reactivate Teacher Account
+- **URL**: `http://localhost:3000/teachers`
+- **Steps**:
+  1. While logged in as School Admin, locate Sophia Rodriguez or click the power icon on her profile.
+  2. In the confirmation modal, click **Confirm Deactivation**.
+  3. Verify the status badge switches to **Deactivated User** (rose badge).
+  4. Attempting to log in with that teacher's credentials fails or shows deactivated state.
+  5. Click **Reactivate Access** and confirm.
+- **Expected Result**: Teacher operational status toggles safely; records and associations are strictly preserved.
+
+---
+
+## Test Scenario 20: Teacher Self-Service Profile & Role Isolation
+- **URL**: `http://localhost:3000/my-profile`
+- **Steps**:
+  1. Log in as **Teacher** (`teacher@stjude.ems.local` / `Password123!`).
+  2. In the navigation sidebar, click **My Faculty Profile** (or open `http://localhost:3000/my-profile`).
+  3. Verify Marcus Holloway's credentials, specialization, degree, and active campus appointments render accurately.
+  4. Try navigating directly to `http://localhost:3000/teachers/new`.
+  5. Verify the route guard restricts access with **Access Restricted (Role [TEACHER] not authorized)**.
+  6. Log in as **Student** (`student@stjude.ems.local`) and navigate to `http://localhost:3000/teachers`.
+  7. Verify the student is blocked with **Access Restricted**.
+- **Expected Result**: Teachers have dedicated self-service access; non-administrative roles cannot access faculty management tools.
+
+
 

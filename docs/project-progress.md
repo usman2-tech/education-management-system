@@ -12,8 +12,8 @@ Feature lifecycle states:
 | **TASK-001** | Project Initialization, Architecture, UI Foundation & GitHub Setup | **MERGED** | `main` / `develop` | `76f10a4` | Verified |
 | **TASK-001.1** | Infrastructure Stabilization (PostgreSQL 18 & Redis) | **MERGED** | `develop` | `72f063b` | Verified & Approved |
 | **TASK-002** | Authentication, Multi-Tenant Session & RBAC Engine | **MERGED** | `develop` | `9370df7` | 2026-10-13 Approved |
-| **TASK-003** | Multi-School Administration & Academic Calendar | **AWAITING MANUAL TEST** | `feature/TASK-003-school-management` | Pending commit | Awaiting Manual Verification |
-| **TASK-004** | Teacher & Staff Management | `PLANNED` | — | — | — |
+| **TASK-003** | Multi-School Administration & Academic Calendar | **MERGED** | `develop` | `80c23cd` | 2026-10-13 Approved |
+| **TASK-004** | Teacher & Staff Management | **AWAITING MANUAL TEST** | `feature/TASK-004-teacher-management` | `358d082` | Awaiting Manual Verification |
 | **TASK-005** | Student Lifecycle & Enrollment | `PLANNED` | — | — | — |
 | **TASK-006** | Parent/Guardian Portal & Linkages | `PLANNED` | — | — | — |
 | **TASK-007** | Classes, Subjects & Timetable Engine | `PLANNED` | — | — | — |

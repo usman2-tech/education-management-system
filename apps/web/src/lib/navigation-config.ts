@@ -29,6 +29,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       items: [
         { title: 'Overview', href: '/', icon: 'LayoutDashboard', description: 'Platform operations & status' },
         { title: 'Schools Directory', href: '/schools', icon: 'Building2', description: 'Manage institutional tenants' },
+        { title: 'Teachers & Faculty', href: '/teachers', icon: 'Briefcase', description: 'Cross-school faculty directory' },
         { title: 'System Accounts', href: '/users', icon: 'Users', description: 'Cross-school identity directory' },
         { title: 'Subscriptions', href: '/subscriptions', icon: 'CreditCard', description: 'License tiers and activation' },
       ],
@@ -71,6 +72,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       title: 'Teaching Workspace',
       items: [
         { title: 'Teacher Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Class schedule & daily agenda' },
+        { title: 'My Faculty Profile', href: '/my-profile', icon: 'UserCheck', description: 'Personal credentials & assignments' },
         { title: 'My Classes', href: '/my-classes', icon: 'BookOpen', description: 'Assigned sections and rosters' },
         { title: 'Daily Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Record student attendance' },
         { title: 'Gradebook', href: '/gradebook', icon: 'Award', description: 'Term marks and grading' },
