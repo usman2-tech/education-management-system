@@ -142,3 +142,86 @@ export interface UserProfileResponse {
   user: AuthUser;
 }
 
+// ------------------------------------------------------------------------------
+// Multi-School Management Contracts (TASK 003)
+// ------------------------------------------------------------------------------
+export interface SchoolDto {
+  id: string;
+  name: string;
+  code: string;
+  domain?: string | null;
+  status: SchoolStatus;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  logoUrl?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  settings?: any;
+  createdAt: string;
+  updatedAt: string;
+  administratorsCount?: number;
+  studentsCount?: number;
+  teachersCount?: number;
+}
+
+export interface CreateSchoolRequest {
+  name: string;
+  code: string;
+  domain?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  logoUrl?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface UpdateSchoolRequest {
+  name?: string;
+  domain?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  logoUrl?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface UpdateSchoolStatusRequest {
+  status: SchoolStatus;
+}
+
+export interface AssignSchoolAdminRequest {
+  userId: string;
+}
+
+export interface SchoolListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: SchoolStatus;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface SchoolAdministratorDto {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  isActive: boolean;
+  assignedAt: string;
+}
+
+
