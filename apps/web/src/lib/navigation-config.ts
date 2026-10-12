@@ -48,6 +48,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       title: 'Academic Administration',
       items: [
         { title: 'Campus Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Campus operations summary' },
+        { title: 'School Profile', href: '/schools', icon: 'Building2', description: 'Institutional configuration & contacts' },
         { title: 'Students', href: '/students', icon: 'GraduationCap', description: 'Enrollment & student profiles' },
         { title: 'Teachers & Faculty', href: '/teachers', icon: 'Briefcase', description: 'Staff assignments & directory' },
         { title: 'Parents Directory', href: '/parents', icon: 'UserCheck', description: 'Guardian linkages & contacts' },

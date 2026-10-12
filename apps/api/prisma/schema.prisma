@@ -52,6 +52,10 @@ model School {
   domain    String?
   status    SchoolStatus @default(ACTIVE)
   address   String?
+  city      String?
+  state     String?
+  country   String?      @default("USA")
+  logoUrl   String?
   phone     String?
   email     String?
   settings  Json?
@@ -61,6 +65,22 @@ model School {
   users     User[]
 
   @@map("schools")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  entityType String
+  entityId   String
+  actorId    String?
+  actorEmail String?
+  schoolId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
 }
 
 model User {

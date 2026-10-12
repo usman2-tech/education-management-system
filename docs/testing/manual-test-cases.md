@@ -181,3 +181,60 @@ This document guides the user through manually verifying the architecture, front
   3. Click the **Authorize** button at the top to enter a Bearer token and test protected routes directly.
 - **Expected Result**: All endpoints are documented with DTO schemas and HTTP response codes.
 
+---
+
+# Manual Testing Guide — TASK 003: Multi-School Management
+
+## Test Scenario 11: View Institutional Schools Directory (Platform Admin)
+- **URL**: `http://localhost:3000/schools`
+- **Steps**:
+  1. Log in as **Platform Admin** (`platform.admin@ems.local` / `Password123!`).
+  2. Click **Schools Directory** in the left sidebar or navigate to `http://localhost:3000/schools`.
+  3. Verify the schools list displays existing institutions with:
+     - Real database counts for administrators, teachers, and students.
+     - Accurate status badge (e.g. Active).
+     - Search bar and status filter dropdown.
+- **Expected Result**: All registered schools render with complete metadata and action controls.
+
+---
+
+## Test Scenario 12: Create New Institutional School
+- **URL**: `http://localhost:3000/schools/new`
+- **Steps**:
+  1. While logged in as Platform Admin, click **Register New School**.
+  2. Enter:
+     - **Name**: `Cambridge Classical Academy`
+     - Click **Auto-generate from Name** to generate code `cambridge-classical`
+     - **Email**: `admissions@cambridge.ems.local`
+     - **City**: `Boston`, **State**: `MA`, **Country**: `USA`
+  3. Click **Confirm Registration**.
+- **Expected Result**: School is created in PostgreSQL and user is redirected to `/schools/[id]` displaying the newly registered institution.
+
+---
+
+## Test Scenario 13: School Admin Tenant Scoping & Restrictions
+- **URL**: `http://localhost:3000/schools`
+- **Steps**:
+  1. Log out and log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to `http://localhost:3000/schools`.
+  3. Verify:
+     - Only **St. Jude Institutional Academy** is displayed in the list.
+     - The **Register New School** button is hidden.
+     - Deactivation toggle buttons are unavailable.
+  4. Try manually navigating to `http://localhost:3000/schools/new`.
+  5. Verify the route guard rejects access with **Access Restricted (Role [SCHOOL_ADMIN] not authorized)**.
+- **Expected Result**: Strict tenant isolation and RBAC restrictions enforced on both UI and API.
+
+---
+
+## Test Scenario 14: Deactivate and Reactivate School Tenant
+- **URL**: `http://localhost:3000/schools`
+- **Steps**:
+  1. Log back in as **Platform Admin**.
+  2. On any school in the list, click the power button or open school details and click **Deactivate School**.
+  3. Confirm the action in the confirmation modal.
+  4. Verify the status changes to **Deactivated / Inactive** with rose status badge.
+  5. Click **Reactivate School** and confirm.
+- **Expected Result**: School status toggles safely between ACTIVE and INACTIVE; records are preserved and audit events are logged.
+
+
