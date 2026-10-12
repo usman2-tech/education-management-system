@@ -65,4 +65,5 @@ infrastructure/redis/*.pdb
 infrastructure/redis/dump.rdb
 dump.rdb
 *.rdb
+scratch/
 

@@ -41,3 +41,62 @@ enum SchoolStatus {
   SUSPENDED
   INACTIVE
 }
+
+// ------------------------------------------------------------------------------
+// Core Multi-Tenant Institutional Models
+// ------------------------------------------------------------------------------
+model School {
+  id        String       @id @default(uuid())
+  name      String
+  code      String       @unique
+  domain    String?
+  status    SchoolStatus @default(ACTIVE)
+  address   String?
+  phone     String?
+  email     String?
+  settings  Json?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  users     User[]
+
+  @@map("schools")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          UserRole
+  schoolId      String?
+  school        School?        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  isActive      Boolean        @default(true)
+  avatarUrl     String?
+  phone         String?
+  lastLoginAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  refreshTokens RefreshToken[]
+
+  @@index([schoolId])
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+

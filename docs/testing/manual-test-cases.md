@@ -112,3 +112,72 @@ This document guides the user through manually verifying the architecture, front
 ## Negative / Error Scenarios Tested
 - **Invalid API Route**: Requesting `http://localhost:4000/api/v1/non-existent` returns standardized 404 envelope (`{ "success": false, "statusCode": 404, "message": "Cannot GET ...", "timestamp": ... }`).
 - **Offline Backend Simulation**: If the backend is stopped, the frontend's `SystemStatusBadge` displays "Offline / Disconnected" with a retry button instead of crashing.
+
+---
+
+# Manual Testing Guide — TASK 002: Authentication & Multi-School RBAC
+
+## Test Scenario 6: Institutional Login & 1-Click Fast-Fill
+- **URL**: `http://localhost:3000/login`
+- **Objective**: Verify database-backed authentication and test credentials across all 5 roles.
+- **Steps**:
+  1. Open `http://localhost:3000/login` in your web browser.
+  2. Notice the institutional portal header ("St. Jude Institutional Academy &bull; Academic Portal") and the database status indicator ("PostgreSQL 18 Connected").
+  3. Locate the **Development Fast-Access Matrix** on the right side with 5 test accounts:
+     - **Platform Admin**: `platform.admin@ems.local`
+     - **School Admin**: `admin@stjude.ems.local`
+     - **Teacher**: `teacher@stjude.ems.local`
+     - **Student**: `student@stjude.ems.local`
+     - **Parent**: `parent@stjude.ems.local`
+  4. Click **Fill Form** on the **School Admin** card.
+     - Verify the email `admin@stjude.ems.local` and `Password123!` are populated into the login form.
+  5. Click **Sign In to Institutional Portal**.
+- **Expected Result**: Successfully signs in, stores JWT tokens in localStorage, and redirects to the dashboard `http://localhost:3000/`.
+
+---
+
+## Test Scenario 7: Header Profile Context & School Isolation
+- **URL**: `http://localhost:3000/`
+- **Objective**: Verify that the top header displays the authenticated user's actual profile and institutional scope.
+- **Steps**:
+  1. After signing in as School Admin, inspect the top application header:
+     - **School Name**: "St. Jude Institutional Academy"
+     - **User Name**: "Eleanor Pemberton" with verified shield badge
+     - **Role Badge**: "Principal / Registrar"
+  2. Click the **Logout Button** (door icon) in the far right of the header.
+- **Expected Result**: Active session is invalidated on server, localStorage tokens are cleared, and browser immediately redirects back to `http://localhost:3000/login`.
+
+---
+
+## Test Scenario 8: 1-Click Fast In for Other Roles
+- **URL**: `http://localhost:3000/login`
+- **Steps**:
+  1. Click the **1-Click In** button on the **Platform Admin** card.
+  2. Verify immediate authentication and redirect to `http://localhost:3000/`.
+  3. Header displays "Alexander Vance" with school "Global Platform Scope" and role "System Administrator".
+  4. Click logout and repeat for **Teacher** (`Marcus Holloway`), **Student** (`Liam Chen`), or **Parent** (`Sarah Chen`).
+- **Expected Result**: Each institutional role logs in seamlessly with correct permissions and institutional identity.
+
+---
+
+## Test Scenario 9: Route Protection & Unauthenticated Redirect
+- **URL**: `http://localhost:3000/`
+- **Steps**:
+  1. While logged out, try typing `http://localhost:3000/` directly into your browser address bar.
+- **Expected Result**: ProtectedRoute detects no session and immediately redirects to `http://localhost:3000/login`.
+
+---
+
+## Test Scenario 10: Backend OpenAPI Auth Endpoints
+- **URL**: `http://localhost:4000/api/docs`
+- **Steps**:
+  1. Open `http://localhost:4000/api/docs`.
+  2. Notice the new **Authentication & Access Control** section containing:
+     - `POST /api/v1/auth/login`
+     - `POST /api/v1/auth/refresh`
+     - `POST /api/v1/auth/logout`
+     - `GET /api/v1/auth/me`
+     - `GET /api/v1/auth/tenant-context`
+  3. Click the **Authorize** button at the top to enter a Bearer token and test protected routes directly.
+- **Expected Result**: All endpoints are documented with DTO schemas and HTTP response codes.
+
