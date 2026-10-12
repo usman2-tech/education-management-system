@@ -224,4 +224,108 @@ export interface SchoolAdministratorDto {
   assignedAt: string;
 }
 
+// ------------------------------------------------------------------------------
+// Teacher & Staff Management Contracts (TASK 004)
+// ------------------------------------------------------------------------------
+export enum TeacherEmploymentStatus {
+  ACTIVE = 'ACTIVE',
+  ON_LEAVE = 'ON_LEAVE',
+  SUSPENDED = 'SUSPENDED',
+  TERMINATED = 'TERMINATED',
+}
+
+export interface TeacherProfileDto {
+  id: string;
+  userId: string;
+  employeeCode?: string | null;
+  qualification?: string | null;
+  specialization?: string | null;
+  joiningDate: string;
+  employmentStatus: TeacherEmploymentStatus;
+  phone?: string | null;
+  address?: string | null;
+  bio?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeacherSchoolMembershipDto {
+  id: string;
+  schoolId: string;
+  schoolName: string;
+  schoolCode: string;
+  role: UserRole;
+  isActive: boolean;
+  employeeCode?: string | null;
+  employmentStatus?: TeacherEmploymentStatus | null;
+  joinedAt: string;
+}
+
+export interface TeacherDto {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  isActive: boolean;
+  phone?: string | null;
+  avatarUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  profile?: TeacherProfileDto | null;
+  primarySchool?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
+  memberships: TeacherSchoolMembershipDto[];
+}
+
+export interface CreateTeacherRequest {
+  email: string;
+  password?: string;
+  firstName: string;
+  lastName: string;
+  schoolId?: string;
+  employeeCode?: string;
+  qualification?: string;
+  specialization?: string;
+  phone?: string;
+  address?: string;
+  bio?: string;
+  joiningDate?: string;
+}
+
+export interface UpdateTeacherRequest {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  qualification?: string;
+  specialization?: string;
+  address?: string;
+  bio?: string;
+  employeeCode?: string;
+  joiningDate?: string;
+}
+
+export interface UpdateTeacherStatusRequest {
+  isActive?: boolean;
+  employmentStatus?: TeacherEmploymentStatus;
+  schoolId?: string;
+}
+
+export interface AssignTeacherSchoolRequest {
+  schoolId: string;
+  employeeCode?: string;
+}
+
+export interface TeacherListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  schoolId?: string;
+  status?: string;
+}
+
+
 

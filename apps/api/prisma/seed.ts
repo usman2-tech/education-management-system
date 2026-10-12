@@ -121,6 +121,55 @@ async function main() {
     console.log(`[Seed] User configured: ${user.email} [${user.role}] - School: ${user.schoolId ?? 'GLOBAL'}`);
   }
 
+  // 4. Ensure Teacher profile & school membership for Marcus Holloway
+  const teacherUser = await prisma.user.findUnique({
+    where: { email: 'teacher@stjude.ems.local' },
+  });
+  if (teacherUser) {
+    await prisma.teacherProfile.upsert({
+      where: { userId: teacherUser.id },
+      update: {
+        employeeCode: 'TCH-1001',
+        qualification: 'M.Sc. in Applied Mathematics',
+        specialization: 'Advanced Calculus & Analytical Geometry',
+        phone: '+1-555-019-3388',
+        address: '42 Academic Way, Suite 12, Seattle, WA',
+        bio: 'Senior Mathematics Faculty with over 10 years of secondary and collegiate instructional experience.',
+      },
+      create: {
+        userId: teacherUser.id,
+        employeeCode: 'TCH-1001',
+        qualification: 'M.Sc. in Applied Mathematics',
+        specialization: 'Advanced Calculus & Analytical Geometry',
+        phone: '+1-555-019-3388',
+        address: '42 Academic Way, Suite 12, Seattle, WA',
+        bio: 'Senior Mathematics Faculty with over 10 years of secondary and collegiate instructional experience.',
+      },
+    });
+
+    await prisma.schoolMembership.upsert({
+      where: {
+        userId_schoolId: {
+          userId: teacherUser.id,
+          schoolId: defaultSchool.id,
+        },
+      },
+      update: {
+        role: UserRole.TEACHER,
+        employeeCode: 'TCH-1001',
+        isActive: true,
+      },
+      create: {
+        userId: teacherUser.id,
+        schoolId: defaultSchool.id,
+        role: UserRole.TEACHER,
+        employeeCode: 'TCH-1001',
+        isActive: true,
+      },
+    });
+    console.log('[Seed] Teacher profile & membership configured for Marcus Holloway');
+  }
+
   console.log('--- Database Seeding Complete ---');
 }
 

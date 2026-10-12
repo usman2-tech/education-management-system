@@ -42,27 +42,35 @@ enum SchoolStatus {
   INACTIVE
 }
 
+enum TeacherEmploymentStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+}
+
 // ------------------------------------------------------------------------------
 // Core Multi-Tenant Institutional Models
 // ------------------------------------------------------------------------------
 model School {
-  id        String       @id @default(uuid())
-  name      String
-  code      String       @unique
-  domain    String?
-  status    SchoolStatus @default(ACTIVE)
-  address   String?
-  city      String?
-  state     String?
-  country   String?      @default("USA")
-  logoUrl   String?
-  phone     String?
-  email     String?
-  settings  Json?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id          String             @id @default(uuid())
+  name        String
+  code        String             @unique
+  domain      String?
+  status      SchoolStatus       @default(ACTIVE)
+  address     String?
+  city        String?
+  state       String?
+  country     String?            @default("USA")
+  logoUrl     String?
+  phone       String?
+  email       String?
+  settings    Json?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
-  users     User[]
+  users       User[]
+  memberships SchoolMembership[]
 
   @@map("schools")
 }
@@ -84,27 +92,68 @@ model AuditLog {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  passwordHash  String
-  firstName     String
-  lastName      String
-  role          UserRole
-  schoolId      String?
-  school        School?        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  isActive      Boolean        @default(true)
-  avatarUrl     String?
-  phone         String?
-  lastLoginAt   DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id             String             @id @default(uuid())
+  email          String             @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  role           UserRole
+  schoolId       String?
+  school         School?            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  isActive       Boolean            @default(true)
+  avatarUrl      String?
+  phone          String?
+  lastLoginAt    DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  refreshTokens RefreshToken[]
+  refreshTokens  RefreshToken[]
+  teacherProfile TeacherProfile?
+  memberships    SchoolMembership[]
 
   @@index([schoolId])
   @@index([email])
   @@index([role])
   @@map("users")
+}
+
+model TeacherProfile {
+  id               String                  @id @default(uuid())
+  userId           String                  @unique
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeCode     String?
+  qualification    String?
+  specialization   String?
+  joiningDate      DateTime                @default(now())
+  employmentStatus TeacherEmploymentStatus @default(ACTIVE)
+  phone            String?
+  address          String?
+  bio              String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([employeeCode])
+  @@map("teacher_profiles")
+}
+
+model SchoolMembership {
+  id               String                   @id @default(uuid())
+  userId           String
+  user             User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schoolId         String
+  school           School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  role             UserRole
+  isActive         Boolean                  @default(true)
+  employeeCode     String?
+  employmentStatus TeacherEmploymentStatus? @default(ACTIVE)
+  joinedAt         DateTime                 @default(now())
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@unique([userId, schoolId])
+  @@index([schoolId])
+  @@index([userId])
+  @@map("school_memberships")
 }
 
 model RefreshToken {
@@ -119,4 +168,5 @@ model RefreshToken {
   @@index([userId])
   @@map("refresh_tokens")
 }
+
 
