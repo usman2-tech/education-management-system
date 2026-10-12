@@ -90,3 +90,55 @@ export interface NavigationItem {
   allowedRoles: UserRole[];
   children?: NavigationItem[];
 }
+
+// ------------------------------------------------------------------------------
+// Authentication & RBAC Contracts
+// ------------------------------------------------------------------------------
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  role: UserRole;
+  schoolId: string | null;
+  iat?: number;
+  exp?: number;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  schoolId: string | null;
+  school?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
+  avatarUrl?: string | null;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+export interface AuthResponse {
+  user: AuthUser;
+  tokens: AuthTokens;
+}
+
+export interface UserProfileResponse {
+  user: AuthUser;
+}
+
