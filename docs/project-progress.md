@@ -13,10 +13,10 @@ Feature lifecycle states:
 | **TASK-001.1** | Infrastructure Stabilization (PostgreSQL 18 & Redis) | **MERGED** | `develop` | `72f063b` | Verified & Approved |
 | **TASK-002** | Authentication, Multi-Tenant Session & RBAC Engine | **MERGED** | `develop` | `9370df7` | 2026-10-13 Approved |
 | **TASK-003** | Multi-School Administration & Academic Calendar | **MERGED** | `develop` | `80c23cd` | 2026-10-13 Approved |
-| **TASK-004** | Teacher & Staff Management | **AWAITING MANUAL TEST** | `feature/TASK-004-teacher-management` | `358d082` | Awaiting Manual Verification |
-| **TASK-005** | Student Lifecycle & Enrollment | `PLANNED` | — | — | — |
-| **TASK-006** | Parent/Guardian Portal & Linkages | `PLANNED` | — | — | — |
-| **TASK-007** | Classes, Subjects & Timetable Engine | `PLANNED` | — | — | — |
+| **TASK-004** | Teacher & Staff Management | **MERGED** | `develop` | `112dfe1` | 2026-10-13 Approved |
+| **TASK-005** | Student Lifecycle & Enrollment | **MERGED** | `develop` | `112dfe1` | 2026-10-13 Approved |
+| **TASK-006** | Parent/Guardian Portal & Linkages | **AWAITING MANUAL TEST** | `feature/TASK-006-007-parents-classes` | `pending` | In Verification |
+| **TASK-007** | Classes, Subjects & Timetable Engine | **AWAITING MANUAL TEST** | `feature/TASK-006-007-parents-classes` | `pending` | In Verification |
 | **TASK-008** | Attendance Engine & Daily Records | `PLANNED` | — | — | — |
 | **TASK-009** | Gradebook & Academic Performance | `PLANNED` | — | — | — |
 | **TASK-010** | Homework & Educational Content | `PLANNED` | — | — | — |

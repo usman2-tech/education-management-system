@@ -324,5 +324,206 @@ This document guides the user through manually verifying the architecture, front
   7. Verify the student is blocked with **Access Restricted**.
 - **Expected Result**: Teachers have dedicated self-service access; non-administrative roles cannot access faculty management tools.
 
+---
+
+# Manual Testing Guide — Combined TASK 006 & TASK 007: Parents & Academic Structures
+
+## Test Scenario A: Parent Creation & Student Linking
+- **URL**: `http://localhost:3000/parents/new`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to **Parent Directory** (`/parents`) and click **Onboard Parent**.
+  3. Enter:
+     - **First Name**: `David`
+     - **Last Name**: `Chen`
+     - **Email**: `david.chen@stjude.ems.local`
+     - **Phone**: `+1-555-019-5566`
+     - **Occupation**: `Research Scientist`
+     - **Address**: `742 Evergreen Terrace, Springfield`
+  4. Submit form. Redirects to `/parents/[id]`.
+  5. On the parent profile page, click **Link Student Ward**.
+  6. Select student `Liam Chen`, choose Relationship `FATHER`, check `Primary Contact`.
+  7. Click **Confirm Student Link**.
+- **Expected Result**: Relationship is created in PostgreSQL with status `PENDING`.
+
+---
+
+## Test Scenario B: Relationship Verification & Revocation
+- **URL**: `http://localhost:3000/parents/[id]`
+- **Steps**:
+  1. On David Chen's profile page, locate the linked student card for `Liam Chen`.
+  2. Notice the yellow badge: `PENDING VERIFICATION`.
+  3. Click the **Verify** button.
+  4. Confirm verification in modal. Status updates immediately to `VERIFIED` with green badge.
+  5. Click **Revoke Relationship** and confirm.
+  6. Status changes to `REVOKED` with red badge.
+  7. Click **Re-Verify** to restore the verified status.
+- **Expected Result**: Guardian relationship status transitions correctly between PENDING, VERIFIED, and REVOKED, and logs an institutional audit entry.
+
+---
+
+## Test Scenario C: Parent Dashboard & Multi-Child Switching
+- **URL**: `http://localhost:3000/parent/dashboard`
+- **Steps**:
+  1. Log in as **Parent** (`parent@stjude.ems.local` / `Password123!`).
+  2. Navigate to `http://localhost:3000/parent/dashboard`.
+  3. Observe the **Selected Child** switcher at the top:
+     - Displays two verified wards: **Liam Chen** and **Sophia Chen**.
+  4. While **Liam Chen** is selected:
+     - Shows Class: `Grade 10 — Section A`
+     - Room: `Room 101`
+     - Timetable: Shows 7 weekly classes (Advanced Mathematics, AP Physics).
+  5. Switch active child to **Sophia Chen**:
+     - Shows Class: `Grade 11 — Section B`
+     - Room: `Room 102`
+     - Timetable updates instantly to Sophia's enrolled section schedule.
+- **Expected Result**: Smooth, zero-refresh switching between multiple children with distinct academic enrollments and schedules.
+
+---
+
+## Test Scenario D: Revoked Relationship Immediate Access Denial
+- **URL**: `http://localhost:3000/parent/dashboard`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to `http://localhost:3000/parents`. Open **Sarah Chen**'s profile.
+  3. In the linked students list, click **Revoke** on `Sophia Chen`.
+  4. Log out and log back in as **Parent** (`parent@stjude.ems.local` / `Password123!`).
+  5. Navigate to `http://localhost:3000/parent/dashboard`.
+  6. Check the child switcher: `Sophia Chen` is completely removed from the list.
+  7. Attempting to access Sophia's ID directly returns a 403 / access restricted response.
+- **Expected Result**: Revoked guardian links immediately remove access to student records and timetables.
+
+---
+
+## Test Scenario E: Academic Year, Class & Section Creation
+- **URL**: `http://localhost:3000/academic-years` & `http://localhost:3000/classes`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Open `/academic-years`:
+     - Verify active session `2026-2027` with green `Active Session` badge.
+     - Click **Create Academic Session**, enter name `2027-2028`, start date `2027-09-01`, end date `2028-06-30`, submit.
+  3. Open `/classes`:
+     - Click **Create Class**, enter Name: `Grade 12`, Code: `G12`. Submit.
+  4. Open `/classes/[id]` for Grade 12:
+     - Click **Add Section**, enter Name: `Section A`, Room: `Room 201`, Capacity: `30`.
+- **Expected Result**: Academic year, class, and section entities are created and isolated by school.
+
+---
+
+## Test Scenario F: Faculty Assignment & Student Class Enrollment
+- **URL**: `http://localhost:3000/classes/[id]`
+- **Steps**:
+  1. As School Admin, open `Grade 10` details at `/classes/[id]`.
+  2. Switch to **Faculty Assignments** tab:
+     - Verify `Marcus Holloway` is assigned to `Advanced Mathematics` and `AP Physics`.
+  3. Switch to **Enrolled Students** tab:
+     - Verify `Liam Chen` is enrolled with Roll # `1001`.
+     - Click **Enroll Student**, select another student from dropdown, enter Roll # `1002`, submit.
+- **Expected Result**: Students are enrolled and faculty members are assigned to specific sections with atomic database transactions.
+
+---
+
+## Test Scenario G: Weekly Timetable Creation
+- **URL**: `http://localhost:3000/timetable`
+- **Steps**:
+  1. As School Admin, navigate to `/timetable`.
+  2. Filter by `Grade 10 - Section A`.
+  3. View the 5-day schedule grid (Monday through Friday).
+  4. Click **+ Add Period**:
+     - Day: `WEDNESDAY`
+     - Subject: `World Literature`
+     - Teacher: `Marcus Holloway`
+     - Start Time: `14:00`
+     - End Time: `14:50`
+     - Room: `Room 101`
+  5. Click **Create Schedule Entry**.
+- **Expected Result**: Period card appears on Wednesday at 14:00 in Section A's timetable grid.
+
+---
+
+## Test Scenario H: Scheduling Conflict Prevention Engine
+- **URL**: `http://localhost:3000/timetable`
+- **Steps**:
+  1. While viewing `/timetable`, click **+ Add Period**.
+  2. **Test Teacher Overlap**:
+     - Attempt to schedule `Marcus Holloway` on `MONDAY` from `08:30` to `09:20` in `Section B`.
+     - (Note: Marcus is already teaching Advanced Mathematics in Section A at this exact time).
+     - Click **Create Schedule Entry**.
+     - Verify error toast/alert: **"Scheduling conflict: Teacher is already scheduled for another class during this time period."**
+  3. **Test Section Overlap**:
+     - Attempt to schedule a second subject for `Section A` on `MONDAY` from `08:30` to `09:20`.
+     - Verify error: **"Scheduling conflict: This section already has a class scheduled during this time period."**
+  4. **Test Room Overlap**:
+     - Attempt to schedule `Section B` in `Room 101` on `MONDAY` from `08:30` to `09:20`.
+     - Verify error: **"Scheduling conflict: Room 101 is already booked during this time period."**
+- **Expected Result**: The engine strictly enforces all 3 scheduling collision constraints and rejects conflicting entries.
+
+---
+
+## Test Scenario I: Teacher's Dedicated Timetable View
+- **URL**: `http://localhost:3000/timetable`
+- **Steps**:
+  1. Log in as **Teacher** (`teacher@stjude.ems.local` / `Password123!`).
+  2. Navigate to `http://localhost:3000/timetable`.
+  3. Verify the view defaults to Marcus Holloway's assigned teaching schedule across all classes.
+  4. Notice the **+ Add Period** and schedule edit/delete controls are hidden.
+- **Expected Result**: Teachers have a clear read-only view of their weekly commitments across all sections.
+
+---
+
+## Test Scenario J: Student's Dedicated Timetable View
+- **URL**: `http://localhost:3000/timetable`
+- **Steps**:
+  1. Log in as **Student** (`student@stjude.ems.local` / `Password123!`).
+  2. Navigate to `http://localhost:3000/timetable`.
+  3. Verify the schedule shows only Liam Chen's enrolled Section A classes:
+     - Monday 08:30: Advanced Mathematics
+     - Monday 09:30: AP Physics
+     - Tuesday 08:30: Advanced Mathematics
+     - etc.
+  4. Administrative controls are hidden.
+- **Expected Result**: Student sees their personalized timetable according to section enrollment.
+
+---
+
+## Test Scenario K: Parent-Visible Child Timetable
+- **URL**: `http://localhost:3000/parent/dashboard`
+- **Steps**:
+  1. Log in as **Parent** (`parent@stjude.ems.local` / `Password123!`).
+  2. Open `/parent/dashboard`.
+  3. Under **Weekly Academic Schedule**:
+     - Period cards display subject, assigned teacher, and room.
+     - Switch from Liam to Sophia; schedule dynamically updates to Sophia's Section B courses.
+- **Expected Result**: Verified parents have live access to their children's real schedules without leaking unlinked students.
+
+---
+
+## Test Scenario L: Cross-School Tenant Access Denial
+- **URL**: `http://localhost:3000/parents` & `http://localhost:3000/classes`
+- **Steps**:
+  1. Log in as **School Admin (School B)** (`admin@apex.ems.local` / `Password123!`).
+  2. Navigate to `/parents`.
+     - Verify St. Jude parents (Sarah Chen, David Chen) are NOT visible.
+  3. Navigate to `/classes`.
+     - Verify St. Jude classes (Grade 10, Grade 11) are NOT visible.
+  4. Try requesting a St. Jude class ID directly via API or URL.
+     - Receives 404 / 403 School Isolation error.
+- **Expected Result**: School isolation strictly maintained across all parent, academic, and timetable data.
+
+---
+
+## Test Scenario M: Mobile Responsiveness & Theme Testing
+- **URL**: `http://localhost:3000/parent/dashboard` & `http://localhost:3000/timetable`
+- **Steps**:
+  1. Toggle system theme from Light to Dark mode using the theme switcher.
+  2. Verify:
+     - Schedule grid contrast and readability.
+     - Cards, tables, badges, and modals have clean dark palette styling.
+  3. Open Developer Tools and toggle Mobile Device Emulation (e.g. iPhone 14 or Pixel 7, 390px width):
+     - Child switcher buttons wrap cleanly.
+     - Timetable switches to day tabs or horizontal scroll without horizontal page breakage.
+- **Expected Result**: Flawless responsive layout and dark/light contrast across desktop and mobile viewports.
+
+
 
 

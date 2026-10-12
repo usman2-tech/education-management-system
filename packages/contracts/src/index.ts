@@ -327,5 +327,355 @@ export interface TeacherListQuery {
   status?: string;
 }
 
+// ------------------------------------------------------------------------------
+// Parent & Guardian Management Contracts (TASK 006)
+// ------------------------------------------------------------------------------
+export enum GuardianRelationshipType {
+  MOTHER = 'MOTHER',
+  FATHER = 'FATHER',
+  LEGAL_GUARDIAN = 'LEGAL_GUARDIAN',
+  STEP_PARENT = 'STEP_PARENT',
+  OTHER = 'OTHER',
+}
+
+export enum RelationshipVerificationStatus {
+  VERIFIED = 'VERIFIED',
+  PENDING_VERIFICATION = 'PENDING_VERIFICATION',
+  REVOKED = 'REVOKED',
+}
+
+export interface ParentGuardianProfileDto {
+  id: string;
+  userId: string;
+  occupation?: string | null;
+  employer?: string | null;
+  relationshipToFamily?: string | null;
+  phoneAlt?: string | null;
+  address?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LinkedStudentDto {
+  id: string; // student user id
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatarUrl?: string | null;
+  admissionNumber?: string | null;
+  gradeLevel?: string | null;
+  schoolId?: string | null;
+  schoolName?: string | null;
+  relationshipId: string;
+  relationshipType: GuardianRelationshipType;
+  verificationStatus: RelationshipVerificationStatus;
+  isPrimaryContact: boolean;
+  isEmergencyContact: boolean;
+  notes?: string | null;
+  currentSection?: {
+    id: string;
+    name: string;
+    className: string;
+    roomNumber?: string | null;
+  } | null;
+}
+
+export interface ParentGuardianDto {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  isActive: boolean;
+  phone?: string | null;
+  avatarUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  schoolId?: string | null;
+  primarySchool?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
+  profile?: ParentGuardianProfileDto | null;
+  linkedStudents: LinkedStudentDto[];
+}
+
+export interface CreateParentRequest {
+  email: string;
+  password?: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  schoolId?: string;
+  occupation?: string;
+  employer?: string;
+  relationshipToFamily?: string;
+  phoneAlt?: string;
+  address?: string;
+}
+
+export interface UpdateParentRequest {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  occupation?: string;
+  employer?: string;
+  relationshipToFamily?: string;
+  phoneAlt?: string;
+  address?: string;
+}
+
+export interface LinkStudentRequest {
+  studentId: string;
+  relationshipType: GuardianRelationshipType;
+  isPrimaryContact?: boolean;
+  isEmergencyContact?: boolean;
+  notes?: string;
+}
+
+export interface VerifyRelationshipRequest {
+  verificationStatus: RelationshipVerificationStatus;
+  notes?: string;
+}
+
+export interface ParentListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  schoolId?: string;
+  status?: string;
+}
+
+export interface ParentDashboardSummaryDto {
+  parent: ParentGuardianDto;
+  students: LinkedStudentDto[];
+  activeAlertsCount: number;
+}
+
+// ------------------------------------------------------------------------------
+// Classes, Academic Structure & Timetable Contracts (TASK 007)
+// ------------------------------------------------------------------------------
+export enum EnrollmentStatus {
+  ACTIVE = 'ACTIVE',
+  WITHDRAWN = 'WITHDRAWN',
+  TRANSFERRED = 'TRANSFERRED',
+  COMPLETED = 'COMPLETED',
+}
+
+export interface AcademicYearDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  createdAt: string;
+  updatedAt: string;
+  sectionsCount?: number;
+}
+
+export interface CreateAcademicYearRequest {
+  schoolId?: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isCurrent?: boolean;
+}
+
+export interface UpdateAcademicYearRequest {
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+  isCurrent?: boolean;
+}
+
+export interface SchoolClassDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  code: string;
+  description?: string | null;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+  sectionsCount?: number;
+}
+
+export interface CreateSchoolClassRequest {
+  schoolId?: string;
+  name: string;
+  code: string;
+  description?: string;
+  order?: number;
+}
+
+export interface UpdateSchoolClassRequest {
+  name?: string;
+  description?: string;
+  order?: number;
+}
+
+export interface ClassSectionDto {
+  id: string;
+  classId: string;
+  className: string;
+  classCode: string;
+  academicYearId: string;
+  academicYearName: string;
+  name: string;
+  capacity: number;
+  roomNumber?: string | null;
+  classTeacherId?: string | null;
+  classTeacher?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+  enrolledStudentsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateClassSectionRequest {
+  classId: string;
+  academicYearId: string;
+  name: string;
+  capacity?: number;
+  roomNumber?: string;
+  classTeacherId?: string;
+}
+
+export interface UpdateClassSectionRequest {
+  name?: string;
+  capacity?: number;
+  roomNumber?: string;
+  classTeacherId?: string;
+}
+
+export interface SubjectDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  code: string;
+  department?: string | null;
+  credits: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSubjectRequest {
+  schoolId?: string;
+  name: string;
+  code: string;
+  department?: string;
+  credits?: number;
+}
+
+export interface UpdateSubjectRequest {
+  name?: string;
+  department?: string;
+  credits?: number;
+}
+
+export interface ClassEnrollmentDto {
+  id: string;
+  studentId: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    admissionNumber?: string | null;
+  };
+  sectionId: string;
+  academicYearId: string;
+  rollNumber?: string | null;
+  enrolledAt: string;
+  status: EnrollmentStatus;
+}
+
+export interface EnrollStudentRequest {
+  studentId: string;
+  rollNumber?: string;
+}
+
+export interface TeacherSubjectAssignmentDto {
+  id: string;
+  teacherId: string;
+  teacher: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  sectionId: string;
+  sectionName: string;
+  className: string;
+  academicYearId: string;
+}
+
+export interface AssignTeacherSubjectRequest {
+  teacherId: string;
+  subjectId: string;
+}
+
+export interface TimetableEntryDto {
+  id: string;
+  schoolId: string;
+  sectionId: string;
+  sectionName: string;
+  className: string;
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  teacherId: string;
+  teacherName: string;
+  teacherEmail: string;
+  academicYearId: string;
+  academicYearName: string;
+  dayOfWeek: number; // 1 (Mon) - 7 (Sun)
+  periodName: string;
+  startTime: string; // HH:mm
+  endTime: string;   // HH:mm
+  roomNumber?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTimetableEntryRequest {
+  sectionId: string;
+  subjectId: string;
+  teacherId: string;
+  academicYearId: string;
+  dayOfWeek: number;
+  periodName: string;
+  startTime: string;
+  endTime: string;
+  roomNumber?: string;
+}
+
+export interface UpdateTimetableEntryRequest {
+  subjectId?: string;
+  teacherId?: string;
+  dayOfWeek?: number;
+  periodName?: string;
+  startTime?: string;
+  endTime?: string;
+  roomNumber?: string;
+}
+
+export interface TimetableConflictDto {
+  hasConflict: boolean;
+  conflictType?: 'TEACHER_OVERLAP' | 'SECTION_OVERLAP' | 'ROOM_OVERLAP';
+  message?: string;
+  conflictingEntry?: TimetableEntryDto;
+}
+
+
 
 

@@ -320,7 +320,200 @@ async function main() {
   // 4. Also ensure Student and Parent test accounts exist for St. Jude Academy
   const stJude = await prisma.school.findUnique({ where: { code: 'st-jude' } });
   if (stJude) {
-    await prisma.user.upsert({
+    // 4.1 Academic Year
+    const academicYear = await prisma.academicYear.upsert({
+      where: { schoolId_name: { schoolId: stJude.id, name: '2026-2027 Academic Year' } },
+      update: { isCurrent: true },
+      create: {
+        schoolId: stJude.id,
+        name: '2026-2027 Academic Year',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2027-06-30'),
+        isCurrent: true,
+      },
+    });
+
+    // 4.2 School Classes
+    const class10 = await prisma.schoolClass.upsert({
+      where: { schoolId_code: { schoolId: stJude.id, code: 'G10' } },
+      update: {},
+      create: {
+        schoolId: stJude.id,
+        name: 'Grade 10',
+        code: 'G10',
+        description: 'Secondary Sophomore Level',
+        order: 10,
+      },
+    });
+
+    await prisma.schoolClass.upsert({
+      where: { schoolId_code: { schoolId: stJude.id, code: 'G11' } },
+      update: {},
+      create: {
+        schoolId: stJude.id,
+        name: 'Grade 11',
+        code: 'G11',
+        description: 'Secondary Junior Level',
+        order: 11,
+      },
+    });
+
+    // 4.3 Teacher user lookup
+    const teacherUser = await prisma.user.findUnique({ where: { email: 'teacher@stjude.ems.local' } });
+
+    // 4.4 Class Sections
+    const sectionA = await prisma.classSection.upsert({
+      where: {
+        classId_academicYearId_name: {
+          classId: class10.id,
+          academicYearId: academicYear.id,
+          name: 'Section A',
+        },
+      },
+      update: {},
+      create: {
+        classId: class10.id,
+        academicYearId: academicYear.id,
+        name: 'Section A',
+        capacity: 30,
+        roomNumber: 'Room 101',
+        classTeacherId: teacherUser?.id || null,
+      },
+    });
+
+    const sectionB = await prisma.classSection.upsert({
+      where: {
+        classId_academicYearId_name: {
+          classId: class10.id,
+          academicYearId: academicYear.id,
+          name: 'Section B',
+        },
+      },
+      update: {},
+      create: {
+        classId: class10.id,
+        academicYearId: academicYear.id,
+        name: 'Section B',
+        capacity: 28,
+        roomNumber: 'Room 102',
+      },
+    });
+
+    // 4.5 Subjects
+    const math = await prisma.subject.upsert({
+      where: { schoolId_code: { schoolId: stJude.id, code: 'MATH-101' } },
+      update: {},
+      create: {
+        schoolId: stJude.id,
+        name: 'Advanced Mathematics',
+        code: 'MATH-101',
+        department: 'Mathematics',
+        credits: 1.0,
+      },
+    });
+
+    const physics = await prisma.subject.upsert({
+      where: { schoolId_code: { schoolId: stJude.id, code: 'PHYS-101' } },
+      update: {},
+      create: {
+        schoolId: stJude.id,
+        name: 'AP Physics',
+        code: 'PHYS-101',
+        department: 'Natural Sciences',
+        credits: 1.0,
+      },
+    });
+
+    await prisma.subject.upsert({
+      where: { schoolId_code: { schoolId: stJude.id, code: 'ENG-101' } },
+      update: {},
+      create: {
+        schoolId: stJude.id,
+        name: 'World Literature & Composition',
+        code: 'ENG-101',
+        department: 'Humanities',
+        credits: 1.0,
+      },
+    });
+
+    // 4.6 Teacher Subject Assignments
+    if (teacherUser) {
+      await prisma.teacherSubjectAssignment.upsert({
+        where: {
+          teacherId_subjectId_sectionId_academicYearId: {
+            teacherId: teacherUser.id,
+            subjectId: math.id,
+            sectionId: sectionA.id,
+            academicYearId: academicYear.id,
+          },
+        },
+        update: {},
+        create: {
+          teacherId: teacherUser.id,
+          subjectId: math.id,
+          sectionId: sectionA.id,
+          academicYearId: academicYear.id,
+        },
+      });
+
+      await prisma.teacherSubjectAssignment.upsert({
+        where: {
+          teacherId_subjectId_sectionId_academicYearId: {
+            teacherId: teacherUser.id,
+            subjectId: physics.id,
+            sectionId: sectionA.id,
+            academicYearId: academicYear.id,
+          },
+        },
+        update: {},
+        create: {
+          teacherId: teacherUser.id,
+          subjectId: physics.id,
+          sectionId: sectionA.id,
+          academicYearId: academicYear.id,
+        },
+      });
+
+      // 4.7 Timetable Entries for Section A
+      const timetableData = [
+        { day: 1, period: 'Period 1', start: '08:30', end: '09:20', subjectId: math.id, room: 'Room 101' },
+        { day: 1, period: 'Period 2', start: '09:30', end: '10:20', subjectId: physics.id, room: 'Room 101' },
+        { day: 2, period: 'Period 1', start: '08:30', end: '09:20', subjectId: physics.id, room: 'Room 101' },
+        { day: 2, period: 'Period 2', start: '09:30', end: '10:20', subjectId: math.id, room: 'Room 101' },
+        { day: 3, period: 'Period 1', start: '08:30', end: '09:20', subjectId: math.id, room: 'Room 101' },
+        { day: 4, period: 'Period 2', start: '09:30', end: '10:20', subjectId: physics.id, room: 'Room 101' },
+        { day: 5, period: 'Period 1', start: '08:30', end: '09:20', subjectId: math.id, room: 'Room 101' },
+      ];
+
+      for (const t of timetableData) {
+        const existingEntry = await prisma.timetableEntry.findFirst({
+          where: {
+            sectionId: sectionA.id,
+            dayOfWeek: t.day,
+            periodName: t.period,
+          },
+        });
+        if (!existingEntry) {
+          await prisma.timetableEntry.create({
+            data: {
+              schoolId: stJude.id,
+              sectionId: sectionA.id,
+              subjectId: t.subjectId,
+              teacherId: teacherUser.id,
+              academicYearId: academicYear.id,
+              dayOfWeek: t.day,
+              periodName: t.period,
+              startTime: t.start,
+              endTime: t.end,
+              roomNumber: t.room,
+            },
+          });
+        }
+      }
+    }
+
+    // 4.8 Students
+    const student1 = await prisma.user.upsert({
       where: { email: 'student@stjude.ems.local' },
       update: { passwordHash, isActive: true },
       create: {
@@ -334,7 +527,74 @@ async function main() {
       },
     });
 
-    await prisma.user.upsert({
+    await prisma.studentProfile.upsert({
+      where: { userId: student1.id },
+      update: {},
+      create: {
+        userId: student1.id,
+        admissionNumber: 'STJ-2026-001',
+        gradeLevel: 'Grade 10',
+      },
+    });
+
+    await prisma.classEnrollment.upsert({
+      where: {
+        studentId_academicYearId: {
+          studentId: student1.id,
+          academicYearId: academicYear.id,
+        },
+      },
+      update: { sectionId: sectionA.id },
+      create: {
+        studentId: student1.id,
+        sectionId: sectionA.id,
+        academicYearId: academicYear.id,
+        rollNumber: '10A-01',
+      },
+    });
+
+    const student2 = await prisma.user.upsert({
+      where: { email: 'student2@stjude.ems.local' },
+      update: { passwordHash, isActive: true },
+      create: {
+        email: 'student2@stjude.ems.local',
+        passwordHash,
+        firstName: 'Sophia',
+        lastName: 'Chen',
+        role: UserRole.STUDENT,
+        schoolId: stJude.id,
+        isActive: true,
+      },
+    });
+
+    await prisma.studentProfile.upsert({
+      where: { userId: student2.id },
+      update: {},
+      create: {
+        userId: student2.id,
+        admissionNumber: 'STJ-2026-002',
+        gradeLevel: 'Grade 10',
+      },
+    });
+
+    await prisma.classEnrollment.upsert({
+      where: {
+        studentId_academicYearId: {
+          studentId: student2.id,
+          academicYearId: academicYear.id,
+        },
+      },
+      update: { sectionId: sectionB.id },
+      create: {
+        studentId: student2.id,
+        sectionId: sectionB.id,
+        academicYearId: academicYear.id,
+        rollNumber: '10B-05',
+      },
+    });
+
+    // 4.9 Parent Account & Relationships
+    const parentUser = await prisma.user.upsert({
       where: { email: 'parent@stjude.ems.local' },
       update: { passwordHash, isActive: true },
       create: {
@@ -344,9 +604,65 @@ async function main() {
         lastName: 'Chen',
         role: UserRole.PARENT,
         schoolId: stJude.id,
+        phone: '+1-555-019-4411',
         isActive: true,
       },
     });
+
+    await prisma.parentGuardianProfile.upsert({
+      where: { userId: parentUser.id },
+      update: {},
+      create: {
+        userId: parentUser.id,
+        occupation: 'Senior Systems Architect',
+        employer: 'Pacific Aerospace',
+        relationshipToFamily: 'Mother',
+        phoneAlt: '+1-555-019-4412',
+        address: '88 Evergreen Terrace, Seattle, WA',
+      },
+    });
+
+    // Link Parent to Child 1 (Liam) - VERIFIED
+    await prisma.studentGuardianRelationship.upsert({
+      where: {
+        guardianId_studentId: {
+          guardianId: parentUser.id,
+          studentId: student1.id,
+        },
+      },
+      update: { verificationStatus: 'VERIFIED' },
+      create: {
+        guardianId: parentUser.id,
+        studentId: student1.id,
+        relationshipType: 'MOTHER',
+        verificationStatus: 'VERIFIED',
+        isPrimaryContact: true,
+        isEmergencyContact: true,
+        notes: 'Primary legal guardian and emergency respondent.',
+      },
+    });
+
+    // Link Parent to Child 2 (Sophia) - VERIFIED
+    await prisma.studentGuardianRelationship.upsert({
+      where: {
+        guardianId_studentId: {
+          guardianId: parentUser.id,
+          studentId: student2.id,
+        },
+      },
+      update: { verificationStatus: 'VERIFIED' },
+      create: {
+        guardianId: parentUser.id,
+        studentId: student2.id,
+        relationshipType: 'MOTHER',
+        verificationStatus: 'VERIFIED',
+        isPrimaryContact: true,
+        isEmergencyContact: true,
+        notes: 'Primary legal guardian and emergency respondent.',
+      },
+    });
+
+    console.log(`  - Parent Sarah Chen linked to Liam Chen & Sophia Chen (VERIFIED)`);
   }
 
   console.log('--- Institutional Fixtures Seeding Complete ---');

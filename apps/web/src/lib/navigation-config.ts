@@ -30,8 +30,11 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'Overview', href: '/', icon: 'LayoutDashboard', description: 'Platform operations & status' },
         { title: 'Schools Directory', href: '/schools', icon: 'Building2', description: 'Manage institutional tenants' },
         { title: 'Teachers & Faculty', href: '/teachers', icon: 'Briefcase', description: 'Cross-school faculty directory' },
-        { title: 'System Accounts', href: '/users', icon: 'Users', description: 'Cross-school identity directory' },
-        { title: 'Subscriptions', href: '/subscriptions', icon: 'CreditCard', description: 'License tiers and activation' },
+        { title: 'Parents Directory', href: '/parents', icon: 'UserCheck', description: 'Guardian linkages & contacts' },
+        { title: 'Classes & Sections', href: '/classes', icon: 'BookOpen', description: 'Curriculum & class rosters' },
+        { title: 'Academic Years', href: '/academic-years', icon: 'Calendar', description: 'Institutional terms & calendars' },
+        { title: 'Subjects', href: '/subjects', icon: 'FileText', description: 'Courses & departments' },
+        { title: 'Timetable Schedules', href: '/timetable', icon: 'Clock', description: 'Master institutional schedules' },
       ],
     },
     {
@@ -53,15 +56,16 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'Students', href: '/students', icon: 'GraduationCap', description: 'Enrollment & student profiles' },
         { title: 'Teachers & Faculty', href: '/teachers', icon: 'Briefcase', description: 'Staff assignments & directory' },
         { title: 'Parents Directory', href: '/parents', icon: 'UserCheck', description: 'Guardian linkages & contacts' },
+        { title: 'Academic Years', href: '/academic-years', icon: 'Calendar', description: 'Institutional terms & dates' },
         { title: 'Classes & Sections', href: '/classes', icon: 'BookOpen', description: 'Curriculum & room allocations' },
+        { title: 'Subjects', href: '/subjects', icon: 'FileText', description: 'Courses & credits' },
+        { title: 'Timetable Schedules', href: '/timetable', icon: 'Clock', description: 'Master weekly schedules' },
       ],
     },
     {
       title: 'Operations & Records',
       items: [
-        { title: 'Timetable Schedules', href: '/timetable', icon: 'Calendar', description: 'Master institutional schedules' },
         { title: 'Attendance Oversight', href: '/attendance', icon: 'Clock', description: 'Daily attendance logs & trends' },
-        { title: 'Examinations', href: '/exams', icon: 'FileText', description: 'Academic terms & assessments' },
         { title: 'Campus Bulletins', href: '/announcements', icon: 'Megaphone', description: 'Official broadcast messages' },
       ],
     },
@@ -72,18 +76,9 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       title: 'Teaching Workspace',
       items: [
         { title: 'Teacher Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Class schedule & daily agenda' },
-        { title: 'My Faculty Profile', href: '/my-profile', icon: 'UserCheck', description: 'Personal credentials & assignments' },
-        { title: 'My Classes', href: '/my-classes', icon: 'BookOpen', description: 'Assigned sections and rosters' },
+        { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Personal teaching timetable' },
+        { title: 'Classes & Sections', href: '/classes', icon: 'BookOpen', description: 'Assigned sections and rosters' },
         { title: 'Daily Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Record student attendance' },
-        { title: 'Gradebook', href: '/gradebook', icon: 'Award', description: 'Term marks and grading' },
-        { title: 'Homework & Content', href: '/homework', icon: 'FileSpreadsheet', description: 'Assignments & courseware' },
-      ],
-    },
-    {
-      title: 'Collaboration & AI',
-      items: [
-        { title: 'AI Teaching Assistant', href: '/ai-assistant', icon: 'Sparkles', badge: 'AI', description: 'Lesson summaries & planning' },
-        { title: 'Messages', href: '/messages', icon: 'MessageSquare', description: 'Direct parent & student messaging' },
       ],
     },
   ],
@@ -93,17 +88,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       title: 'Learning Portal',
       items: [
         { title: 'Student Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Classes, deadlines & updates' },
-        { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Daily timetable & classrooms' },
-        { title: 'Courses & Lessons', href: '/courses', icon: 'BookOpen', description: 'Syllabus and learning materials' },
-        { title: 'Assignments', href: '/homework', icon: 'FileText', description: 'Active and graded submissions' },
-        { title: 'Exams & Marks', href: '/grades', icon: 'Award', description: 'Report cards & test scores' },
-      ],
-    },
-    {
-      title: 'Support & AI',
-      items: [
-        { title: 'AI Personal Tutor', href: '/ai-tutor', icon: 'Bot', badge: 'AI', description: 'Curriculum study assistant' },
-        { title: 'Student Messages', href: '/messages', icon: 'MessageSquare', description: 'Teacher communication' },
+        { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Class timetable & room numbers' },
       ],
     },
   ],
@@ -112,17 +97,9 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
     {
       title: 'Family Portal',
       items: [
-        { title: 'Parent Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Children overview & updates' },
-        { title: 'Children Profiles', href: '/children', icon: 'Users', description: 'Academic records & classes' },
-        { title: 'Attendance Record', href: '/attendance', icon: 'Clock', description: 'Check-in & absence reports' },
-        { title: 'Academic Progress', href: '/grades', icon: 'Award', description: 'Term marks & teacher feedback' },
-      ],
-    },
-    {
-      title: 'Communication',
-      items: [
-        { title: 'School Notices', href: '/announcements', icon: 'Bell', description: 'Official school broadcasts' },
-        { title: 'Teacher Chat', href: '/messages', icon: 'MessageSquare', description: 'Direct dialogue with teachers' },
+        { title: 'Parent Dashboard', href: '/parent/dashboard', icon: 'LayoutDashboard', description: 'Children overview & updates' },
+        { title: 'My Children', href: '/parent/children', icon: 'Users', description: 'Academic records & classes' },
+        { title: 'Children Timetable', href: '/timetable', icon: 'Calendar', description: 'Verified child class schedule' },
       ],
     },
   ],
