@@ -35,7 +35,7 @@ export const loadConfig = (): AppConfig => {
   const logLevel = process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug');
   const databaseUrl =
     process.env.DATABASE_URL ||
-    'postgresql://postgres:postgres@127.0.0.1:5432/ems_database?schema=public';
+    'postgresql://postgres:postgres@127.0.0.1:5433/ems_database?schema=public';
   const redisHost = process.env.REDIS_HOST || '127.0.0.1';
   const redisPort = parseInt(process.env.REDIS_PORT || '6379', 10);
   const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';

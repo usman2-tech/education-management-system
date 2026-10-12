@@ -9,7 +9,8 @@ Feature lifecycle states:
 
 | Task ID | Module / Feature | Status | Branch | Commit | Approved Date |
 |---|---|---|---|---|---|
-| **TASK-001** | Project Initialization, Architecture, UI Foundation & GitHub Setup | **AWAITING MANUAL TEST** | `feature/TASK-001-foundation` | Pending push | Awaiting User Approval |
+| **TASK-001** | Project Initialization, Architecture, UI Foundation & GitHub Setup | **APPROVED / STABILIZING** | `feature/TASK-001-foundation` | `76f10a4` | Verified |
+| **TASK-001.1** | Infrastructure Stabilization (PostgreSQL 18 & Redis) | **AWAITING MANUAL TEST** | `feature/TASK-001-foundation` | Pending push | Awaiting User Approval |
 | **TASK-002** | Authentication, Multi-Tenant Session & RBAC Engine | `PLANNED` | — | — | — |
 | **TASK-003** | Multi-School Administration & Academic Calendar | `PLANNED` | — | — | — |
 | **TASK-004** | Teacher & Staff Management | `PLANNED` | — | — | — |

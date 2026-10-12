@@ -55,3 +55,14 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 *.log
+
+# Local Infrastructure Data & Binaries
+infrastructure/postgres/data/
+infrastructure/postgres/*.log
+infrastructure/redis/*.exe
+infrastructure/redis/*.dll
+infrastructure/redis/*.pdb
+infrastructure/redis/dump.rdb
+dump.rdb
+*.rdb
+

@@ -84,16 +84,25 @@ pip install -r requirements.txt
 cd ../..
 ```
 
-### 3. Start Database & Redis (Docker)
+### 3. Start Database & Redis
+**Native Windows Setup (Default):**
+```powershell
+# Start Redis (Port 6379)
+& "infrastructure\redis\redis-server.exe" "infrastructure\redis\redis.windows.conf"
+
+# Start Dedicated PostgreSQL Instance (Port 5433 - conflict-free)
+& "C:\Program Files\PostgreSQL\18\bin\postgres.exe" -D "infrastructure/postgres/data" -p 5433
+```
+
+**Docker Compose Setup (Alternative when Docker is available):**
 ```bash
 docker compose -f infrastructure/docker/docker-compose.yml up -d
 ```
-*(If you have a native PostgreSQL service on port 5432, ensure credentials in `.env` match your local service).*
 
-### 4. Build Shared Contracts & Generate Prisma Client
+### 4. Build Shared Contracts & Push Prisma Schema
 ```bash
 npm run build:packages
-npm run prisma:generate --workspace=apps/api
+npx prisma db push --schema=apps/api/prisma/schema.prisma
 ```
 
 ### 5. Launch Development Services
