@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # ==============================================================================
+  # Primary PostgreSQL Database with pgvector extension support
+  # ==============================================================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ems-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ems_database}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ems_database}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ems-network
+
+  # ==============================================================================
+  # Redis - High-Performance Cache, Socket.IO adapter, and BullMQ task queues
+  # ==============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: ems-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ems-network
+
+networks:
+  ems-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

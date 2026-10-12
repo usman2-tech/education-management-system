@@ -1,0 +1,45 @@
+// ==============================================================================
+// PRISMA SCHEMA - EDUCATIONAL MANAGEMENT SYSTEM (EMS)
+// ==============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+// ------------------------------------------------------------------------------
+// Foundational System Health & Audit Model (Used in Task 001 verification)
+// ------------------------------------------------------------------------------
+model SystemHealthCheck {
+  id        String   @id @default(uuid())
+  service   String
+  status    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@map("system_health_checks")
+}
+
+// ------------------------------------------------------------------------------
+// Enums for Role-Based Access Control and Institutional Tenancy (Task 002 Ready)
+// ------------------------------------------------------------------------------
+enum UserRole {
+  PLATFORM_ADMIN
+  SCHOOL_ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum SchoolStatus {
+  ACTIVE
+  PENDING_VERIFICATION
+  SUSPENDED
+  INACTIVE
+}
