@@ -11,7 +11,7 @@
 | **TASK 010** | Homework & Learning Content | COMPLETED | `feat(homework)` | Assignments, submissions, late detection, grading, parent visibility |
 | **TASK 011** | Course Management | COMPLETED | `feat(courses)` | Catalogs, modules, lessons, tracking, entitlements |
 | **TASK 012** | Examinations & Assessments | COMPLETED | `feat(exams)` | Scheduling, timed test taking, objective auto-grading, manual evaluation, gradebook sync |
-| **TASK 013** | Subscription Management | PLANNED | Pending | Plan CRUD, school subscriptions, fixed 404 admin route |
+| **TASK 013** | Subscription Management | COMPLETED | `feat(subscriptions)` | Plan CRUD, school subscriptions, fixed 404 route, entitlements, renewals |
 | **TASK 014** | Subscription Codes & Redemption | PLANNED | Pending | Bulk generation, redemption, rate limits, history |
 | **TASK 015** | Notifications & Messaging | PLANNED | Pending | Alerts, threads, in-app notification center |
 | **TASK 016** | Complete Dashboards & Visualization | PLANNED | Pending | 5 role-based dashboards with real database aggregates |
