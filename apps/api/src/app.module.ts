@@ -24,6 +24,7 @@ import { CoursesModule } from './modules/courses/courses.module';
 import { ExamsModule } from './modules/exams/exams.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { SubscriptionCodesModule } from './modules/subscription-codes/subscription-codes.module';
+import { CommunicationsModule } from './modules/communications/communications.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { SubscriptionCodesModule } from './modules/subscription-codes/subscripti
     ExamsModule,
     SubscriptionsModule,
     SubscriptionCodesModule,
+    CommunicationsModule,
   ],
 })
 export class AppModule {}
