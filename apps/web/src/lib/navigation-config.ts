@@ -71,6 +71,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       items: [
         { title: 'Grades & Assessments', href: '/grades', icon: 'Award', description: 'Assessments, gradebook & scales' },
         { title: 'Academic Reports', href: '/grades/reports', icon: 'FileSpreadsheet', description: 'Class analytics & distributions' },
+        { title: 'Homework & Tasks', href: '/homework', icon: 'FileText', description: 'Curriculum tasks & completion stats' },
         { title: 'Attendance Register', href: '/attendance', icon: 'CheckSquare', description: 'Daily attendance logs & sessions' },
         { title: 'Attendance Reports', href: '/attendance/reports', icon: 'FileSpreadsheet', description: 'Institutional attendance analytics' },
         { title: 'NFC Gate Simulator', href: '/attendance/nfc-simulator', icon: 'Radio', description: 'Simulate student badge scans' },
@@ -86,6 +87,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'Teacher Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Class schedule & daily agenda' },
         { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Personal teaching timetable' },
         { title: 'Classes & Sections', href: '/classes', icon: 'BookOpen', description: 'Assigned sections and rosters' },
+        { title: 'Homework & Tasks', href: '/homework', icon: 'FileText', description: 'Assign tasks & review submissions' },
         { title: 'Gradebook & Exams', href: '/grades', icon: 'Award', description: 'Enter marks & publish results' },
         { title: 'Daily Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Record student attendance' },
         { title: 'NFC Gate Scanner', href: '/attendance/nfc-simulator', icon: 'Radio', description: 'Classroom gate scanner' },
@@ -99,6 +101,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       items: [
         { title: 'Student Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Classes, deadlines & updates' },
         { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Class timetable & room numbers' },
+        { title: 'My Homework', href: '/homework', icon: 'FileText', description: 'Assignments, submissions & grades' },
         { title: 'My Report Card', href: '/grades', icon: 'Award', description: 'View assessments, GPA & feedback' },
         { title: 'My Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Personal attendance records' },
       ],
@@ -112,6 +115,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'Parent Dashboard', href: '/parent/dashboard', icon: 'LayoutDashboard', description: 'Children overview & updates' },
         { title: 'My Children', href: '/parent/children', icon: 'Users', description: 'Academic records & classes' },
         { title: 'Children Grades', href: '/grades', icon: 'Award', description: 'Verified child gradebook & progress' },
+        { title: 'Children Homework', href: '/homework', icon: 'FileText', description: 'Track assignments & teacher feedback' },
         { title: 'Children Timetable', href: '/timetable', icon: 'Calendar', description: 'Verified child class schedule' },
         { title: 'Child Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Verified child attendance logs' },
       ],

@@ -103,6 +103,61 @@ enum AssessmentStatus {
   PUBLISHED
 }
 
+enum HomeworkStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum HomeworkSubmissionStatus {
+  PENDING
+  SUBMITTED
+  LATE
+  GRADED
+  RESUBMISSION_REQUESTED
+}
+
+enum ExamStatus {
+  DRAFT
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  RESULTS_PUBLISHED
+}
+
+enum ExamQuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  ESSAY
+}
+
+enum ExamAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  CANCELLED
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  HOMEWORK
+  EXAM
+  GRADE
+  ATTENDANCE
+  SUBSCRIPTION
+  ANNOUNCEMENT
+}
+
 // ------------------------------------------------------------------------------
 // Core Multi-Tenant Institutional Models
 // ------------------------------------------------------------------------------
@@ -135,6 +190,14 @@ model School {
   assessmentCategories AssessmentCategory[]
   assessments         Assessment[]
   gradingScales       GradingScale[]
+  homeworks           Homework[]
+  courses             Course[]
+  exams               Exam[]
+  subscriptions       SchoolSubscription[]
+  subscriptionCodes   SubscriptionCode[]
+  codeRedemptions     CodeRedemption[]
+  notifications       Notification[]
+  conversations       Conversation[]
 
   @@map("schools")
 }
@@ -199,6 +262,30 @@ model User {
   createdAssessments          Assessment[]         @relation("AssessmentCreator")
   studentGrades               StudentGrade[]       @relation("GradeStudent")
   markedGrades                StudentGrade[]       @relation("GradeMarker")
+
+  // Homework & Content (TASK 010)
+  createdHomeworks            Homework[]             @relation("HomeworkTeacher")
+  homeworkSubmissions         HomeworkSubmission[]   @relation("SubmissionStudent")
+  gradedHomeworkSubmissions   HomeworkSubmission[]   @relation("SubmissionGrader")
+
+  // Courses (TASK 011)
+  createdCourses              Course[]               @relation("CourseCreator")
+  courseEnrollments           CourseEnrollment[]     @relation("CourseStudent")
+  lessonProgress              LessonProgress[]       @relation("LessonStudent")
+
+  // Exams (TASK 012)
+  createdExams                Exam[]                 @relation("ExamCreator")
+  examAttempts                ExamAttempt[]          @relation("ExamStudent")
+  gradedExamAttempts          ExamAttempt[]          @relation("ExamGrader")
+
+  // Subscriptions & Codes (TASKS 013 & 014)
+  createdSubscriptionCodes    SubscriptionCode[]     @relation("CodeCreator")
+  codeRedemptions             CodeRedemption[]       @relation("CodeRedeemer")
+
+  // Notifications & Messaging (TASK 015)
+  notifications               Notification[]         @relation("NotificationUser")
+  conversationParticipants    ConversationParticipant[] @relation("ConversationUser")
+  sentDirectMessages          DirectMessage[]        @relation("MessageSender")
 
   @@index([schoolId])
   @@index([email])
@@ -296,6 +383,8 @@ model AcademicYear {
   attendanceSessions        AttendanceSession[]
   assessmentCategories      AssessmentCategory[]
   assessments               Assessment[]
+  homeworks                 Homework[]
+  exams                     Exam[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -339,6 +428,8 @@ model ClassSection {
   timetableEntries          TimetableEntry[]
   attendanceSessions        AttendanceSession[]
   assessments               Assessment[]
+  homeworks                 Homework[]
+  exams                     Exam[]
 
   @@unique([classId, academicYearId, name])
   @@index([classId])
@@ -361,6 +452,9 @@ model Subject {
   timetableEntries          TimetableEntry[]
   assessmentCategories      AssessmentCategory[]
   assessments               Assessment[]
+  homeworks                 Homework[]
+  courses                   Course[]
+  exams                     Exam[]
 
   @@unique([schoolId, code])
   @@index([schoolId])
@@ -648,6 +742,401 @@ model GradingScale {
   @@index([schoolId])
   @@index([minimumPercentage, maximumPercentage])
   @@map("grading_scales")
+}
+
+// ------------------------------------------------------------------------------
+// Homework & Learning Content Models (TASK 010)
+// ------------------------------------------------------------------------------
+model Homework {
+  id             String           @id @default(uuid())
+  schoolId       String
+  school         School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYearId String?
+  academicYear   AcademicYear?    @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  classSectionId String
+  classSection   ClassSection     @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subjectId      String
+  subject        Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacherId      String
+  teacher        User             @relation("HomeworkTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  title          String
+  instructions   String           @db.Text
+  dueDate        DateTime
+  maxPoints      Float            @default(100.0)
+  status         HomeworkStatus   @default(DRAFT)
+  attachments    String?          // JSON string or URL
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  submissions    HomeworkSubmission[]
+
+  @@index([schoolId])
+  @@index([classSectionId, subjectId])
+  @@index([teacherId])
+  @@index([dueDate])
+  @@map("homeworks")
+}
+
+model HomeworkSubmission {
+  id           String                   @id @default(uuid())
+  homeworkId   String
+  homework     Homework                 @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User                     @relation("SubmissionStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  content      String?                  @db.Text
+  attachments  String?                  // JSON string or URL
+  status       HomeworkSubmissionStatus @default(SUBMITTED)
+  submittedAt  DateTime                 @default(now())
+  isLate       Boolean                  @default(false)
+  grade        Float?
+  feedback     String?                  @db.Text
+  gradedById   String?
+  gradedBy     User?                    @relation("SubmissionGrader", fields: [gradedById], references: [id], onDelete: SetNull)
+  gradedAt     DateTime?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@unique([homeworkId, studentId])
+  @@index([studentId])
+  @@index([homeworkId])
+  @@map("homework_submissions")
+}
+
+// ------------------------------------------------------------------------------
+// Course Management Models (TASK 011)
+// ------------------------------------------------------------------------------
+model Course {
+  id           String             @id @default(uuid())
+  schoolId     String
+  school       School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subjectId    String?
+  subject      Subject?           @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  title        String
+  code         String
+  description  String?            @db.Text
+  thumbnailUrl String?
+  published    Boolean            @default(false)
+  createdById  String
+  createdBy    User               @relation("CourseCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  modules      CourseModule[]
+  enrollments  CourseEnrollment[]
+
+  @@unique([schoolId, code])
+  @@index([schoolId])
+  @@index([subjectId])
+  @@map("courses")
+}
+
+model CourseModule {
+  id          String         @id @default(uuid())
+  courseId    String
+  course      Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?        @db.Text
+  order       Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  lessons     CourseLesson[]
+
+  @@index([courseId])
+  @@map("course_modules")
+}
+
+model CourseLesson {
+  id              String           @id @default(uuid())
+  moduleId        String
+  module          CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title           String
+  content         String           @db.Text
+  videoUrl        String?
+  attachments     String?
+  order           Int              @default(0)
+  durationMinutes Int              @default(30)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  progress        LessonProgress[]
+
+  @@index([moduleId])
+  @@map("course_lessons")
+}
+
+model CourseEnrollment {
+  id          String           @id @default(uuid())
+  courseId    String
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User             @relation("CourseStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  enrolledAt  DateTime         @default(now())
+  status      EnrollmentStatus @default(ACTIVE)
+  completedAt DateTime?
+
+  @@unique([courseId, studentId])
+  @@index([studentId])
+  @@index([courseId])
+  @@map("course_enrollments")
+}
+
+model LessonProgress {
+  id          String       @id @default(uuid())
+  lessonId    String
+  lesson      CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User         @relation("LessonStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  isCompleted Boolean      @default(true)
+  completedAt DateTime     @default(now())
+
+  @@unique([lessonId, studentId])
+  @@index([studentId])
+  @@index([lessonId])
+  @@map("lesson_progress")
+}
+
+// ------------------------------------------------------------------------------
+// Exam Management Models (TASK 012)
+// ------------------------------------------------------------------------------
+model Exam {
+  id              String         @id @default(uuid())
+  schoolId        String
+  school          School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYearId  String?
+  academicYear    AcademicYear?  @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  classSectionId  String
+  classSection    ClassSection   @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subjectId       String
+  subject         Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdBy       User           @relation("ExamCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  title           String
+  description     String?        @db.Text
+  examDate        DateTime
+  startTime       String?
+  endTime         String?
+  durationMinutes Int            @default(60)
+  totalMarks      Float
+  passingMarks    Float          @default(40.0)
+  status          ExamStatus     @default(DRAFT)
+  assessmentId    String?        // Link to Assessment in Task 009
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  questions       ExamQuestion[]
+  attempts        ExamAttempt[]
+
+  @@index([schoolId])
+  @@index([classSectionId, subjectId])
+  @@index([examDate])
+  @@map("exams")
+}
+
+model ExamQuestion {
+  id            String               @id @default(uuid())
+  examId        String
+  exam          Exam                 @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questionText  String               @db.Text
+  questionType  ExamQuestionType     @default(MULTIPLE_CHOICE)
+  options       String?              @db.Text // JSON string array of choices for MCQ
+  correctAnswer String?              @db.Text // Answer string for auto-marking
+  marks         Float                @default(5.0)
+  order         Int                  @default(0)
+
+  answers       ExamStudentAnswer[]
+
+  @@index([examId])
+  @@map("exam_questions")
+}
+
+model ExamAttempt {
+  id            String              @id @default(uuid())
+  examId        String
+  exam          Exam                @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       User                @relation("ExamStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  startedAt     DateTime            @default(now())
+  submittedAt   DateTime?
+  status        ExamAttemptStatus   @default(IN_PROGRESS)
+  obtainedMarks Float?
+  percentage    Float?
+  feedback      String?             @db.Text
+  gradedById    String?
+  gradedBy      User?               @relation("ExamGrader", fields: [gradedById], references: [id], onDelete: SetNull)
+  gradedAt      DateTime?
+
+  answers       ExamStudentAnswer[]
+
+  @@unique([examId, studentId])
+  @@index([studentId])
+  @@index([examId])
+  @@map("exam_attempts")
+}
+
+model ExamStudentAnswer {
+  id              String       @id @default(uuid())
+  attemptId       String
+  attempt         ExamAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId      String
+  question        ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerText      String       @db.Text
+  isCorrect       Boolean?
+  awardedMarks    Float?
+  teacherFeedback String?      @db.Text
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@index([questionId])
+  @@map("exam_student_answers")
+}
+
+// ------------------------------------------------------------------------------
+// Subscription Management & Codes Models (TASKS 013 & 014)
+// ------------------------------------------------------------------------------
+model SubscriptionPlan {
+  id           String               @id @default(uuid())
+  name         String
+  code         String               @unique
+  description  String?              @db.Text
+  price        Float                @default(0.0)
+  currency     String               @default("USD")
+  durationDays Int                  @default(365)
+  maxStudents  Int                  @default(500)
+  maxTeachers  Int                  @default(50)
+  features     String?              @db.Text // JSON string of features
+  isActive     Boolean              @default(true)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  subscriptions SchoolSubscription[]
+  codes         SubscriptionCode[]
+
+  @@map("subscription_plans")
+}
+
+model SchoolSubscription {
+  id        String             @id @default(uuid())
+  schoolId  String
+  school    School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  planId    String
+  plan      SubscriptionPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  status    SubscriptionStatus @default(ACTIVE)
+  startDate DateTime           @default(now())
+  endDate   DateTime
+  autoRenew Boolean            @default(false)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([schoolId])
+  @@index([planId])
+  @@index([status])
+  @@map("school_subscriptions")
+}
+
+model SubscriptionCode {
+  id             String           @id @default(uuid())
+  code           String           @unique
+  planId         String
+  plan           SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  schoolId       String?
+  school         School?          @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  maxRedemptions Int              @default(1)
+  timesRedeemed  Int              @default(0)
+  expiresAt      DateTime
+  isRevoked      Boolean          @default(false)
+  createdById    String
+  createdBy      User             @relation("CodeCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  redemptions    CodeRedemption[]
+
+  @@index([code])
+  @@index([planId])
+  @@index([schoolId])
+  @@map("subscription_codes")
+}
+
+model CodeRedemption {
+  id         String           @id @default(uuid())
+  codeId     String
+  code       SubscriptionCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User             @relation("CodeRedeemer", fields: [userId], references: [id], onDelete: Cascade)
+  schoolId   String
+  school     School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  redeemedAt DateTime         @default(now())
+
+  @@index([codeId])
+  @@index([userId])
+  @@index([schoolId])
+  @@map("code_redemptions")
+}
+
+// ------------------------------------------------------------------------------
+// Notifications & Messaging Models (TASK 015)
+// ------------------------------------------------------------------------------
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  schoolId  String?
+  school    School?          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  title     String
+  message   String           @db.Text
+  type      NotificationType @default(INFO)
+  read      Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+  @@index([schoolId])
+  @@map("notifications")
+}
+
+model Conversation {
+  id            String                    @id @default(uuid())
+  schoolId      String
+  school        School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subject       String?
+  lastMessageAt DateTime                  @default(now())
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  participants  ConversationParticipant[]
+  messages      DirectMessage[]
+
+  @@index([schoolId])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation("ConversationUser", fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+  @@map("conversation_participants")
+}
+
+model DirectMessage {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("direct_messages")
 }
 
 

@@ -1159,6 +1159,684 @@ export interface ClassAcademicReportDto {
 
 export type ClassPerformanceReportDto = ClassAcademicReportDto;
 
+// ==============================================================================
+// TASK 010 — HOMEWORK & LEARNING CONTENT CONTRACTS
+// ==============================================================================
+export type HomeworkStatus = 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'ARCHIVED';
+export type HomeworkSubmissionStatus = 'PENDING' | 'SUBMITTED' | 'LATE' | 'GRADED' | 'RESUBMISSION_REQUESTED';
+
+export interface HomeworkDto {
+  id: string;
+  schoolId: string;
+  academicYearId?: string | null;
+  classSectionId: string;
+  className?: string;
+  sectionName?: string;
+  subjectId: string;
+  subjectName?: string;
+  subjectCode?: string;
+  teacherId: string;
+  teacherName?: string;
+  title: string;
+  instructions: string;
+  dueDate: string;
+  maxPoints: number;
+  status: HomeworkStatus;
+  attachments?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  totalSubmissions?: number;
+  gradedSubmissions?: number;
+}
+
+export interface CreateHomeworkDto {
+  classSectionId: string;
+  subjectId: string;
+  title: string;
+  instructions: string;
+  dueDate: string;
+  maxPoints?: number;
+  status?: HomeworkStatus;
+  attachments?: string;
+  academicYearId?: string;
+}
+
+export interface UpdateHomeworkDto {
+  title?: string;
+  instructions?: string;
+  dueDate?: string;
+  maxPoints?: number;
+  status?: HomeworkStatus;
+  attachments?: string;
+}
+
+export interface HomeworkSubmissionDto {
+  id: string;
+  homeworkId: string;
+  homeworkTitle?: string;
+  studentId: string;
+  studentName?: string;
+  studentEmail?: string;
+  content?: string | null;
+  attachments?: string | null;
+  status: HomeworkSubmissionStatus;
+  submittedAt: string;
+  isLate: boolean;
+  grade?: number | null;
+  maxPoints?: number;
+  feedback?: string | null;
+  gradedById?: string | null;
+  gradedByName?: string | null;
+  gradedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubmitHomeworkDto {
+  content?: string;
+  attachments?: string;
+}
+
+export interface GradeHomeworkSubmissionDto {
+  grade: number;
+  feedback?: string;
+}
+
+export interface HomeworkFilterQuery {
+  schoolId?: string;
+  classSectionId?: string;
+  subjectId?: string;
+  status?: HomeworkStatus;
+  teacherId?: string;
+}
+
+// ==============================================================================
+// TASK 011 — COURSE MANAGEMENT CONTRACTS
+// ==============================================================================
+export interface CourseLessonDto {
+  id: string;
+  moduleId: string;
+  title: string;
+  content: string;
+  videoUrl?: string | null;
+  attachments?: string | null;
+  order: number;
+  durationMinutes: number;
+  isCompleted?: boolean;
+}
+
+export interface CourseModuleDto {
+  id: string;
+  courseId: string;
+  title: string;
+  description?: string | null;
+  order: number;
+  lessons: CourseLessonDto[];
+}
+
+export interface CourseDto {
+  id: string;
+  schoolId: string;
+  schoolName?: string;
+  subjectId?: string | null;
+  subjectName?: string | null;
+  title: string;
+  code: string;
+  description?: string | null;
+  thumbnailUrl?: string | null;
+  published: boolean;
+  createdById: string;
+  creatorName?: string;
+  createdAt: string;
+  updatedAt: string;
+  modules?: CourseModuleDto[];
+  totalModules?: number;
+  totalLessons?: number;
+  enrolledStudentsCount?: number;
+  progressPercentage?: number;
+  isEnrolled?: boolean;
+}
+
+export interface CreateCourseDto {
+  subjectId?: string;
+  title: string;
+  code: string;
+  description?: string;
+  thumbnailUrl?: string;
+  published?: boolean;
+}
+
+export interface UpdateCourseDto {
+  title?: string;
+  code?: string;
+  description?: string;
+  thumbnailUrl?: string;
+  published?: boolean;
+  subjectId?: string;
+}
+
+export interface CreateCourseModuleDto {
+  title: string;
+  description?: string;
+  order?: number;
+}
+
+export interface CreateCourseLessonDto {
+  title: string;
+  content: string;
+  videoUrl?: string;
+  attachments?: string;
+  order?: number;
+  durationMinutes?: number;
+}
+
+export interface CourseEnrollmentDto {
+  id: string;
+  courseId: string;
+  courseTitle?: string;
+  courseCode?: string;
+  studentId: string;
+  studentName?: string;
+  enrolledAt: string;
+  status: 'ACTIVE' | 'COMPLETED' | 'DROPPED';
+  completedAt?: string | null;
+  completedLessonsCount?: number;
+  totalLessonsCount?: number;
+  progressPercentage?: number;
+}
+
+// ==============================================================================
+// TASK 012 — EXAMINATIONS & ASSESSMENTS CONTRACTS
+// ==============================================================================
+export type ExamStatus = 'DRAFT' | 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'RESULTS_PUBLISHED';
+export type ExamQuestionType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER' | 'ESSAY';
+export type ExamAttemptStatus = 'IN_PROGRESS' | 'SUBMITTED' | 'GRADED';
+
+export interface ExamQuestionDto {
+  id: string;
+  examId: string;
+  questionText: string;
+  questionType: ExamQuestionType;
+  options?: string[] | null; // parsed JSON
+  correctAnswer?: string | null; // hidden from students until published
+  marks: number;
+  order: number;
+}
+
+export interface CreateExamQuestionDto {
+  questionText: string;
+  questionType: ExamQuestionType;
+  options?: string[];
+  correctAnswer?: string;
+  marks: number;
+  order?: number;
+}
+
+export interface ExamDto {
+  id: string;
+  schoolId: string;
+  schoolName?: string;
+  academicYearId?: string | null;
+  classSectionId: string;
+  className?: string;
+  sectionName?: string;
+  subjectId: string;
+  subjectName?: string;
+  createdById: string;
+  creatorName?: string;
+  title: string;
+  description?: string | null;
+  examDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  durationMinutes: number;
+  totalMarks: number;
+  passingMarks: number;
+  status: ExamStatus;
+  questions?: ExamQuestionDto[];
+  totalQuestions?: number;
+  myAttempt?: ExamAttemptDto | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateExamDto {
+  classSectionId: string;
+  subjectId: string;
+  academicYearId?: string;
+  title: string;
+  description?: string;
+  examDate: string;
+  startTime?: string;
+  endTime?: string;
+  durationMinutes: number;
+  totalMarks: number;
+  passingMarks?: number;
+  status?: ExamStatus;
+  questions?: CreateExamQuestionDto[];
+}
+
+export interface UpdateExamDto {
+  title?: string;
+  description?: string;
+  examDate?: string;
+  startTime?: string;
+  endTime?: string;
+  durationMinutes?: number;
+  totalMarks?: number;
+  passingMarks?: number;
+  status?: ExamStatus;
+}
+
+export interface ExamStudentAnswerDto {
+  questionId: string;
+  questionText?: string;
+  questionType?: ExamQuestionType;
+  answerText: string;
+  isCorrect?: boolean | null;
+  awardedMarks?: number | null;
+  maxMarks?: number;
+  teacherFeedback?: string | null;
+}
+
+export interface ExamAttemptDto {
+  id: string;
+  examId: string;
+  examTitle?: string;
+  studentId: string;
+  studentName?: string;
+  startedAt: string;
+  submittedAt?: string | null;
+  status: ExamAttemptStatus;
+  obtainedMarks?: number | null;
+  totalMarks?: number;
+  percentage?: number | null;
+  feedback?: string | null;
+  gradedById?: string | null;
+  gradedByName?: string | null;
+  answers?: ExamStudentAnswerDto[];
+}
+
+export interface SubmitExamDto {
+  answers: Array<{
+    questionId: string;
+    answerText: string;
+  }>;
+}
+
+export interface GradeExamAttemptDto {
+  feedback?: string;
+  grades: Array<{
+    questionId: string;
+    awardedMarks: number;
+    teacherFeedback?: string;
+  }>;
+}
+
+// ==============================================================================
+// TASK 013 — SUBSCRIPTION MANAGEMENT CONTRACTS
+// ==============================================================================
+export type SubscriptionStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'EXPIRED' | 'CANCELLED';
+
+export interface SubscriptionPlanDto {
+  id: string;
+  name: string;
+  code: string;
+  description?: string | null;
+  price: number;
+  currency: string;
+  durationDays: number;
+  maxStudents: number;
+  maxTeachers: number;
+  features?: string[] | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  activeSubscriptionsCount?: number;
+}
+
+export interface CreateSubscriptionPlanDto {
+  name: string;
+  code: string;
+  description?: string;
+  price: number;
+  currency?: string;
+  durationDays: number;
+  maxStudents: number;
+  maxTeachers: number;
+  features?: string[];
+  isActive?: boolean;
+}
+
+export interface UpdateSubscriptionPlanDto {
+  name?: string;
+  description?: string;
+  price?: number;
+  currency?: string;
+  durationDays?: number;
+  maxStudents?: number;
+  maxTeachers?: number;
+  features?: string[];
+  isActive?: boolean;
+}
+
+export interface SchoolSubscriptionDto {
+  id: string;
+  schoolId: string;
+  schoolName: string;
+  planId: string;
+  planName: string;
+  planCode: string;
+  status: SubscriptionStatus;
+  startDate: string;
+  endDate: string;
+  autoRenew: boolean;
+  maxStudents: number;
+  maxTeachers: number;
+  features?: string[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssignSchoolSubscriptionDto {
+  schoolId: string;
+  planId: string;
+  startDate?: string;
+  endDate?: string;
+  autoRenew?: boolean;
+}
+
+// ==============================================================================
+// TASK 014 — SUBSCRIPTION CODES & REDEMPTION CONTRACTS
+// ==============================================================================
+export interface SubscriptionCodeDto {
+  id: string;
+  code: string;
+  planId: string;
+  planName?: string;
+  schoolId?: string | null;
+  schoolName?: string | null;
+  maxRedemptions: number;
+  timesRedeemed: number;
+  expiresAt: string;
+  isRevoked: boolean;
+  createdById: string;
+  creatorEmail?: string;
+  createdAt: string;
+  redemptionsCount?: number;
+}
+
+export interface GenerateSubscriptionCodesDto {
+  planId: string;
+  count: number;
+  prefix?: string;
+  schoolId?: string;
+  maxRedemptions?: number;
+  expiresAt: string;
+}
+
+export interface RedeemSubscriptionCodeDto {
+  code: string;
+  schoolId?: string;
+}
+
+export interface CodeRedemptionDto {
+  id: string;
+  codeId: string;
+  codeValue: string;
+  planName: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  schoolId: string;
+  schoolName: string;
+  redeemedAt: string;
+}
+
+// ==============================================================================
+// TASK 015 — NOTIFICATIONS & MESSAGING CONTRACTS
+// ==============================================================================
+export type NotificationType = 'INFO' | 'WARNING' | 'HOMEWORK' | 'EXAM' | 'GRADE' | 'ATTENDANCE' | 'SUBSCRIPTION' | 'ANNOUNCEMENT';
+
+export interface NotificationDto {
+  id: string;
+  userId: string;
+  schoolId?: string | null;
+  title: string;
+  message: string;
+  type: NotificationType;
+  read: boolean;
+  link?: string | null;
+  createdAt: string;
+}
+
+export interface CreateNotificationDto {
+  userId: string;
+  title: string;
+  message: string;
+  type?: NotificationType;
+  link?: string;
+  schoolId?: string;
+}
+
+export interface DirectMessageDto {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface ConversationParticipantDto {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  lastReadAt?: string | null;
+}
+
+export interface ConversationDto {
+  id: string;
+  schoolId: string;
+  subject?: string | null;
+  lastMessageAt: string;
+  createdAt: string;
+  participants: ConversationParticipantDto[];
+  lastMessage?: DirectMessageDto | null;
+  unreadCount?: number;
+}
+
+export interface CreateConversationDto {
+  recipientId: string;
+  subject?: string;
+  initialMessage: string;
+}
+
+export interface SendMessageDto {
+  content: string;
+}
+
+// ==============================================================================
+// TASK 016 — ROLE-BASED DASHBOARD CONTRACTS
+// ==============================================================================
+export interface PlatformAdminDashboardDto {
+  totalSchools: number;
+  activeSchools: number;
+  totalTeachers: number;
+  totalStudents: number;
+  totalParents: number;
+  activeSubscriptions: number;
+  expiredSubscriptions: number;
+  enrollmentTrends: Array<{
+    month: string;
+    students: number;
+    teachers: number;
+  }>;
+  schoolComparisons: Array<{
+    schoolId: string;
+    schoolName: string;
+    code: string;
+    studentsCount: number;
+    teachersCount: number;
+    status: string;
+  }>;
+  attendanceTrends: Array<{
+    date: string;
+    percentage: number;
+  }>;
+  recentAdministrativeEvents: Array<{
+    id: string;
+    action: string;
+    entityType: string;
+    actorEmail: string | null;
+    createdAt: string;
+  }>;
+}
+
+export interface SchoolAdminDashboardDto {
+  totalStudents: number;
+  totalTeachers: number;
+  activeClasses: number;
+  dailyAttendancePercentage: number;
+  attendanceTrends: Array<{
+    date: string;
+    percentage: number;
+  }>;
+  gradeDistribution: Array<{
+    letterGrade: string;
+    count: number;
+  }>;
+  subjectPerformance: Array<{
+    subjectName: string;
+    averagePercentage: number;
+  }>;
+  homeworkCompletionRate: number;
+  upcomingExamsCount: number;
+  upcomingExams: Array<{
+    id: string;
+    title: string;
+    subjectName: string;
+    className: string;
+    examDate: string;
+  }>;
+  recentActivity: Array<{
+    id: string;
+    action: string;
+    details: string;
+    timestamp: string;
+  }>;
+}
+
+export interface TeacherDashboardDto {
+  assignedClassesCount: number;
+  assignedClasses: Array<{
+    id: string;
+    name: string;
+    className: string;
+    studentsCount: number;
+    subjects: string[];
+  }>;
+  todaySchedule: Array<{
+    id: string;
+    periodName: string;
+    startTime: string;
+    endTime: string;
+    subjectName: string;
+    className: string;
+    roomNumber?: string | null;
+  }>;
+  pendingAttendanceCount: number;
+  pendingHomeworkReviewsCount: number;
+  pendingGradingCount: number;
+  classPerformance: Array<{
+    className: string;
+    subjectName: string;
+    averagePercentage: number;
+  }>;
+  upcomingExams: Array<{
+    id: string;
+    title: string;
+    className: string;
+    subjectName: string;
+    examDate: string;
+  }>;
+  recentMessages: DirectMessageDto[];
+}
+
+export interface StudentDashboardDto {
+  attendancePercentage: number;
+  gpa: number | null;
+  overallPercentage: number | null;
+  letterGrade: string | null;
+  todaySchedule: Array<{
+    periodName: string;
+    startTime: string;
+    endTime: string;
+    subjectName: string;
+    roomNumber?: string | null;
+  }>;
+  pendingHomework: Array<{
+    id: string;
+    title: string;
+    subjectName: string;
+    dueDate: string;
+    maxPoints: number;
+  }>;
+  upcomingExams: Array<{
+    id: string;
+    title: string;
+    subjectName: string;
+    examDate: string;
+    durationMinutes: number;
+  }>;
+  courseCompletionPercentage: number;
+  notifications: NotificationDto[];
+  recentGrades: Array<{
+    id: string;
+    title: string;
+    subjectName: string;
+    marksObtained: number | null;
+    maximumMarks: number;
+    percentage: number | null;
+    letterGrade: string | null;
+  }>;
+}
+
+export interface ParentDashboardDto {
+  children: Array<{
+    studentId: string;
+    studentName: string;
+    className: string;
+    admissionNumber: string | null;
+    attendancePercentage: number;
+    overallPercentage: number | null;
+    gpa: number | null;
+    letterGrade: string | null;
+    pendingHomeworkCount: number;
+    upcomingExamsCount: number;
+  }>;
+  selectedChildId: string;
+  selectedChildSchedule: Array<{
+    periodName: string;
+    startTime: string;
+    endTime: string;
+    subjectName: string;
+  }>;
+  selectedChildRecentGrades: Array<{
+    title: string;
+    subjectName: string;
+    marksObtained: number | null;
+    maximumMarks: number;
+    percentage: number | null;
+    letterGrade: string | null;
+  }>;
+  schoolAnnouncements: NotificationDto[];
+  teacherMessages: DirectMessageDto[];
+}
+
+
 
 
 
