@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/apps/api/src/main",
     "start:dev": "ts-node src/main.ts",
-    "test": "jest",
+    "test": "jest --maxWorkers=1",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev"
   },

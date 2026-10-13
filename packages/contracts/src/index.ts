@@ -327,5 +327,839 @@ export interface TeacherListQuery {
   status?: string;
 }
 
+// ------------------------------------------------------------------------------
+// Parent & Guardian Management Contracts (TASK 006)
+// ------------------------------------------------------------------------------
+export enum GuardianRelationshipType {
+  MOTHER = 'MOTHER',
+  FATHER = 'FATHER',
+  LEGAL_GUARDIAN = 'LEGAL_GUARDIAN',
+  STEP_PARENT = 'STEP_PARENT',
+  OTHER = 'OTHER',
+}
+
+export enum RelationshipVerificationStatus {
+  VERIFIED = 'VERIFIED',
+  PENDING_VERIFICATION = 'PENDING_VERIFICATION',
+  REVOKED = 'REVOKED',
+}
+
+export interface ParentGuardianProfileDto {
+  id: string;
+  userId: string;
+  occupation?: string | null;
+  employer?: string | null;
+  relationshipToFamily?: string | null;
+  phoneAlt?: string | null;
+  address?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LinkedStudentDto {
+  id: string; // student user id
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatarUrl?: string | null;
+  admissionNumber?: string | null;
+  gradeLevel?: string | null;
+  schoolId?: string | null;
+  schoolName?: string | null;
+  relationshipId: string;
+  relationshipType: GuardianRelationshipType;
+  verificationStatus: RelationshipVerificationStatus;
+  isPrimaryContact: boolean;
+  isEmergencyContact: boolean;
+  notes?: string | null;
+  currentSection?: {
+    id: string;
+    name: string;
+    className: string;
+    roomNumber?: string | null;
+  } | null;
+}
+
+export interface ParentGuardianDto {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  isActive: boolean;
+  phone?: string | null;
+  avatarUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  schoolId?: string | null;
+  primarySchool?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
+  profile?: ParentGuardianProfileDto | null;
+  linkedStudents: LinkedStudentDto[];
+}
+
+export interface CreateParentRequest {
+  email: string;
+  password?: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  schoolId?: string;
+  occupation?: string;
+  employer?: string;
+  relationshipToFamily?: string;
+  phoneAlt?: string;
+  address?: string;
+}
+
+export interface UpdateParentRequest {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  occupation?: string;
+  employer?: string;
+  relationshipToFamily?: string;
+  phoneAlt?: string;
+  address?: string;
+}
+
+export interface LinkStudentRequest {
+  studentId: string;
+  relationshipType: GuardianRelationshipType;
+  isPrimaryContact?: boolean;
+  isEmergencyContact?: boolean;
+  notes?: string;
+}
+
+export interface VerifyRelationshipRequest {
+  verificationStatus: RelationshipVerificationStatus;
+  notes?: string;
+}
+
+export interface ParentListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  schoolId?: string;
+  status?: string;
+}
+
+export interface ParentDashboardSummaryDto {
+  parent: ParentGuardianDto;
+  students: LinkedStudentDto[];
+  activeAlertsCount: number;
+}
+
+// ------------------------------------------------------------------------------
+// Classes, Academic Structure & Timetable Contracts (TASK 007)
+// ------------------------------------------------------------------------------
+export enum EnrollmentStatus {
+  ACTIVE = 'ACTIVE',
+  WITHDRAWN = 'WITHDRAWN',
+  TRANSFERRED = 'TRANSFERRED',
+  COMPLETED = 'COMPLETED',
+}
+
+export interface AcademicYearDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  createdAt: string;
+  updatedAt: string;
+  sectionsCount?: number;
+}
+
+export interface CreateAcademicYearRequest {
+  schoolId?: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isCurrent?: boolean;
+}
+
+export interface UpdateAcademicYearRequest {
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+  isCurrent?: boolean;
+}
+
+export interface SchoolClassDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  code: string;
+  description?: string | null;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+  sectionsCount?: number;
+}
+
+export interface CreateSchoolClassRequest {
+  schoolId?: string;
+  name: string;
+  code: string;
+  description?: string;
+  order?: number;
+}
+
+export interface UpdateSchoolClassRequest {
+  name?: string;
+  description?: string;
+  order?: number;
+}
+
+export interface ClassSectionDto {
+  id: string;
+  classId: string;
+  className: string;
+  classCode: string;
+  academicYearId: string;
+  academicYearName: string;
+  name: string;
+  capacity: number;
+  roomNumber?: string | null;
+  classTeacherId?: string | null;
+  classTeacher?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+  enrolledStudentsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateClassSectionRequest {
+  classId: string;
+  academicYearId: string;
+  name: string;
+  capacity?: number;
+  roomNumber?: string;
+  classTeacherId?: string;
+}
+
+export interface UpdateClassSectionRequest {
+  name?: string;
+  capacity?: number;
+  roomNumber?: string;
+  classTeacherId?: string;
+}
+
+export interface SubjectDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  code: string;
+  department?: string | null;
+  credits: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSubjectRequest {
+  schoolId?: string;
+  name: string;
+  code: string;
+  department?: string;
+  credits?: number;
+}
+
+export interface UpdateSubjectRequest {
+  name?: string;
+  department?: string;
+  credits?: number;
+}
+
+export interface ClassEnrollmentDto {
+  id: string;
+  studentId: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    admissionNumber?: string | null;
+  };
+  sectionId: string;
+  academicYearId: string;
+  rollNumber?: string | null;
+  enrolledAt: string;
+  status: EnrollmentStatus;
+}
+
+export interface EnrollStudentRequest {
+  studentId: string;
+  rollNumber?: string;
+}
+
+export interface TeacherSubjectAssignmentDto {
+  id: string;
+  teacherId: string;
+  teacher: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  sectionId: string;
+  sectionName: string;
+  className: string;
+  academicYearId: string;
+}
+
+export interface AssignTeacherSubjectRequest {
+  teacherId: string;
+  subjectId: string;
+}
+
+export interface TimetableEntryDto {
+  id: string;
+  schoolId: string;
+  sectionId: string;
+  sectionName: string;
+  className: string;
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  teacherId: string;
+  teacherName: string;
+  teacherEmail: string;
+  academicYearId: string;
+  academicYearName: string;
+  dayOfWeek: number; // 1 (Mon) - 7 (Sun)
+  periodName: string;
+  startTime: string; // HH:mm
+  endTime: string;   // HH:mm
+  roomNumber?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTimetableEntryRequest {
+  sectionId: string;
+  subjectId: string;
+  teacherId: string;
+  academicYearId: string;
+  dayOfWeek: number;
+  periodName: string;
+  startTime: string;
+  endTime: string;
+  roomNumber?: string;
+}
+
+export interface UpdateTimetableEntryRequest {
+  subjectId?: string;
+  teacherId?: string;
+  dayOfWeek?: number;
+  periodName?: string;
+  startTime?: string;
+  endTime?: string;
+  roomNumber?: string;
+}
+
+export interface TimetableConflictDto {
+  hasConflict: boolean;
+  conflictType?: 'TEACHER_OVERLAP' | 'SECTION_OVERLAP' | 'ROOM_OVERLAP';
+  message?: string;
+  conflictingEntry?: TimetableEntryDto;
+}
+
+// ------------------------------------------------------------------------------
+// Attendance Management & NFC Simulation Contracts (TASK 008)
+// ------------------------------------------------------------------------------
+export enum AttendanceStatus {
+  PRESENT = 'PRESENT',
+  ABSENT = 'ABSENT',
+  LATE = 'LATE',
+  EXCUSED = 'EXCUSED',
+}
+
+export enum AttendanceSessionType {
+  DAILY = 'DAILY',
+  PERIOD = 'PERIOD',
+}
+
+export enum AttendanceSessionStatus {
+  DRAFT = 'DRAFT',
+  FINALIZED = 'FINALIZED',
+}
+
+export enum NFCIdentityStatus {
+  ACTIVE = 'ACTIVE',
+  DISABLED = 'DISABLED',
+}
+
+export enum NFCEventStatus {
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED',
+  DUPLICATE = 'DUPLICATE',
+}
+
+export interface AttendanceRecordDto {
+  id: string;
+  attendanceSessionId: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  admissionNumber?: string | null;
+  rollNumber?: string | null;
+  status: AttendanceStatus;
+  remarks?: string | null;
+  markedById: string;
+  markedByName: string;
+  markedAt: string;
+  updatedAt: string;
+}
+
+export interface AttendanceSessionDto {
+  id: string;
+  schoolId: string;
+  schoolName: string;
+  academicYearId: string;
+  academicYearName: string;
+  classSectionId: string;
+  sectionName: string;
+  className: string;
+  attendanceDate: string; // YYYY-MM-DD
+  sessionType: AttendanceSessionType;
+  timetableEntryId?: string | null;
+  periodName?: string | null;
+  subjectName?: string | null;
+  status: AttendanceSessionStatus;
+  createdById: string;
+  createdByName: string;
+  finalizedAt?: string | null;
+  finalizedById?: string | null;
+  finalizedByName?: string | null;
+  recordsCount: number;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  excusedCount: number;
+  attendancePercentage: number;
+  records?: AttendanceRecordDto[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAttendanceSessionRequest {
+  classSectionId: string;
+  attendanceDate: string; // YYYY-MM-DD
+  sessionType?: AttendanceSessionType;
+  timetableEntryId?: string;
+  academicYearId?: string;
+}
+
+export interface UpdateAttendanceSessionRequest {
+  attendanceDate?: string;
+  timetableEntryId?: string;
+}
+
+export interface BulkMarkAttendanceItem {
+  studentId: string;
+  status: AttendanceStatus;
+  remarks?: string;
+}
+
+export interface BulkMarkAttendanceRequest {
+  records: BulkMarkAttendanceItem[];
+}
+
+export interface StudentAttendanceSummaryDto {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  className: string;
+  sectionName: string;
+  totalSessions: number;
+  presentSessions: number;
+  absentSessions: number;
+  lateSessions: number;
+  excusedSessions: number;
+  attendancePercentage: number;
+  records: Array<{
+    id: string;
+    sessionId: string;
+    date: string;
+    sessionType: AttendanceSessionType;
+    periodName?: string | null;
+    subjectName?: string | null;
+    status: AttendanceStatus;
+    remarks?: string | null;
+  }>;
+}
+
+export interface ClassAttendanceSummaryDto {
+  classSectionId: string;
+  sectionName: string;
+  className: string;
+  totalStudents: number;
+  totalSessions: number;
+  averageAttendancePercentage: number;
+  sessions: AttendanceSessionDto[];
+}
+
+export interface AttendanceReportFilterQuery {
+  schoolId?: string;
+  classSectionId?: string;
+  studentId?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface AttendanceReportDto {
+  totalSessions: number;
+  totalRecords: number;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  excusedCount: number;
+  overallAttendancePercentage: number;
+  byDate: Array<{
+    date: string;
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    percentage: number;
+  }>;
+  byStudent?: Array<{
+    studentId: string;
+    studentName: string;
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    percentage: number;
+  }>;
+}
+
+export interface NFCIdentityDto {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  status: NFCIdentityStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProvisionNFCIdentityRequest {
+  studentId: string;
+  cardToken: string;
+}
+
+export interface ProvisionNFCIdentityResponse {
+  identity: NFCIdentityDto;
+  maskedToken: string;
+  message: string;
+}
+
+export interface NFCScanRequest {
+  attendanceSessionId: string;
+  cardToken: string;
+}
+
+export interface NFCScanResultDto {
+  eventStatus: NFCEventStatus;
+  message: string;
+  studentId?: string;
+  studentName?: string;
+  markedStatus?: AttendanceStatus;
+  rejectionReason?: string;
+}
+
+export interface NFCAttendanceEventDto {
+  id: string;
+  schoolId: string;
+  attendanceSessionId: string;
+  studentId?: string | null;
+  studentName?: string | null;
+  eventType: string;
+  eventStatus: NFCEventStatus;
+  rejectionReason?: string | null;
+  createdAt: string;
+}
+
+// ------------------------------------------------------------------------------
+// Grades & Academic Performance Contracts (TASK 009)
+// ------------------------------------------------------------------------------
+export enum AssessmentStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+}
+
+export interface AssessmentCategoryDto {
+  id: string;
+  schoolId: string;
+  academicYearId?: string | null;
+  academicYearName?: string | null;
+  subjectId?: string | null;
+  subjectName?: string | null;
+  name: string;
+  description?: string | null;
+  weightPercentage: number;
+  createdAt: string;
+  updatedAt: string;
+  assessmentsCount?: number;
+}
+
+export interface CreateAssessmentCategoryRequest {
+  schoolId?: string;
+  academicYearId?: string;
+  subjectId?: string;
+  name: string;
+  description?: string;
+  weightPercentage: number;
+}
+
+export interface UpdateAssessmentCategoryRequest {
+  name?: string;
+  description?: string;
+  weightPercentage?: number;
+  academicYearId?: string;
+  subjectId?: string;
+}
+
+export interface AssessmentDto {
+  id: string;
+  schoolId: string;
+  academicYearId: string;
+  academicYearName: string;
+  classSectionId: string;
+  className: string;
+  sectionName: string;
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  categoryId: string;
+  categoryName: string;
+  categoryWeight: number;
+  title: string;
+  description?: string | null;
+  maximumMarks: number;
+  assessmentDate: string;
+  createdById: string;
+  createdByName: string;
+  status: AssessmentStatus;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  enrolledStudentsCount?: number;
+  gradedStudentsCount?: number;
+  averageMarks?: number | null;
+  averagePercentage?: number | null;
+  subject?: { id: string; name: string; code?: string };
+  classSection?: { id: string; name: string; schoolClass?: { name: string } };
+  category?: { id: string; name: string; weightPercentage: number };
+}
+
+export interface CreateAssessmentRequest {
+  schoolId?: string;
+  academicYearId?: string;
+  classSectionId: string;
+  subjectId: string;
+  categoryId: string;
+  title: string;
+  description?: string;
+  maximumMarks: number;
+  assessmentDate: string;
+}
+
+export interface UpdateAssessmentRequest {
+  title?: string;
+  description?: string;
+  maximumMarks?: number;
+  assessmentDate?: string;
+  categoryId?: string;
+}
+
+export interface StudentGradeDto {
+  id: string;
+  assessmentId: string;
+  studentId: string;
+  studentName: string;
+  studentAdmissionNumber?: string | null;
+  marksObtained?: number | null;
+  percentage?: number | null;
+  letterGrade?: string | null;
+  gradePoint?: number | null;
+  feedback?: string | null;
+  gradedById: string;
+  gradedByName: string;
+  gradedAt: string;
+  assessmentTitle?: string;
+  subjectName?: string;
+  maximumMarks?: number;
+  categoryName?: string | null;
+}
+
+export interface StudentAssessmentGradeDto extends StudentGradeDto {
+  assessmentTitle: string;
+  subjectName: string;
+  maximumMarks: number;
+  categoryName?: string | null;
+}
+
+export interface GradebookStudentRowDto {
+  studentId: string;
+  studentName: string;
+  admissionNumber?: string | null;
+  marksObtained: number | null; // null represents missing grade
+  percentage: number | null;
+  letterGrade: string | null;
+  feedback?: string | null;
+}
+
+export interface AssessmentGradebookDto {
+  assessment: AssessmentDto;
+  students: GradebookStudentRowDto[];
+  statistics: {
+    enrolledCount: number;
+    gradedCount: number;
+    missingCount: number;
+    averageMarks: number | null;
+    averagePercentage: number | null;
+    highestMarks: number | null;
+    lowestMarks: number | null;
+  };
+}
+
+export interface GradeEntryItem {
+  studentId: string;
+  marksObtained?: number | null; // null if unrecorded/missing
+  feedback?: string | null;
+}
+
+export interface BulkSaveGradebookRequest {
+  grades: GradeEntryItem[];
+}
+
+export interface GradingScaleDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  minimumPercentage: number;
+  maximumPercentage: number;
+  letterGrade: string;
+  gradePoint?: number | null;
+  description?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateGradingScaleRequest {
+  schoolId?: string;
+  name: string;
+  minimumPercentage: number;
+  maximumPercentage: number;
+  letterGrade: string;
+  gradePoint?: number;
+  description?: string;
+}
+
+export interface UpdateGradingScaleRequest {
+  name?: string;
+  minimumPercentage?: number;
+  maximumPercentage?: number;
+  letterGrade?: string;
+  gradePoint?: number;
+  description?: string;
+}
+
+export interface StudentSubjectPerformanceDto {
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  overallPercentage: number | null;
+  letterGrade: string | null;
+  gradePoint: number | null;
+  completedAssessments: number;
+  totalAssessments: number;
+  categoryBreakdown: Array<{
+    categoryId: string;
+    categoryName: string;
+    weightPercentage: number;
+    averagePercentage: number | null;
+  }>;
+  assessments: Array<{
+    assessmentId: string;
+    title: string;
+    categoryName: string;
+    assessmentDate: string;
+    maximumMarks: number;
+    marksObtained: number | null;
+    percentage: number | null;
+    letterGrade: string | null;
+    feedback: string | null;
+  }>;
+}
+
+export interface StudentAcademicSummaryDto {
+  studentId: string;
+  studentName: string;
+  className: string;
+  sectionName: string;
+  schoolName: string;
+  gpa: number | null;
+  overallPercentage: number | null;
+  letterGrade: string | null;
+  subjects: StudentSubjectPerformanceDto[];
+  trend: Array<{
+    date: string;
+    assessmentTitle: string;
+    subjectCode: string;
+    percentage: number;
+  }>;
+}
+
+export interface ClassAcademicReportDto {
+  classSectionId: string;
+  className: string;
+  sectionName: string;
+  academicYearId: string;
+  academicYearName: string;
+  subjectPerformance: Array<{
+    subjectId: string;
+    subjectName: string;
+    subjectCode: string;
+    averagePercentage: number;
+    assessmentCount: number;
+    gradedCount: number;
+  }>;
+  gradeDistribution: Array<{
+    letterGrade: string;
+    count: number;
+    percentage: number;
+  }>;
+  studentRankings: Array<{
+    studentId: string;
+    studentName: string;
+    admissionNumber: string | null;
+    overallPercentage: number;
+    letterGrade: string;
+    rank: number;
+  }>;
+}
+
+export type ClassPerformanceReportDto = ClassAcademicReportDto;
+
+
+
 
 

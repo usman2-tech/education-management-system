@@ -15,6 +15,10 @@ import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SchoolsModule } from './modules/schools/schools.module';
 import { TeachersModule } from './modules/teachers/teachers.module';
+import { ParentsModule } from './modules/parents/parents.module';
+import { ClassesModule } from './modules/classes/classes.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { GradesModule } from './modules/grades/grades.module';
 
 @Module({
   imports: [
@@ -27,6 +31,10 @@ import { TeachersModule } from './modules/teachers/teachers.module';
     AuthModule,
     SchoolsModule,
     TeachersModule,
+    ParentsModule,
+    ClassesModule,
+    AttendanceModule,
+    GradesModule,
   ],
 })
 export class AppModule {}
