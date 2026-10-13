@@ -12,7 +12,7 @@
 | **TASK 011** | Course Management | COMPLETED | `feat(courses)` | Catalogs, modules, lessons, tracking, entitlements |
 | **TASK 012** | Examinations & Assessments | COMPLETED | `feat(exams)` | Scheduling, timed test taking, objective auto-grading, manual evaluation, gradebook sync |
 | **TASK 013** | Subscription Management | COMPLETED | `feat(subscriptions)` | Plan CRUD, school subscriptions, fixed 404 route, entitlements, renewals |
-| **TASK 014** | Subscription Codes & Redemption | PLANNED | Pending | Bulk generation, redemption, rate limits, history |
+| **TASK 014** | Subscription Codes & Redemption | COMPLETED | `feat(subscription-codes)` | Bulk generation, concurrency-safe redemption, duplicate prevention, audit logs |
 | **TASK 015** | Notifications & Messaging | PLANNED | Pending | Alerts, threads, in-app notification center |
 | **TASK 016** | Complete Dashboards & Visualization | PLANNED | Pending | 5 role-based dashboards with real database aggregates |
 | **TASK 017** | Integration, Security & Audit | PLANNED | Pending | RBAC checks, school isolation, route audit |

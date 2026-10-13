@@ -10,9 +10,11 @@
  */
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
-import { UserRole, SubscriptionPlanDto, SchoolSubscriptionDto } from '@ems/contracts';
+import { UserRole, SubscriptionPlanDto, SchoolSubscriptionDto, SubscriptionCodeDto } from '@ems/contracts';
 import { subscriptionsApi, SubscriptionOverviewDto } from '@/lib/subscriptions-api';
+import { subscriptionCodesApi } from '@/lib/subscription-codes-api';
 import { fetchSchools } from '@/lib/schools-api';
 import {
   CreditCard,
@@ -32,6 +34,8 @@ import {
   Loader2,
   Tag,
   ArrowRight,
+  KeyRound,
+  Copy,
 } from 'lucide-react';
 
 export default function SubscriptionsPage() {
@@ -67,6 +71,15 @@ export default function SubscriptionsPage() {
   const [newPlanTeachers, setNewPlanTeachers] = React.useState(80);
   const [submittingPlan, setSubmittingPlan] = React.useState(false);
 
+  // Codes state (Platform Admin)
+  const [codes, setCodes] = React.useState<SubscriptionCodeDto[]>([]);
+  const [generateModalOpen, setGenerateModalOpen] = React.useState(false);
+  const [genCodePlanId, setGenCodePlanId] = React.useState('');
+  const [genCodeCount, setGenCodeCount] = React.useState(5);
+  const [genCodePrefix, setGenCodePrefix] = React.useState('EMS');
+  const [genCodeMaxRedeem, setGenCodeMaxRedeem] = React.useState(1);
+  const [submittingGenCodes, setSubmittingGenCodes] = React.useState(false);
+
   const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -81,12 +94,19 @@ export default function SubscriptionsPage() {
       setSubscriptions(subsData);
 
       if (isPlatformAdmin) {
-        const schoolsRes = await fetchSchools({ limit: 100 });
+        const [schoolsRes, codesData] = await Promise.all([
+          fetchSchools({ limit: 100 }),
+          subscriptionCodesApi.getCodes(),
+        ]);
         const schoolList = schoolsRes.items || [];
         setSchools(schoolList);
+        setCodes(codesData);
         if (schoolList.length > 0) setSelectedSchoolId(schoolList[0].id);
       }
-      if (plansData.length > 0) setSelectedPlanId(plansData[0].id);
+      if (plansData.length > 0) {
+        setSelectedPlanId(plansData[0].id);
+        setGenCodePlanId(plansData[0].id);
+      }
     } catch (err) {
       console.error('Failed to load subscriptions data:', err);
     } finally {
@@ -165,6 +185,38 @@ export default function SubscriptionsPage() {
     }
   };
 
+  const handleGenerateCodes = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!genCodePlanId) return;
+    setSubmittingGenCodes(true);
+    try {
+      const expiresAt = new Date(Date.now() + 90 * 86400000).toISOString();
+      await subscriptionCodesApi.generateCodes({
+        planId: genCodePlanId,
+        count: Number(genCodeCount),
+        prefix: genCodePrefix,
+        maxRedemptions: Number(genCodeMaxRedeem),
+        expiresAt,
+      });
+      setGenerateModalOpen(false);
+      await loadData();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to generate activation codes');
+    } finally {
+      setSubmittingGenCodes(false);
+    }
+  };
+
+  const handleRevokeCode = async (codeId: string) => {
+    if (!window.confirm('Revoke this activation code? It will immediately stop working.')) return;
+    try {
+      await subscriptionCodesApi.revokeCode(codeId);
+      await loadData();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to revoke code');
+    }
+  };
+
   const filteredSubs = subscriptions.filter((s) => {
     const matchSearch =
       s.schoolName.toLowerCase().includes(search.toLowerCase()) ||
@@ -189,24 +241,41 @@ export default function SubscriptionsPage() {
           </p>
         </div>
 
-        {isPlatformAdmin && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPlanModalOpen(true)}
-              className="px-3.5 py-2 text-xs font-medium border border-input rounded-lg hover:bg-muted text-foreground flex items-center gap-1.5 transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              New Plan
-            </button>
-            <button
-              onClick={() => setAssignModalOpen(true)}
-              className="px-4 py-2 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors"
-            >
-              <Building2 className="h-3.5 w-3.5" />
-              Assign Subscription
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/subscriptions/redeem"
+            className="px-3.5 py-2 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            Redeem Code
+          </Link>
+
+          {isPlatformAdmin && (
+            <>
+              <button
+                onClick={() => setGenerateModalOpen(true)}
+                className="px-3.5 py-2 text-xs font-medium border border-input rounded-lg hover:bg-muted text-foreground flex items-center gap-1.5 transition-colors"
+              >
+                <KeyRound className="h-3.5 w-3.5" />
+                Generate Codes
+              </button>
+              <button
+                onClick={() => setPlanModalOpen(true)}
+                className="px-3.5 py-2 text-xs font-medium border border-input rounded-lg hover:bg-muted text-foreground flex items-center gap-1.5 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New Plan
+              </button>
+              <button
+                onClick={() => setAssignModalOpen(true)}
+                className="px-4 py-2 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors"
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                Assign Subscription
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -476,6 +545,107 @@ export default function SubscriptionsPage() {
         )}
       </div>
 
+      {/* Platform Admin Activation Codes Management */}
+      {isPlatformAdmin && (
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <KeyRound className="h-5 w-5 text-primary" />
+                Activation Codes & Vouchers ({codes.length})
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Cryptographically unpredictable activation tokens for courses and institutional plans.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setGenerateModalOpen(true)}
+              className="px-3.5 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Generate Batch
+            </button>
+          </div>
+
+          {codes.length === 0 ? (
+            <div className="text-center py-8 text-xs text-muted-foreground">
+              No activation codes generated yet. Click "Generate Batch" to create secure voucher codes.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border text-xs text-muted-foreground">
+                    <th className="py-2.5 px-3">Activation Code</th>
+                    <th className="py-2.5 px-3">Associated Plan</th>
+                    <th className="py-2.5 px-3">Redemptions</th>
+                    <th className="py-2.5 px-3">Expires At</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {codes.map((c) => (
+                    <tr key={c.id} className="hover:bg-muted/40 transition-colors">
+                      <td className="py-3 px-3 font-mono font-bold text-xs text-primary flex items-center gap-2">
+                        <span>{c.code}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(c.code);
+                            alert(`Copied ${c.code} to clipboard`);
+                          }}
+                          className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                          title="Copy Code"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </td>
+                      <td className="py-3 px-3 text-xs font-medium text-foreground">
+                        {c.planName}
+                      </td>
+                      <td className="py-3 px-3 text-xs text-muted-foreground">
+                        {c.timesRedeemed} / {c.maxRedemptions}
+                      </td>
+                      <td className="py-3 px-3 text-xs text-muted-foreground">
+                        {new Date(c.expiresAt).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 px-3">
+                        <span
+                          className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+                            c.isRevoked
+                              ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                              : c.timesRedeemed >= c.maxRedemptions
+                              ? 'bg-muted text-muted-foreground'
+                              : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                          }`}
+                        >
+                          {c.isRevoked
+                            ? 'Revoked'
+                            : c.timesRedeemed >= c.maxRedemptions
+                            ? 'Fully Redeemed'
+                            : 'Active'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        {!c.isRevoked && (
+                          <button
+                            onClick={() => handleRevokeCode(c.id)}
+                            className="px-2 py-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Assign Subscription Modal */}
       {assignModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
@@ -692,6 +862,109 @@ export default function SubscriptionsPage() {
                 >
                   {submittingPlan && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   Create Plan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Codes Modal */}
+      {generateModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-lg font-bold text-foreground">Generate Activation Codes</h3>
+              <button
+                onClick={() => setGenerateModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleGenerateCodes} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">
+                  Subscription Plan Tier *
+                </label>
+                <select
+                  required
+                  value={genCodePlanId}
+                  onChange={(e) => setGenCodePlanId(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm"
+                >
+                  {plans.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">
+                    Number of Codes *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    required
+                    value={genCodeCount}
+                    onChange={(e) => setGenCodeCount(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">
+                    Code Prefix *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={genCodePrefix}
+                    onChange={(e) => setGenCodePrefix(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm uppercase"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">
+                  Maximum Redemptions Per Code *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  required
+                  value={genCodeMaxRedeem}
+                  onChange={(e) => setGenCodeMaxRedeem(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm"
+                />
+                <span className="text-[11px] text-muted-foreground mt-1 block">
+                  Set to 1 for single-use student voucher, or higher for shared class vouchers.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setGenerateModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium border border-input rounded-lg hover:bg-muted text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingGenCodes}
+                  className="px-4 py-2 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-lg shadow-sm flex items-center gap-2"
+                >
+                  {submittingGenCodes && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Generate Batch
                 </button>
               </div>
             </form>
