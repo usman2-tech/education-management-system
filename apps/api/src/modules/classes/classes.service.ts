@@ -1259,6 +1259,65 @@ export class ClassesService {
     return this.getStudentTimetable(childId, currentUser);
   }
 
+  async getSchoolStudents(
+    currentUser: AuthUser,
+    query?: { search?: string; sectionId?: string; schoolId?: string },
+  ) {
+    const schoolId = this.resolveSchoolId(currentUser, query?.schoolId);
+    const where: any = {
+      schoolId,
+      role: UserRole.STUDENT,
+    };
+
+    if (query?.search) {
+      where.OR = [
+        { firstName: { contains: query.search, mode: 'insensitive' } },
+        { lastName: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (query?.sectionId) {
+      where.classEnrollments = {
+        some: { sectionId: query.sectionId, status: 'ACTIVE' },
+      };
+    }
+
+    const students = await this.prisma.user.findMany({
+      where,
+      include: {
+        studentProfile: true,
+        classEnrollments: {
+          where: { status: 'ACTIVE' },
+          include: {
+            section: {
+              include: { schoolClass: true },
+            },
+          },
+        },
+      },
+      orderBy: { lastName: 'asc' },
+    });
+
+    return students.map((s) => ({
+      id: s.id,
+      firstName: s.firstName,
+      lastName: s.lastName,
+      email: s.email,
+      phone: s.phone,
+      admissionNumber: s.studentProfile?.admissionNumber || null,
+      gradeLevel: s.studentProfile?.gradeLevel || null,
+      section: s.classEnrollments[0]?.section
+        ? {
+            id: s.classEnrollments[0].section.id,
+            name: s.classEnrollments[0].section.name,
+            className: s.classEnrollments[0].section.schoolClass.name,
+          }
+        : null,
+      createdAt: s.createdAt.toISOString(),
+    }));
+  }
+
   private mapTimetableEntry(entry: any): TimetableEntryDto {
     return {
       id: entry.id,

@@ -1019,4 +1019,47 @@ export class DashboardsService {
       })),
     };
   }
+
+  // ============================================================================
+  // AUDIT LOGS OVERVIEW
+  // ============================================================================
+  async getAuditLogs(
+    user: AuthUser,
+    schoolIdParam?: string,
+    entityType?: string,
+    search?: string,
+  ) {
+    if (user.role !== UserRole.PLATFORM_ADMIN && user.role !== UserRole.SCHOOL_ADMIN) {
+      throw new ForbiddenException('Access restricted to administrators.');
+    }
+    const schoolId = user.role === UserRole.PLATFORM_ADMIN ? (schoolIdParam || undefined) : (user.schoolId || undefined);
+
+    const where: any = {};
+    if (schoolId) where.schoolId = schoolId;
+    if (entityType) where.entityType = entityType;
+    if (search) {
+      where.OR = [
+        { action: { contains: search, mode: 'insensitive' } },
+        { actorEmail: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const logs = await this.prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    return logs.map((l) => ({
+      id: l.id,
+      action: l.action,
+      entityType: l.entityType,
+      entityId: l.entityId,
+      actorId: l.actorId,
+      actorEmail: l.actorEmail,
+      schoolId: l.schoolId,
+      details: l.details,
+      createdAt: l.createdAt.toISOString(),
+    }));
+  }
 }

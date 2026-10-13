@@ -15,7 +15,7 @@
 | **TASK 014** | Subscription Codes & Redemption | COMPLETED | `7ab949a` | Bulk generation, concurrency-safe redemption, duplicate prevention, audit logs |
 | **TASK 015** | Notifications & Messaging | COMPLETED | `952b5e9` | In-app notification center, broadcasts, direct messaging threads, unread counts |
 | **TASK 016** | Complete Dashboards & Visualization | COMPLETED | `feat(dashboards)` | 5 role-based dashboards (Platform Admin, School Admin, Teacher, Student, Parent) with real DB metrics |
-| **TASK 017** | Integration, Security & Audit | IN PROGRESS | Pending | RBAC checks, school isolation, route audit |
-| **TASK 018** | Automated Testing & Demo Data | PLANNED | Pending | Idempotent seed data, test suites, E2E checks |
+| **TASK 017** | Integration, Security & Audit | COMPLETED | `fix(integration)` | Swagger tags, /students & /dashboards/audit-logs API, /students, /audit-logs, /system-health, /settings pages (zero 404s) |
+| **TASK 018** | Automated Testing & Demo Data | IN PROGRESS | Pending | Idempotent seed data, test suites, E2E checks |
 
 ---

@@ -302,4 +302,19 @@ export class ClassesController {
   ) {
     return this.classesService.getChildTimetable(childId, currentUser);
   }
+
+  // ---------------------------------------------------------------------------
+  // STUDENTS ROSTER
+  // ---------------------------------------------------------------------------
+
+  @Get('students')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
+  async getSchoolStudents(
+    @CurrentUser() currentUser: AuthUser,
+    @Query('search') search?: string,
+    @Query('sectionId') sectionId?: string,
+    @Query('schoolId') schoolId?: string,
+  ) {
+    return this.classesService.getSchoolStudents(currentUser, { search, sectionId, schoolId });
+  }
 }

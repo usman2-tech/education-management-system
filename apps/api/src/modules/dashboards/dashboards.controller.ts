@@ -70,4 +70,19 @@ export class DashboardsController {
   ) {
     return this.dashboardsService.getParentDashboard(user, childId);
   }
+
+  @Get('audit-logs')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: 'System security and operational audit trail logs' })
+  @ApiQuery({ name: 'schoolId', required: false })
+  @ApiQuery({ name: 'entityType', required: false })
+  @ApiQuery({ name: 'search', required: false })
+  async getAuditLogs(
+    @CurrentUser() user: AuthUser,
+    @Query('schoolId') schoolId?: string,
+    @Query('entityType') entityType?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.dashboardsService.getAuditLogs(user, schoolId, entityType, search);
+  }
 }
