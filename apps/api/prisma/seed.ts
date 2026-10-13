@@ -29,6 +29,14 @@ import {
   TeacherEmploymentStatus,
   AssessmentStatus,
   AttendanceStatus,
+  HomeworkStatus,
+  HomeworkSubmissionStatus,
+  EnrollmentStatus,
+  ExamStatus,
+  ExamQuestionType,
+  ExamAttemptStatus,
+  SubscriptionStatus,
+  NotificationType,
 } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -1016,7 +1024,764 @@ async function main() {
     });
   }
 
-  console.log('--- Institutional Fixtures Seeding Complete (TASK 009 Ready) ---');
+  // ===========================================================================
+  // 15. TASK 010 — Homework Assignments & Submissions
+  // ===========================================================================
+  const homeworkList = [
+    // St. Jude (4 assignments)
+    {
+      title: 'Calculus Problem Set 3: Derivatives & Chain Rule',
+      instructions: 'Complete problem set exercises 14 through 28 on analytical differentiation and submit step-by-step proofs.',
+      schoolId: stJude.id,
+      academicYearId: stJudeYear.id,
+      classSectionId: sjSection10A.id,
+      subjectId: mathSubject.id,
+      teacherId: teacherUsers['teacher@stjude.ems.local'].id,
+      dueDate: new Date(Date.now() + 5 * 24 * 3600 * 1000),
+      maxPoints: 100.0,
+      status: HomeworkStatus.PUBLISHED,
+    },
+    {
+      title: "Newton's Second Law Lab Investigation",
+      instructions: 'Submit your compiled lab experimental tables, friction calculations, and velocity graph analysis.',
+      schoolId: stJude.id,
+      academicYearId: stJudeYear.id,
+      classSectionId: sjSection10A.id,
+      subjectId: physSubject.id,
+      teacherId: teacherUsers['teacher.maya@stjude.ems.local'].id,
+      dueDate: new Date(Date.now() + 3 * 24 * 3600 * 1000),
+      maxPoints: 50.0,
+      status: HomeworkStatus.PUBLISHED,
+    },
+    {
+      title: 'Shakespearean Dramatic Irony Essay',
+      instructions: 'Author a 1,200-word argumentative critique analyzing fate versus free will in Macbeth Act III.',
+      schoolId: stJude.id,
+      academicYearId: stJudeYear.id,
+      classSectionId: sjSection10A.id,
+      subjectId: engSubject.id,
+      teacherId: teacherUsers['teacher.robert@stjude.ems.local'].id,
+      dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      maxPoints: 100.0,
+      status: HomeworkStatus.PUBLISHED,
+    },
+    {
+      title: 'Algorithm Complexity & Asymptotic Bounds',
+      instructions: 'Provide Big-O, Big-Omega, and Big-Theta formal justifications for recursion trees in Divide & Conquer algorithms.',
+      schoolId: stJude.id,
+      academicYearId: stJudeYear.id,
+      classSectionId: sjSection10A.id,
+      subjectId: csSubject.id,
+      teacherId: teacherUsers['teacher.alan@stjude.ems.local'].id,
+      dueDate: new Date(Date.now() + 4 * 24 * 3600 * 1000),
+      maxPoints: 100.0,
+      status: HomeworkStatus.PUBLISHED,
+    },
+    // Apex STEM (4 assignments)
+    {
+      title: 'Organic Synthesis Reaction Mechanisms',
+      instructions: 'Draw electron-pushing arrow mechanisms for nucleophilic acyl substitution and peptide bond condensation.',
+      schoolId: apex.id,
+      academicYearId: apexYear.id,
+      classSectionId: apSectionAlpha.id,
+      subjectId: chemSubject.id,
+      teacherId: teacherUsers['teacher@apex.ems.local'].id,
+      dueDate: new Date(Date.now() + 6 * 24 * 3600 * 1000),
+      maxPoints: 100.0,
+      status: HomeworkStatus.PUBLISHED,
+    },
+    {
+      title: 'Orbital Maneuvers & Hohmann Transfer Analysis',
+      instructions: 'Calculate delta-V budgets for Earth-to-Mars orbital insertion trajectories using Keplerian two-body mechanics.',
+      schoolId: apex.id,
+      academicYearId: apexYear.id,
+      classSectionId: apSectionAlpha.id,
+      subjectId: astroSubject.id,
+      teacherId: teacherUsers['teacher.neil@apex.ems.local'].id,
+      dueDate: new Date(Date.now() + 4 * 24 * 3600 * 1000),
+      maxPoints: 100.0,
+      status: HomeworkStatus.PUBLISHED,
+    },
+    {
+      title: 'Balanced Binary Search Tree Lab in Python',
+      instructions: 'Implement AVL self-balancing tree rotation algorithms with unit test coverage for node rebalancing.',
+      schoolId: apex.id,
+      academicYearId: apexYear.id,
+      classSectionId: apSectionAlpha.id,
+      subjectId: dsaSubject.id,
+      teacherId: teacherUsers['teacher.ada@apex.ems.local'].id,
+      dueDate: new Date(Date.now() + 2 * 24 * 3600 * 1000),
+      maxPoints: 100.0,
+      status: HomeworkStatus.PUBLISHED,
+    },
+    {
+      title: 'Cellular Mitosis Microscope Observation Draft',
+      instructions: 'Prepare preliminary laboratory sketches of allium root tip cell divisions in prophase and anaphase.',
+      schoolId: apex.id,
+      academicYearId: apexYear.id,
+      classSectionId: apSectionAlpha.id,
+      subjectId: bioSubject.id,
+      teacherId: teacherUsers['teacher.gregor@apex.ems.local'].id,
+      dueDate: new Date(Date.now() + 10 * 24 * 3600 * 1000),
+      maxPoints: 50.0,
+      status: HomeworkStatus.DRAFT,
+    },
+  ];
+
+  const seededHomeworks: any[] = [];
+  for (const hw of homeworkList) {
+    let existingHw = await prisma.homework.findFirst({
+      where: { schoolId: hw.schoolId, title: hw.title },
+    });
+    if (!existingHw) {
+      existingHw = await prisma.homework.create({ data: hw });
+    }
+    seededHomeworks.push(existingHw);
+  }
+
+  // Populate realistic student submissions for published homework
+  for (const hw of seededHomeworks) {
+    if (hw.status !== HomeworkStatus.PUBLISHED) continue;
+    const targetStudents = hw.schoolId === stJude.id ? stJude10AStudents : apexAlphaStudents;
+
+    for (const [idx, st] of targetStudents.entries()) {
+      let subStatus: HomeworkSubmissionStatus = HomeworkSubmissionStatus.SUBMITTED;
+      let grade: number | null = null;
+      let feedback: string | null = null;
+      let isLate = false;
+
+      if (idx === 0 || idx === 1) {
+        subStatus = HomeworkSubmissionStatus.GRADED;
+        grade = Math.round(hw.maxPoints * 0.95);
+        feedback = 'Exemplary clarity and rigorous analytical structure.';
+      } else if (idx === 2 || idx === 3) {
+        subStatus = HomeworkSubmissionStatus.GRADED;
+        grade = Math.round(hw.maxPoints * 0.82);
+        feedback = 'Solid work. Minor calculation oversights in final derivations.';
+      } else if (idx === 4) {
+        subStatus = HomeworkSubmissionStatus.LATE;
+        isLate = true;
+        feedback = 'Submitted past scheduled deadline.';
+      } else if (idx === 5) {
+        subStatus = HomeworkSubmissionStatus.SUBMITTED;
+        feedback = 'Pending faculty evaluation.';
+      }
+
+      await prisma.homeworkSubmission.upsert({
+        where: {
+          homeworkId_studentId: {
+            homeworkId: hw.id,
+            studentId: st.id,
+          },
+        },
+        update: {
+          status: subStatus,
+          grade,
+          feedback,
+          isLate,
+        },
+        create: {
+          homeworkId: hw.id,
+          studentId: st.id,
+          content: 'Detailed student solution attachment with accompanying workings.',
+          status: subStatus,
+          isLate,
+          grade,
+          feedback,
+          gradedById: subStatus === HomeworkSubmissionStatus.GRADED ? hw.teacherId : null,
+          gradedAt: subStatus === HomeworkSubmissionStatus.GRADED ? new Date() : null,
+        },
+      });
+    }
+  }
+  console.log('[Seed] 8 Homework assignments created with realistic student submissions');
+
+  // ===========================================================================
+  // 16. TASK 011 — Course Catalogs, Modules, Lessons & Tracking
+  // ===========================================================================
+  const coursesData = [
+    // St. Jude Courses (4)
+    {
+      title: 'Foundations of Differential Calculus',
+      code: 'MTH-101',
+      description: 'Master limits, derivative rules, optimization problems, and curve sketching.',
+      schoolId: stJude.id,
+      subjectId: mathSubject.id,
+      createdById: teacherUsers['teacher@stjude.ems.local'].id,
+      published: true,
+    },
+    {
+      title: 'Classical Mechanics & Dynamics',
+      code: 'PHY-101',
+      description: 'Kinematics, vector forces, energy conservation, and oscillatory motion systems.',
+      schoolId: stJude.id,
+      subjectId: physSubject.id,
+      createdById: teacherUsers['teacher.maya@stjude.ems.local'].id,
+      published: true,
+    },
+    {
+      title: 'World Literature & Rhetoric',
+      code: 'ENG-101',
+      description: 'Comparative literary criticism, narrative perspectives, and rhetorical discourse.',
+      schoolId: stJude.id,
+      subjectId: engSubject.id,
+      createdById: teacherUsers['teacher.robert@stjude.ems.local'].id,
+      published: true,
+    },
+    {
+      title: 'Computer Systems & Architecture',
+      code: 'CS-101',
+      description: 'Logic gates, memory hierarchies, assembly instructions, and compiler foundations.',
+      schoolId: stJude.id,
+      subjectId: csSubject.id,
+      createdById: teacherUsers['teacher.alan@stjude.ems.local'].id,
+      published: true,
+    },
+    // Apex STEM Courses (4)
+    {
+      title: 'Organic Synthesis & Stereochemistry',
+      code: 'CHM-201',
+      description: 'Chirality, reaction kinetics, functional group chemistry, and NMR spectroscopy.',
+      schoolId: apex.id,
+      subjectId: chemSubject.id,
+      createdById: teacherUsers['teacher@apex.ems.local'].id,
+      published: true,
+    },
+    {
+      title: 'Astrodynamics & Space Missions',
+      code: 'AST-201',
+      description: 'Orbital resonance, atmospheric re-entry thermodynamics, and deep space telemetry.',
+      schoolId: apex.id,
+      subjectId: astroSubject.id,
+      createdById: teacherUsers['teacher.neil@apex.ems.local'].id,
+      published: true,
+    },
+    {
+      title: 'Data Structures & Algorithmic Analysis',
+      code: 'DSA-201',
+      description: 'Graph traversals, dynamic programming, shortest path trees, and hash maps.',
+      schoolId: apex.id,
+      subjectId: dsaSubject.id,
+      createdById: teacherUsers['teacher.ada@apex.ems.local'].id,
+      published: true,
+    },
+    {
+      title: 'Computational Genetics & Molecular Biology',
+      code: 'BIO-201',
+      description: 'CRISPR Cas9 editing, sequence alignment, protein folding, and bioinformatics.',
+      schoolId: apex.id,
+      subjectId: bioSubject.id,
+      createdById: teacherUsers['teacher.gregor@apex.ems.local'].id,
+      published: false,
+    },
+  ];
+
+  const seededCourses: any[] = [];
+  for (const c of coursesData) {
+    const course = await prisma.course.upsert({
+      where: {
+        schoolId_code: {
+          schoolId: c.schoolId,
+          code: c.code,
+        },
+      },
+      update: {
+        title: c.title,
+        description: c.description,
+        published: c.published,
+      },
+      create: c,
+    });
+    seededCourses.push(course);
+
+    // Create 2 Modules for each course
+    for (let mIdx = 1; mIdx <= 2; mIdx++) {
+      let mod = await prisma.courseModule.findFirst({
+        where: { courseId: course.id, order: mIdx },
+      });
+      if (!mod) {
+        mod = await prisma.courseModule.create({
+          data: {
+            courseId: course.id,
+            title: `Unit ${mIdx}: Conceptual Foundations & Practice`,
+            description: `Core theoretical paradigms and applied problem solving for Unit ${mIdx}.`,
+            order: mIdx,
+          },
+        });
+      }
+
+      // Create 2 Lessons for each module
+      for (let lIdx = 1; lIdx <= 2; lIdx++) {
+        let lesson = await prisma.courseLesson.findFirst({
+          where: { moduleId: mod.id, order: lIdx },
+        });
+        if (!lesson) {
+          lesson = await prisma.courseLesson.create({
+            data: {
+              moduleId: mod.id,
+              title: `Lesson ${mIdx}.${lIdx}: Core Competencies & Analysis`,
+              content: `Comprehensive learning overview, formal definitions, worked demonstrations, and check-for-understanding questions for Lesson ${mIdx}.${lIdx}.`,
+              durationMinutes: 45,
+              order: lIdx,
+            },
+          });
+        }
+      }
+    }
+
+    // Enroll students and seed lesson progress
+    const targetStudents = c.schoolId === stJude.id ? stJude10AStudents : apexAlphaStudents;
+    for (const [stIdx, st] of targetStudents.entries()) {
+      await prisma.courseEnrollment.upsert({
+        where: {
+          courseId_studentId: {
+            courseId: course.id,
+            studentId: st.id,
+          },
+        },
+        update: {
+          status: EnrollmentStatus.ACTIVE,
+        },
+        create: {
+          courseId: course.id,
+          studentId: st.id,
+          status: EnrollmentStatus.ACTIVE,
+        },
+      });
+
+      // Mark first lesson as completed for progress tracking
+      const firstLesson = await prisma.courseLesson.findFirst({
+        where: { module: { courseId: course.id } },
+      });
+      if (firstLesson && stIdx % 2 === 0) {
+        await prisma.lessonProgress.upsert({
+          where: {
+            lessonId_studentId: {
+              lessonId: firstLesson.id,
+              studentId: st.id,
+            },
+          },
+          update: { isCompleted: true },
+          create: {
+            lessonId: firstLesson.id,
+            studentId: st.id,
+            isCompleted: true,
+          },
+        });
+      }
+    }
+  }
+  console.log('[Seed] 8 Courses seeded with modules, lessons, enrollments, and progress logs');
+
+  // ===========================================================================
+  // 17. TASK 012 — Examinations, Question Banks, Attempts & Answers
+  // ===========================================================================
+  const examsList = [
+    // St. Jude Exams (4)
+    {
+      title: 'Midterm Calculus Examination',
+      description: 'Formal closed-book testing on continuity, limits, chain rule, and implicit differentiation.',
+      schoolId: stJude.id,
+      academicYearId: stJudeYear.id,
+      classSectionId: sjSection10A.id,
+      subjectId: mathSubject.id,
+      createdById: teacherUsers['teacher@stjude.ems.local'].id,
+      examDate: new Date('2026-10-15T09:00:00Z'),
+      durationMinutes: 90,
+      totalMarks: 100.0,
+      passingMarks: 50.0,
+      status: ExamStatus.RESULTS_PUBLISHED,
+    },
+    {
+      title: 'Classical Dynamics Diagnostics',
+      description: 'Assessment on kinematics vectors, friction coefficients, and projectile trajectories.',
+      schoolId: stJude.id,
+      academicYearId: stJudeYear.id,
+      classSectionId: sjSection10A.id,
+      subjectId: physSubject.id,
+      createdById: teacherUsers['teacher.maya@stjude.ems.local'].id,
+      examDate: new Date('2026-10-18T10:00:00Z'),
+      durationMinutes: 60,
+      totalMarks: 75.0,
+      passingMarks: 35.0,
+      status: ExamStatus.RESULTS_PUBLISHED,
+    },
+    {
+      title: 'World Rhetoric & Essay Assessment',
+      description: 'Close-reading analytical examination and rhetorical thesis synthesis.',
+      schoolId: stJude.id,
+      academicYearId: stJudeYear.id,
+      classSectionId: sjSection10A.id,
+      subjectId: engSubject.id,
+      createdById: teacherUsers['teacher.robert@stjude.ems.local'].id,
+      examDate: new Date('2026-10-25T11:00:00Z'),
+      durationMinutes: 60,
+      totalMarks: 50.0,
+      passingMarks: 25.0,
+      status: ExamStatus.SCHEDULED,
+    },
+    {
+      title: 'Computer Architecture Midterm',
+      description: 'Assembly pipeline simulation, binary arithmetic, and cache memory layout.',
+      schoolId: stJude.id,
+      academicYearId: stJudeYear.id,
+      classSectionId: sjSection10A.id,
+      subjectId: csSubject.id,
+      createdById: teacherUsers['teacher.alan@stjude.ems.local'].id,
+      examDate: new Date('2026-10-28T09:00:00Z'),
+      durationMinutes: 90,
+      totalMarks: 100.0,
+      passingMarks: 50.0,
+      status: ExamStatus.SCHEDULED,
+    },
+    // Apex STEM Exams (4)
+    {
+      title: 'Organic Reaction Mechanism Assessment',
+      description: 'Synthesis routes, chirality, reaction kinetics, and spectroscopic analysis.',
+      schoolId: apex.id,
+      academicYearId: apexYear.id,
+      classSectionId: apSectionAlpha.id,
+      subjectId: chemSubject.id,
+      createdById: teacherUsers['teacher@apex.ems.local'].id,
+      examDate: new Date('2026-10-16T13:00:00Z'),
+      durationMinutes: 90,
+      totalMarks: 100.0,
+      passingMarks: 50.0,
+      status: ExamStatus.RESULTS_PUBLISHED,
+    },
+    {
+      title: 'Keplerian Astrodynamics Midterm',
+      description: 'Orbital velocity calculations, eccentricity derivations, and escape velocities.',
+      schoolId: apex.id,
+      academicYearId: apexYear.id,
+      classSectionId: apSectionAlpha.id,
+      subjectId: astroSubject.id,
+      createdById: teacherUsers['teacher.neil@apex.ems.local'].id,
+      examDate: new Date('2026-10-20T14:00:00Z'),
+      durationMinutes: 75,
+      totalMarks: 80.0,
+      passingMarks: 40.0,
+      status: ExamStatus.RESULTS_PUBLISHED,
+    },
+    {
+      title: 'Data Structures Practical Assessment',
+      description: 'Graph algorithmic complexity, minimum spanning trees, and dynamic programming.',
+      schoolId: apex.id,
+      academicYearId: apexYear.id,
+      classSectionId: apSectionAlpha.id,
+      subjectId: dsaSubject.id,
+      createdById: teacherUsers['teacher.ada@apex.ems.local'].id,
+      examDate: new Date('2026-10-29T10:00:00Z'),
+      durationMinutes: 90,
+      totalMarks: 100.0,
+      passingMarks: 50.0,
+      status: ExamStatus.SCHEDULED,
+    },
+    {
+      title: 'Cellular Genetics Diagnostic Evaluation',
+      description: 'Mendelian ratios, DNA replication forks, and transcription regulation.',
+      schoolId: apex.id,
+      academicYearId: apexYear.id,
+      classSectionId: apSectionAlpha.id,
+      subjectId: bioSubject.id,
+      createdById: teacherUsers['teacher.gregor@apex.ems.local'].id,
+      examDate: new Date('2026-11-02T11:00:00Z'),
+      durationMinutes: 60,
+      totalMarks: 50.0,
+      passingMarks: 25.0,
+      status: ExamStatus.DRAFT,
+    },
+  ];
+
+  const seededExams: any[] = [];
+  for (const ex of examsList) {
+    let existingExam = await prisma.exam.findFirst({
+      where: { schoolId: ex.schoolId, title: ex.title },
+    });
+    if (!existingExam) {
+      existingExam = await prisma.exam.create({ data: ex });
+    }
+    seededExams.push(existingExam);
+
+    // Seed Questions for the exam
+    const q1 = await prisma.examQuestion.findFirst({
+      where: { examId: existingExam.id, order: 1 },
+    });
+    if (!q1) {
+      await prisma.examQuestion.create({
+        data: {
+          examId: existingExam.id,
+          questionText: 'What is the primary governing conservation principle in closed mechanical systems?',
+          questionType: ExamQuestionType.MULTIPLE_CHOICE,
+          options: JSON.stringify(['Conservation of Total Mechanical Energy', 'Conservation of Momentum Only', 'Newton Third Law', 'Ideal Gas Law']),
+          correctAnswer: 'Conservation of Total Mechanical Energy',
+          marks: 25.0,
+          order: 1,
+        },
+      });
+    }
+
+    const q2 = await prisma.examQuestion.findFirst({
+      where: { examId: existingExam.id, order: 2 },
+    });
+    if (!q2) {
+      await prisma.examQuestion.create({
+        data: {
+          examId: existingExam.id,
+          questionText: 'State whether rate of change of momentum is proportional to net impressed force.',
+          questionType: ExamQuestionType.TRUE_FALSE,
+          options: JSON.stringify(['True', 'False']),
+          correctAnswer: 'True',
+          marks: 25.0,
+          order: 2,
+        },
+      });
+    }
+
+    // Populate student attempts for RESULTS_PUBLISHED exams
+    if (existingExam.status === ExamStatus.RESULTS_PUBLISHED) {
+      const targetStudents = ex.schoolId === stJude.id ? stJude10AStudents : apexAlphaStudents;
+      for (const [stIdx, st] of targetStudents.entries()) {
+        const marksObtained = Math.round(existingExam.totalMarks * (0.75 + (stIdx % 3) * 0.1));
+        const percentage = Math.round((marksObtained / existingExam.totalMarks) * 100);
+
+        await prisma.examAttempt.upsert({
+          where: {
+            examId_studentId: {
+              examId: existingExam.id,
+              studentId: st.id,
+            },
+          },
+          update: {
+            status: ExamAttemptStatus.GRADED,
+            obtainedMarks: marksObtained,
+            percentage,
+          },
+          create: {
+            examId: existingExam.id,
+            studentId: st.id,
+            status: ExamAttemptStatus.GRADED,
+            obtainedMarks: marksObtained,
+            percentage,
+            feedback: 'Solid demonstration of core analytical concepts.',
+            gradedById: existingExam.createdById,
+            gradedAt: new Date(),
+          },
+        });
+      }
+    }
+  }
+  console.log('[Seed] 8 Examinations created with question banks, attempts & published scores');
+
+  // ===========================================================================
+  // 18. TASK 013 — Subscription Plans & School Subscriptions
+  // ===========================================================================
+  const plans = [
+    { code: 'FREE_STARTER', name: 'Free Starter Plan', description: 'Essential trial features for small community schools', price: 0.0, durationDays: 365, maxStudents: 100, maxTeachers: 10 },
+    { code: 'BASIC_ACADEMY', name: 'Basic Academy Plan', description: 'Complete class rosters, attendance tracking, and reporting', price: 499.0, durationDays: 365, maxStudents: 300, maxTeachers: 30 },
+    { code: 'INSTITUTIONAL_STANDARD', name: 'Institutional Standard', description: 'Full gradebook, homework, exams, and guardian communication portal', price: 1299.0, durationDays: 365, maxStudents: 1000, maxTeachers: 80 },
+    { code: 'STEM_ADVANCED', name: 'STEM Advanced Campus', description: 'Optimized for STEM laboratory workflows, NFC simulator, and course catalogs', price: 1899.0, durationDays: 365, maxStudents: 1500, maxTeachers: 120 },
+    { code: 'CAMPUS_ENTERPRISE', name: 'Campus Enterprise Master', description: 'Unlimited sections, custom grading scales, API integrations, and priority SLA', price: 3499.0, durationDays: 365, maxStudents: 5000, maxTeachers: 350 },
+    { code: 'PRO_SCHOLAR', name: 'Pro Scholar Collegiate', description: 'Tailored for secondary prep academies with rigorous exam scheduling', price: 799.0, durationDays: 365, maxStudents: 500, maxTeachers: 50 },
+    { code: 'DISTRICT_UNLIMITED', name: 'District Multi-School Unlimited', description: 'Full regional district licensing for cross-campus administrative oversight', price: 7999.0, durationDays: 365, maxStudents: 20000, maxTeachers: 1500 },
+    { code: 'PILOT_TRIAL', name: 'Pilot Academic Sandbox', description: 'Short-term institutional trial with simulated demo features', price: 0.0, durationDays: 60, maxStudents: 50, maxTeachers: 5 },
+  ];
+
+  const seededPlans: Record<string, any> = {};
+  for (const pl of plans) {
+    const pRecord = await prisma.subscriptionPlan.upsert({
+      where: { code: pl.code },
+      update: {
+        name: pl.name,
+        description: pl.description,
+        price: pl.price,
+        maxStudents: pl.maxStudents,
+        maxTeachers: pl.maxTeachers,
+      },
+      create: pl,
+    });
+    seededPlans[pl.code] = pRecord;
+  }
+
+  // Bind active institutional subscriptions
+  const stJudePlan = seededPlans['INSTITUTIONAL_STANDARD'];
+  let sjSub = await prisma.schoolSubscription.findFirst({
+    where: { schoolId: stJude.id, planId: stJudePlan.id },
+  });
+  if (!sjSub) {
+    await prisma.schoolSubscription.create({
+      data: {
+        schoolId: stJude.id,
+        planId: stJudePlan.id,
+        status: SubscriptionStatus.ACTIVE,
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2027-09-01'),
+        autoRenew: true,
+      },
+    });
+  }
+
+  const apexPlan = seededPlans['STEM_ADVANCED'];
+  let apSub = await prisma.schoolSubscription.findFirst({
+    where: { schoolId: apex.id, planId: apexPlan.id },
+  });
+  if (!apSub) {
+    await prisma.schoolSubscription.create({
+      data: {
+        schoolId: apex.id,
+        planId: apexPlan.id,
+        status: SubscriptionStatus.ACTIVE,
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2027-09-01'),
+        autoRenew: true,
+      },
+    });
+  }
+  console.log('[Seed] 8 Subscription Plans & active School Subscriptions verified');
+
+  // ===========================================================================
+  // 19. TASK 014 — Subscription Codes & Redemptions
+  // ===========================================================================
+  const adminUser = await prisma.user.findUniqueOrThrow({ where: { email: 'platform.admin@ems.local' } });
+
+  const codesList = [
+    { code: 'SJA-ENTERPRISE-2026', plan: seededPlans['CAMPUS_ENTERPRISE'], maxRedemptions: 5, timesRedeemed: 1, expiresAt: new Date(Date.now() + 180 * 24 * 3600 * 1000), isRevoked: false },
+    { code: 'APEX-STEM-2026', plan: seededPlans['STEM_ADVANCED'], maxRedemptions: 2, timesRedeemed: 1, expiresAt: new Date(Date.now() + 180 * 24 * 3600 * 1000), isRevoked: false },
+    { code: 'GLOBAL-DISTRICT-2027', plan: seededPlans['DISTRICT_UNLIMITED'], maxRedemptions: 10, timesRedeemed: 0, expiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000), isRevoked: false },
+    { code: 'PRO-SCHOLAR-FALL', plan: seededPlans['PRO_SCHOLAR'], maxRedemptions: 3, timesRedeemed: 0, expiresAt: new Date(Date.now() + 90 * 24 * 3600 * 1000), isRevoked: false },
+    { code: 'ACADEMY-TRIAL-01', plan: seededPlans['PILOT_TRIAL'], maxRedemptions: 5, timesRedeemed: 0, expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000), isRevoked: false },
+    { code: 'STJUDE-LEGACY-REDEEMED', plan: seededPlans['INSTITUTIONAL_STANDARD'], maxRedemptions: 1, timesRedeemed: 1, expiresAt: new Date(Date.now() + 60 * 24 * 3600 * 1000), isRevoked: false },
+    { code: 'EXPIRED-SUMMER-2025', plan: seededPlans['BASIC_ACADEMY'], maxRedemptions: 1, timesRedeemed: 0, expiresAt: new Date('2025-08-31'), isRevoked: false },
+    { code: 'REVOKED-FRAUD-CODE', plan: seededPlans['CAMPUS_ENTERPRISE'], maxRedemptions: 1, timesRedeemed: 0, expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000), isRevoked: true },
+  ];
+
+  for (const c of codesList) {
+    const scRecord = await prisma.subscriptionCode.upsert({
+      where: { code: c.code },
+      update: {
+        maxRedemptions: c.maxRedemptions,
+        timesRedeemed: c.timesRedeemed,
+        expiresAt: c.expiresAt,
+        isRevoked: c.isRevoked,
+      },
+      create: {
+        code: c.code,
+        planId: c.plan.id,
+        createdById: adminUser.id,
+        maxRedemptions: c.maxRedemptions,
+        timesRedeemed: c.timesRedeemed,
+        expiresAt: c.expiresAt,
+        isRevoked: c.isRevoked,
+      },
+    });
+
+    // Seed redemption audit record if redeemed
+    if (c.timesRedeemed > 0) {
+      const red = await prisma.codeRedemption.findFirst({
+        where: { codeId: scRecord.id, userId: stJudeAdmin.id },
+      });
+      if (!red) {
+        await prisma.codeRedemption.create({
+          data: {
+            codeId: scRecord.id,
+            userId: stJudeAdmin.id,
+            schoolId: stJude.id,
+          },
+        });
+      }
+    }
+  }
+  console.log('[Seed] 8 Subscription Codes initialized with redemption history');
+
+  // ===========================================================================
+  // 20. TASK 015 — In-App Notifications & Direct Messaging
+  // ===========================================================================
+  const liamStudent = studentUsers['student@stjude.ems.local'];
+  const sarahParent = await prisma.user.findUniqueOrThrow({ where: { email: 'parent@stjude.ems.local' } });
+
+  const notificationsList = [
+    { userId: liamStudent.id, schoolId: stJude.id, title: 'New Homework Assigned', message: 'Calculus Problem Set 3 has been published by Mr. Holloway.', type: NotificationType.HOMEWORK, link: '/homework', read: false },
+    { userId: liamStudent.id, schoolId: stJude.id, title: 'Exam Results Published', message: 'Your Midterm Calculus Examination score (94%) is now available.', type: NotificationType.EXAM, link: '/exams', read: true },
+    { userId: teacherUsers['teacher@stjude.ems.local'].id, schoolId: stJude.id, title: 'Pending Homework Submissions', message: '4 new submissions are awaiting review for Calculus Problem Set 3.', type: NotificationType.HOMEWORK, link: '/homework', read: false },
+    { userId: teacherUsers['teacher@stjude.ems.local'].id, schoolId: stJude.id, title: 'Campus Faculty Meeting', message: 'All-hands academic term review scheduled for Friday at 15:30.', type: NotificationType.ANNOUNCEMENT, link: '/notifications', read: true },
+    { userId: sarahParent.id, schoolId: stJude.id, title: 'Attendance Notice', message: 'Liam Chen was marked Present on campus today at 08:45.', type: NotificationType.ATTENDANCE, link: '/attendance', read: false },
+    { userId: sarahParent.id, schoolId: stJude.id, title: 'Academic Progress Report', message: 'Term 1 progress report card for Liam Chen has been published.', type: NotificationType.GRADE, link: '/grades', read: true },
+    { userId: stJudeAdmin.id, schoolId: stJude.id, title: 'Subscription Renewed', message: 'Institutional Standard subscription active through 2027-09-01.', type: NotificationType.SUBSCRIPTION, link: '/subscriptions', read: true },
+    { userId: stJudeAdmin.id, schoolId: stJude.id, title: 'System Security Notice', message: 'All campus faculty credentials verified under mandatory RBAC policy.', type: NotificationType.INFO, link: '/system-health', read: false },
+  ];
+
+  for (const n of notificationsList) {
+    let notif = await prisma.notification.findFirst({
+      where: { userId: n.userId, title: n.title },
+    });
+    if (!notif) {
+      await prisma.notification.create({ data: n });
+    }
+  }
+
+  // Seed Messaging Conversation between Parent Sarah Chen and Teacher Marcus Holloway
+  const convSubject = "Inquiry regarding Liam's Advanced Calculus Project";
+  let conv = await prisma.conversation.findFirst({
+    where: { schoolId: stJude.id, subject: convSubject },
+  });
+  if (!conv) {
+    conv = await prisma.conversation.create({
+      data: {
+        schoolId: stJude.id,
+        subject: convSubject,
+      },
+    });
+
+    await prisma.conversationParticipant.createMany({
+      data: [
+        { conversationId: conv.id, userId: sarahParent.id },
+        { conversationId: conv.id, userId: teacherUsers['teacher@stjude.ems.local'].id },
+      ],
+    });
+
+    await prisma.directMessage.create({
+      data: {
+        conversationId: conv.id,
+        senderId: sarahParent.id,
+        content: 'Dear Mr. Holloway, could you share guidance on the upcoming Fourier Transforms lab project?',
+      },
+    });
+
+    await prisma.directMessage.create({
+      data: {
+        conversationId: conv.id,
+        senderId: teacherUsers['teacher@stjude.ems.local'].id,
+        content: 'Hello Mrs. Chen! Liam has shown tremendous mathematical aptitude. He can consult the supplementary formulas in Module 2.',
+      },
+    });
+  }
+  console.log('[Seed] 8 Notifications & Direct Messaging conversations verified');
+
+  // ===========================================================================
+  // 21. TASK 017 — Security Audit Trail Logs
+  // ===========================================================================
+  const auditEntries = [
+    { action: 'AUTH_LOGIN', entityType: 'User', entityId: adminUser.id, actorId: adminUser.id, actorEmail: adminUser.email, schoolId: null, details: { method: 'JWT_BEARER', ip: '127.0.0.1' } },
+    { action: 'SCHOOL_PROFILE_UPDATED', entityType: 'School', entityId: stJude.id, actorId: stJudeAdmin.id, actorEmail: stJudeAdmin.email, schoolId: stJude.id, details: { status: 'ACTIVE' } },
+    { action: 'EXAM_RESULTS_PUBLISHED', entityType: 'Exam', entityId: seededExams[0]?.id || 'exam-001', actorId: teacherUsers['teacher@stjude.ems.local'].id, actorEmail: teacherUsers['teacher@stjude.ems.local'].email, schoolId: stJude.id, details: { totalEvaluated: 8 } },
+    { action: 'STUDENT_ENROLLED', entityType: 'Student', entityId: liamStudent.id, actorId: stJudeAdmin.id, actorEmail: stJudeAdmin.email, schoolId: stJude.id, details: { admissionNumber: 'STJ-2026-001' } },
+    { action: 'SUBSCRIPTION_ACTIVATED', entityType: 'Subscription', entityId: stJudePlan.id, actorId: adminUser.id, actorEmail: adminUser.email, schoolId: stJude.id, details: { plan: 'INSTITUTIONAL_STANDARD' } },
+    { action: 'HOMEWORK_ASSIGNED', entityType: 'Homework', entityId: seededHomeworks[0]?.id || 'hw-001', actorId: teacherUsers['teacher@stjude.ems.local'].id, actorEmail: teacherUsers['teacher@stjude.ems.local'].email, schoolId: stJude.id, details: { maxPoints: 100 } },
+    { action: 'ATTENDANCE_SESSION_FINALIZED', entityType: 'AttendanceSession', entityId: 'session-001', actorId: stJudeAdmin.id, actorEmail: stJudeAdmin.email, schoolId: stJude.id, details: { rosterCount: 8 } },
+    { action: 'SUBSCRIPTION_CODE_REDEEMED', entityType: 'SubscriptionCode', entityId: 'SJA-ENTERPRISE-2026', actorId: stJudeAdmin.id, actorEmail: stJudeAdmin.email, schoolId: stJude.id, details: { schoolCode: 'st-jude' } },
+  ];
+
+  for (const a of auditEntries) {
+    let existingLog = await prisma.auditLog.findFirst({
+      where: { action: a.action, entityId: a.entityId },
+    });
+    if (!existingLog) {
+      await prisma.auditLog.create({ data: a });
+    }
+  }
+  console.log('[Seed] 8 Security Audit Trail entries populated');
+
+  console.log('--- Institutional Fixtures Seeding Complete (TASKS 001–018 Ready) ---');
 }
 
 main()

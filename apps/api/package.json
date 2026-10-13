@@ -9,7 +9,11 @@
     "start:dev": "ts-node src/main.ts",
     "test": "jest --maxWorkers=1",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "ts-node prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@ems/contracts": "*",

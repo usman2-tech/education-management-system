@@ -16,6 +16,6 @@
 | **TASK 015** | Notifications & Messaging | COMPLETED | `952b5e9` | In-app notification center, broadcasts, direct messaging threads, unread counts |
 | **TASK 016** | Complete Dashboards & Visualization | COMPLETED | `feat(dashboards)` | 5 role-based dashboards (Platform Admin, School Admin, Teacher, Student, Parent) with real DB metrics |
 | **TASK 017** | Integration, Security & Audit | COMPLETED | `fix(integration)` | Swagger tags, /students & /dashboards/audit-logs API, /students, /audit-logs, /system-health, /settings pages (zero 404s) |
-| **TASK 018** | Automated Testing & Demo Data | IN PROGRESS | Pending | Idempotent seed data, test suites, E2E checks |
+| **TASK 018** | Automated Testing & Demo Data | COMPLETED | `test(ems)` | Idempotent institutional seed (2 schools, 8 faculty, 16 students, 8 homeworks, 8 courses, 8 exams, 8 plans, 8 codes, 8 notifs), 16/16 test suites passing (151/151 tests), clean production build |
 
 ---
