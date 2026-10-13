@@ -896,6 +896,270 @@ export interface NFCAttendanceEventDto {
   createdAt: string;
 }
 
+// ------------------------------------------------------------------------------
+// Grades & Academic Performance Contracts (TASK 009)
+// ------------------------------------------------------------------------------
+export enum AssessmentStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+}
+
+export interface AssessmentCategoryDto {
+  id: string;
+  schoolId: string;
+  academicYearId?: string | null;
+  academicYearName?: string | null;
+  subjectId?: string | null;
+  subjectName?: string | null;
+  name: string;
+  description?: string | null;
+  weightPercentage: number;
+  createdAt: string;
+  updatedAt: string;
+  assessmentsCount?: number;
+}
+
+export interface CreateAssessmentCategoryRequest {
+  schoolId?: string;
+  academicYearId?: string;
+  subjectId?: string;
+  name: string;
+  description?: string;
+  weightPercentage: number;
+}
+
+export interface UpdateAssessmentCategoryRequest {
+  name?: string;
+  description?: string;
+  weightPercentage?: number;
+  academicYearId?: string;
+  subjectId?: string;
+}
+
+export interface AssessmentDto {
+  id: string;
+  schoolId: string;
+  academicYearId: string;
+  academicYearName: string;
+  classSectionId: string;
+  className: string;
+  sectionName: string;
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  categoryId: string;
+  categoryName: string;
+  categoryWeight: number;
+  title: string;
+  description?: string | null;
+  maximumMarks: number;
+  assessmentDate: string;
+  createdById: string;
+  createdByName: string;
+  status: AssessmentStatus;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  enrolledStudentsCount?: number;
+  gradedStudentsCount?: number;
+  averageMarks?: number | null;
+  averagePercentage?: number | null;
+  subject?: { id: string; name: string; code?: string };
+  classSection?: { id: string; name: string; schoolClass?: { name: string } };
+  category?: { id: string; name: string; weightPercentage: number };
+}
+
+export interface CreateAssessmentRequest {
+  schoolId?: string;
+  academicYearId?: string;
+  classSectionId: string;
+  subjectId: string;
+  categoryId: string;
+  title: string;
+  description?: string;
+  maximumMarks: number;
+  assessmentDate: string;
+}
+
+export interface UpdateAssessmentRequest {
+  title?: string;
+  description?: string;
+  maximumMarks?: number;
+  assessmentDate?: string;
+  categoryId?: string;
+}
+
+export interface StudentGradeDto {
+  id: string;
+  assessmentId: string;
+  studentId: string;
+  studentName: string;
+  studentAdmissionNumber?: string | null;
+  marksObtained?: number | null;
+  percentage?: number | null;
+  letterGrade?: string | null;
+  gradePoint?: number | null;
+  feedback?: string | null;
+  gradedById: string;
+  gradedByName: string;
+  gradedAt: string;
+  assessmentTitle?: string;
+  subjectName?: string;
+  maximumMarks?: number;
+  categoryName?: string | null;
+}
+
+export interface StudentAssessmentGradeDto extends StudentGradeDto {
+  assessmentTitle: string;
+  subjectName: string;
+  maximumMarks: number;
+  categoryName?: string | null;
+}
+
+export interface GradebookStudentRowDto {
+  studentId: string;
+  studentName: string;
+  admissionNumber?: string | null;
+  marksObtained: number | null; // null represents missing grade
+  percentage: number | null;
+  letterGrade: string | null;
+  feedback?: string | null;
+}
+
+export interface AssessmentGradebookDto {
+  assessment: AssessmentDto;
+  students: GradebookStudentRowDto[];
+  statistics: {
+    enrolledCount: number;
+    gradedCount: number;
+    missingCount: number;
+    averageMarks: number | null;
+    averagePercentage: number | null;
+    highestMarks: number | null;
+    lowestMarks: number | null;
+  };
+}
+
+export interface GradeEntryItem {
+  studentId: string;
+  marksObtained?: number | null; // null if unrecorded/missing
+  feedback?: string | null;
+}
+
+export interface BulkSaveGradebookRequest {
+  grades: GradeEntryItem[];
+}
+
+export interface GradingScaleDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  minimumPercentage: number;
+  maximumPercentage: number;
+  letterGrade: string;
+  gradePoint?: number | null;
+  description?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateGradingScaleRequest {
+  schoolId?: string;
+  name: string;
+  minimumPercentage: number;
+  maximumPercentage: number;
+  letterGrade: string;
+  gradePoint?: number;
+  description?: string;
+}
+
+export interface UpdateGradingScaleRequest {
+  name?: string;
+  minimumPercentage?: number;
+  maximumPercentage?: number;
+  letterGrade?: string;
+  gradePoint?: number;
+  description?: string;
+}
+
+export interface StudentSubjectPerformanceDto {
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  overallPercentage: number | null;
+  letterGrade: string | null;
+  gradePoint: number | null;
+  completedAssessments: number;
+  totalAssessments: number;
+  categoryBreakdown: Array<{
+    categoryId: string;
+    categoryName: string;
+    weightPercentage: number;
+    averagePercentage: number | null;
+  }>;
+  assessments: Array<{
+    assessmentId: string;
+    title: string;
+    categoryName: string;
+    assessmentDate: string;
+    maximumMarks: number;
+    marksObtained: number | null;
+    percentage: number | null;
+    letterGrade: string | null;
+    feedback: string | null;
+  }>;
+}
+
+export interface StudentAcademicSummaryDto {
+  studentId: string;
+  studentName: string;
+  className: string;
+  sectionName: string;
+  schoolName: string;
+  gpa: number | null;
+  overallPercentage: number | null;
+  letterGrade: string | null;
+  subjects: StudentSubjectPerformanceDto[];
+  trend: Array<{
+    date: string;
+    assessmentTitle: string;
+    subjectCode: string;
+    percentage: number;
+  }>;
+}
+
+export interface ClassAcademicReportDto {
+  classSectionId: string;
+  className: string;
+  sectionName: string;
+  academicYearId: string;
+  academicYearName: string;
+  subjectPerformance: Array<{
+    subjectId: string;
+    subjectName: string;
+    subjectCode: string;
+    averagePercentage: number;
+    assessmentCount: number;
+    gradedCount: number;
+  }>;
+  gradeDistribution: Array<{
+    letterGrade: string;
+    count: number;
+    percentage: number;
+  }>;
+  studentRankings: Array<{
+    studentId: string;
+    studentName: string;
+    admissionNumber: string | null;
+    overallPercentage: number;
+    letterGrade: string;
+    rank: number;
+  }>;
+}
+
+export type ClassPerformanceReportDto = ClassAcademicReportDto;
+
+
 
 
 

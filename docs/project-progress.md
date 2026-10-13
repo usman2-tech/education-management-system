@@ -18,7 +18,7 @@ Feature lifecycle states:
 | **TASK-006** | Parent/Guardian Portal & Linkages | **AWAITING MANUAL TEST** | `feature/TASK-006-007-parents-classes` | `3af7363` | In Verification |
 | **TASK-007** | Classes, Subjects & Timetable Engine | **AWAITING MANUAL TEST** | `feature/TASK-006-007-parents-classes` | `3af7363` | In Verification |
 | **TASK-008** | Institutional Attendance Management & NFC Simulation | **AWAITING MANUAL TEST** | `feature/TASK-008-attendance-management` | Current | In Verification |
-| **TASK-009** | Gradebook & Academic Performance | `PLANNED` | — | — | — |
+| **TASK-009** | Gradebook & Academic Performance | **AWAITING MANUAL TEST** | `feature/TASK-009-grades-performance` | In Progress | Ready for Manual Test |
 | **TASK-010** | Homework & Educational Content | `PLANNED` | — | — | — |
 | **TASK-011** | Examination Engine & Assessment Schedules | `PLANNED` | — | — | — |
 | **TASK-012** | Institutional Subscriptions & Activation Codes | `PLANNED` | — | — | — |

@@ -98,6 +98,11 @@ enum NFCEventStatus {
   DUPLICATE
 }
 
+enum AssessmentStatus {
+  DRAFT
+  PUBLISHED
+}
+
 // ------------------------------------------------------------------------------
 // Core Multi-Tenant Institutional Models
 // ------------------------------------------------------------------------------
@@ -127,6 +132,9 @@ model School {
   attendanceSessions  AttendanceSession[]
   nfcIdentities       NFCIdentity[]
   nfcAttendanceEvents NFCAttendanceEvent[]
+  assessmentCategories AssessmentCategory[]
+  assessments         Assessment[]
+  gradingScales       GradingScale[]
 
   @@map("schools")
 }
@@ -186,6 +194,11 @@ model User {
   markedAttendanceRecords     AttendanceRecord[]   @relation("AttendanceMarker")
   studentNfcIdentity          NFCIdentity?         @relation("StudentNFC")
   nfcAttendanceEvents         NFCAttendanceEvent[] @relation("NFCEventStudent")
+
+  // Grades & Academic Performance (TASK 009)
+  createdAssessments          Assessment[]         @relation("AssessmentCreator")
+  studentGrades               StudentGrade[]       @relation("GradeStudent")
+  markedGrades                StudentGrade[]       @relation("GradeMarker")
 
   @@index([schoolId])
   @@index([email])
@@ -281,6 +294,8 @@ model AcademicYear {
   teacherSubjectAssignments TeacherSubjectAssignment[]
   timetableEntries          TimetableEntry[]
   attendanceSessions        AttendanceSession[]
+  assessmentCategories      AssessmentCategory[]
+  assessments               Assessment[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -323,6 +338,7 @@ model ClassSection {
   teacherSubjectAssignments TeacherSubjectAssignment[]
   timetableEntries          TimetableEntry[]
   attendanceSessions        AttendanceSession[]
+  assessments               Assessment[]
 
   @@unique([classId, academicYearId, name])
   @@index([classId])
@@ -343,6 +359,8 @@ model Subject {
 
   teacherSubjectAssignments TeacherSubjectAssignment[]
   timetableEntries          TimetableEntry[]
+  assessmentCategories      AssessmentCategory[]
+  assessments               Assessment[]
 
   @@unique([schoolId, code])
   @@index([schoolId])
@@ -536,6 +554,102 @@ model NFCAttendanceEvent {
   @@index([studentId])
   @@map("nfc_attendance_events")
 }
+
+// ------------------------------------------------------------------------------
+// Grades & Academic Performance Models (TASK 009)
+// ------------------------------------------------------------------------------
+model AssessmentCategory {
+  id               String        @id @default(uuid())
+  schoolId         String
+  school           School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYearId   String?
+  academicYear     AcademicYear? @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  subjectId        String?
+  subject          Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  name             String        // Quiz, Assignment, Class Test, Project, Midterm, Final Exam
+  description      String?
+  weightPercentage Float         // e.g. 20.0 for 20%
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  assessments      Assessment[]
+
+  @@index([schoolId])
+  @@index([academicYearId])
+  @@index([subjectId])
+  @@map("assessment_categories")
+}
+
+model Assessment {
+  id             String             @id @default(uuid())
+  schoolId       String
+  school         School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  classSectionId String
+  classSection   ClassSection       @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subjectId      String
+  subject        Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       AssessmentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  maximumMarks   Float              // > 0
+  assessmentDate String             // YYYY-MM-DD
+  createdById    String
+  createdBy      User               @relation("AssessmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  status         AssessmentStatus   @default(DRAFT)
+  publishedAt    DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  grades         StudentGrade[]
+
+  @@index([schoolId])
+  @@index([classSectionId, subjectId])
+  @@index([academicYearId])
+  @@index([categoryId])
+  @@map("assessments")
+}
+
+model StudentGrade {
+  id            String     @id @default(uuid())
+  assessmentId  String
+  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       User       @relation("GradeStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  marksObtained Float?     // Nullable to clearly distinguish missing grade from zero marks
+  feedback      String?
+  gradedById    String
+  gradedBy      User       @relation("GradeMarker", fields: [gradedById], references: [id], onDelete: Cascade)
+  gradedAt      DateTime   @default(now())
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([assessmentId, studentId])
+  @@index([studentId])
+  @@index([assessmentId])
+  @@map("student_grades")
+}
+
+model GradingScale {
+  id                String   @id @default(uuid())
+  schoolId          String
+  school            School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name              String   // e.g. "Standard Scale", "Honors Scale"
+  minimumPercentage Float    // e.g. 90.0
+  maximumPercentage Float    // e.g. 100.0
+  letterGrade       String   // e.g. "A+", "A", "B", "C", "D", "F"
+  gradePoint        Float?   // e.g. 4.0
+  description       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([minimumPercentage, maximumPercentage])
+  @@map("grading_scales")
+}
+
 
 
 

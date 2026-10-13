@@ -36,7 +36,8 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'Subjects', href: '/subjects', icon: 'FileText', description: 'Courses & departments' },
         { title: 'Timetable Schedules', href: '/timetable', icon: 'Clock', description: 'Master institutional schedules' },
         { title: 'Attendance Oversight', href: '/attendance', icon: 'Clock', description: 'Institutional attendance logs' },
-        { title: 'Attendance Reports', href: '/attendance/reports', icon: 'BarChart2', description: 'Metrics & exports' },
+        { title: 'Attendance Reports', href: '/attendance/reports', icon: 'FileSpreadsheet', description: 'Metrics & exports' },
+        { title: 'Grades Oversight', href: '/grades', icon: 'Award', description: 'Cross-school academic assessments & reports' },
         { title: 'NFC Simulator', href: '/attendance/nfc-simulator', icon: 'Radio', description: 'Simulate card gate scans' },
       ],
     },
@@ -68,8 +69,10 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
     {
       title: 'Operations & Records',
       items: [
+        { title: 'Grades & Assessments', href: '/grades', icon: 'Award', description: 'Assessments, gradebook & scales' },
+        { title: 'Academic Reports', href: '/grades/reports', icon: 'FileSpreadsheet', description: 'Class analytics & distributions' },
         { title: 'Attendance Register', href: '/attendance', icon: 'CheckSquare', description: 'Daily attendance logs & sessions' },
-        { title: 'Attendance Reports', href: '/attendance/reports', icon: 'BarChart2', description: 'Institutional attendance analytics' },
+        { title: 'Attendance Reports', href: '/attendance/reports', icon: 'FileSpreadsheet', description: 'Institutional attendance analytics' },
         { title: 'NFC Gate Simulator', href: '/attendance/nfc-simulator', icon: 'Radio', description: 'Simulate student badge scans' },
         { title: 'Campus Bulletins', href: '/announcements', icon: 'Megaphone', description: 'Official broadcast messages' },
       ],
@@ -83,6 +86,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'Teacher Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Class schedule & daily agenda' },
         { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Personal teaching timetable' },
         { title: 'Classes & Sections', href: '/classes', icon: 'BookOpen', description: 'Assigned sections and rosters' },
+        { title: 'Gradebook & Exams', href: '/grades', icon: 'Award', description: 'Enter marks & publish results' },
         { title: 'Daily Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Record student attendance' },
         { title: 'NFC Gate Scanner', href: '/attendance/nfc-simulator', icon: 'Radio', description: 'Classroom gate scanner' },
       ],
@@ -95,6 +99,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       items: [
         { title: 'Student Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Classes, deadlines & updates' },
         { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Class timetable & room numbers' },
+        { title: 'My Report Card', href: '/grades', icon: 'Award', description: 'View assessments, GPA & feedback' },
         { title: 'My Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Personal attendance records' },
       ],
     },
@@ -106,6 +111,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       items: [
         { title: 'Parent Dashboard', href: '/parent/dashboard', icon: 'LayoutDashboard', description: 'Children overview & updates' },
         { title: 'My Children', href: '/parent/children', icon: 'Users', description: 'Academic records & classes' },
+        { title: 'Children Grades', href: '/grades', icon: 'Award', description: 'Verified child gradebook & progress' },
         { title: 'Children Timetable', href: '/timetable', icon: 'Calendar', description: 'Verified child class schedule' },
         { title: 'Child Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Verified child attendance logs' },
       ],

@@ -684,6 +684,163 @@ This document guides the user through manually verifying the architecture, front
      - Bulk marking toolbar wraps cleanly without horizontal overflow.
 - **Expected Result**: Flawless responsive layout and dark/light contrast across desktop and mobile viewports.
 
+---
+
+# TASK 009 — GRADES & ACADEMIC PERFORMANCE TEST CASES
+
+## Test Scenario N: Assessment Categories & Weighting Distribution
+- **URL**: `http://localhost:3000/grades/categories`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades/categories`.
+  3. Verify seeded categories:
+     - Quiz (10%)
+     - Assignment (15%)
+     - Midterm Exam (25%)
+     - Final Exam (35%)
+     - Project Work (15%)
+  4. Inspect the cumulative weighting distribution bar at the top (shows 100% Balanced in emerald).
+  5. Click **Add Category**, fill in `Laboratory Practicum`, weight `5%`, and save.
+- **Expected Result**: Category creates smoothly, cumulative percentage recalculates, and weights enforce academic validation.
+
+---
+
+## Test Scenario O: Teacher Assessment Creation & Assignment Authorization
+- **URL**: `http://localhost:3000/grades/assessments/new`
+- **Steps**:
+  1. Log in as **Teacher** (`teacher@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades/assessments/new`.
+  3. Enter:
+     - Title: `Calculus Derivatives Pop Quiz`
+     - Class Section: `Grade 10 — Section A`
+     - Subject: `Advanced Mathematics`
+     - Category: `Quiz (10%)`
+     - Maximum Marks: `50`
+     - Assessment Date: Today's date
+  4. Click **Create & Open Gradebook**.
+- **Expected Result**: Assessment initializes in `DRAFT` status and immediately opens the classroom gradebook with enrolled students pre-populated.
+
+---
+
+## Test Scenario P: Teacher Grade Entry, Live Calculations & Missing Marks Handling
+- **URL**: `http://localhost:3000/grades/assessments/[id]/gradebook`
+- **Steps**:
+  1. In the Gradebook table, view the roster of enrolled students.
+  2. Enter marks:
+     - Student 1 (Liam Chen): `45` (Observe live calculation: `90%`, Grade `A+`)
+     - Student 2 (Sophia Chen): `38` (Observe live calculation: `76%`, Grade `B+`)
+     - Student 3 (Noah Patel): `0` (Observe zero score handled: `0%`, Grade `F`)
+     - Student 4 (Olivia Kim): Leave input empty (Observe displayed as `Missing`, excluded from earned/possible class averages).
+  3. Enter feedback: `Exemplary calculus application` for Liam.
+  4. Click **Save Draft**.
+  5. Refresh page: verify saved scores and feedback remain identical.
+- **Expected Result**: Bulk grade entry saves atomically via database transaction; zero scores and missing grades are strictly distinguished.
+
+---
+
+## Test Scenario Q: Assessment Publishing & Audited Grade Corrections
+- **URL**: `http://localhost:3000/grades/assessments/[id]/gradebook`
+- **Steps**:
+  1. With draft marks entered, click **Publish Results**.
+  2. Confirm publication in the dialog prompt.
+  3. Observe status pill switches to `PUBLISHED` in emerald.
+  4. Notice warning banner appears: "Audited Workflow: This assessment is already published."
+  5. Correct a grade (e.g. change Liam from `45` to `48`) and click **Save Draft**.
+- **Expected Result**: Assessment transitions to PUBLISHED; subsequent grade corrections generate an immutable `PUBLISHED_GRADES_MODIFIED` audit log.
+
+---
+
+## Test Scenario R: Student Portal Self-Service Results & GPA Standing
+- **URL**: `http://localhost:3000/grades` & `http://localhost:3000/grades/students/[studentId]`
+- **Steps**:
+  1. Log in as **Student** (`student1@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades`.
+  3. Verify:
+     - Liam's Cumulative GPA (e.g., `3.90`) and Overall Weighted Standing (`92%`, `A+`).
+     - Subject badges for Mathematics, Physics, English, CS.
+     - Assessment Performance Trend line chart showing published test history.
+  4. Open `/grades/students/[studentId]` to inspect the full printable report card.
+  5. Verify draft assessments are strictly HIDDEN from student view.
+- **Expected Result**: Student views only their own published grades and GPA without any draft assessment leakage.
+
+---
+
+## Test Scenario S: Student Authorization Barrier (Cannot View Peer Results)
+- **URL**: `http://localhost:3000/grades/students/[peerStudentId]`
+- **Steps**:
+  1. While logged in as Student 1 (`student1@stjude.ems.local`), attempt to navigate directly to Student 2's report card (`student2@stjude.ems.local` ID).
+- **Expected Result**: Access is blocked with an error / 403 Forbidden ("Access restricted").
+
+---
+
+## Test Scenario T: Parent Portal Multi-Child Gradebook & Relationship Verification
+- **URL**: `http://localhost:3000/grades`
+- **Steps**:
+  1. Log in as **Parent** (`parent@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades`.
+  3. Observe the child switcher:
+     - **Liam Chen** (`Grade 10 — Section A`): GPA `3.90`, overall `92%`.
+     - **Sophia Chen** (`Grade 11 — Section B`): GPA `3.50`, overall `84%`.
+  4. Switch between children: verify academic cards, subject breakdowns, and trend charts update dynamically.
+  5. Click **Open Detailed Academic Card** for Liam to see itemized teacher feedback.
+- **Expected Result**: Parent can view verified linked children's published grades seamlessly.
+
+---
+
+## Test Scenario U: School Tenant Isolation Barrier
+- **URL**: `http://localhost:3000/grades/assessments`
+- **Steps**:
+  1. Log in as **School Admin (School B - Apex STEM)** (`admin@apex.ems.local` / `Password123!`).
+  2. Navigate to `/grades/assessments`.
+  3. Verify that only Apex STEM assessments (Chemistry, Astrophysics, Data Structures) are listed.
+  4. St. Jude assessments are completely absent.
+  5. Attempt to access a St. Jude assessment ID directly.
+- **Expected Result**: Direct cross-school access is rejected with `403 Forbidden`.
+
+---
+
+## Test Scenario V: Institutional Class Reports & Real Data Visualizations
+- **URL**: `http://localhost:3000/grades/reports`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades/reports`.
+  3. Select Class Section `Grade 10 — Section A`.
+  4. Verify:
+     - KPI Cards: Class Average %, Cohort Pass Rate %, Highest Score %, Total Graded Students.
+     - **Subject Performance Bar Chart**: Real interactive bars showing Mathematics, Physics, English, CS averages.
+     - **Letter Grade Distribution**: Histogram bins for A+, A, B+, B, C, D, F.
+     - **Student Performance Rankings Table**: Ranked student roster with overall percentages and report card links.
+  5. Click **Export CSV** and verify the downloaded file contains accurate tabular records.
+- **Expected Result**: Class performance analytics calculate genuine aggregates from database records and export cleanly.
+
+---
+
+## Test Scenario W: Grading Scales Configuration
+- **URL**: `http://localhost:3000/grades/scales`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades/scales`.
+  3. Verify the tier table:
+     - A+ (90.0% - 100.0%, 4.00 GPA)
+     - A (80.0% - 89.9%, 3.70 GPA)
+     - B+ (70.0% - 79.9%, 3.30 GPA)
+     - B (60.0% - 69.9%, 3.00 GPA)
+     - C (50.0% - 59.9%, 2.00 GPA)
+     - D (40.0% - 49.9%, 1.00 GPA)
+     - F (0.0% - 39.9%, 0.00 GPA)
+  4. Click **Edit Tier** on B+ and adjust min percentage if needed.
+- **Expected Result**: Grading scale tiers update smoothly and govern student letter grade assignments.
+
+---
+
+## Test Scenario X: Idempotent Development Seed Verification
+- **Command**: `npx ts-node prisma/seed.ts`
+- **Steps**:
+  1. In terminal, run `npx ts-node prisma/seed.ts`.
+  2. Run the command a second time.
+  3. Inspect PostgreSQL counts: verify no duplicate schools, teachers, students, parents, assessments, or grades were created.
+- **Expected Result**: Seed script completes with exit code 0 repeatedly, preserving stable identifiers and zero duplicates.
+
 
 
 

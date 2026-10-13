@@ -2,32 +2,50 @@
  * MODULE: Database Seeding & Institutional Fixtures
  *
  * PURPOSE:
- * Seeds 5 institutional test schools, dedicated School Admin accounts,
- * dedicated Teacher accounts with pedagogical profiles, cross-school memberships,
- * and baseline platform administrator accounts for comprehensive manual testing.
- *
- * DEPENDENCIES:
- * @prisma/client, bcryptjs
+ * Seeds comprehensive, idempotent development demo data:
+ * - 2 institutional test schools (St. Jude Institutional Academy, Apex STEM Academy)
+ * - Platform Admin, dedicated School Admins
+ * - 8 teachers (4 per school) with specializations and course assignments
+ * - 8 class sections (4 per school)
+ * - 8 subjects (4 per school)
+ * - 16 students (8 per school) with realistic performance profiles (High, Average, Low, Zero, Missing)
+ * - 8 parents/guardians with verified relationships (including multi-child parents)
+ * - Grading scales for both schools (A+ through F)
+ * - Assessment categories (Quiz, Homework, Project, Midterm, Final Exam) with percentage weights
+ * - 8 assessments with published and draft statuses
+ * - 64+ student grades with realistic scores, feedback, zero scores, and missing grades
+ * - 8 attendance sessions with realistic mix of Present, Absent, Late, Excused records
+ * - NFC simulated card credentials
  *
  * SECURITY:
  * All passwords hashed with bcryptjs (salt rounds: 10) to 'Password123!'.
+ * Idempotent upserts prevent duplicate records on repeated execution.
  */
 
-import { PrismaClient, UserRole, SchoolStatus, TeacherEmploymentStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  UserRole,
+  SchoolStatus,
+  TeacherEmploymentStatus,
+  AssessmentStatus,
+  AttendanceStatus,
+} from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('--- Starting Institutional Fixtures Seeding ---');
+  console.log('--- Starting Institutional Fixtures Seeding (TASK 009 Demo Data) ---');
 
   // Common password hash for development accounts
   const defaultPassword = 'Password123!';
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(defaultPassword, salt);
 
-  // 1. Seed Platform Admin
+  // ---------------------------------------------------------------------------
+  // 1. Platform Administrator
+  // ---------------------------------------------------------------------------
   await prisma.user.upsert({
     where: { email: 'platform.admin@ems.local' },
     update: {
@@ -50,9 +68,13 @@ async function main() {
   });
   console.log('[Seed] Platform Admin configured: platform.admin@ems.local');
 
-  // 2. Define the 5 Institutional Test Schools
-  const schoolsData = [
-    {
+  // ---------------------------------------------------------------------------
+  // 2. Multi-School Tenancy (2 Primary Schools)
+  // ---------------------------------------------------------------------------
+  const stJude = await prisma.school.upsert({
+    where: { code: 'st-jude' },
+    update: { status: SchoolStatus.ACTIVE },
+    create: {
       code: 'st-jude',
       name: 'St. Jude Institutional Academy',
       city: 'Seattle',
@@ -62,24 +84,14 @@ async function main() {
       email: 'admissions@stjude.ems.local',
       phone: '+1-555-019-2831',
       address: '100 Institutional Boulevard, Academic District',
-      admin: {
-        email: 'admin@stjude.ems.local',
-        firstName: 'Eleanor',
-        lastName: 'Pemberton',
-      },
-      teacher: {
-        email: 'teacher@stjude.ems.local',
-        firstName: 'Marcus',
-        lastName: 'Holloway',
-        employeeCode: 'TCH-1001',
-        qualification: 'M.Sc. in Applied Mathematics',
-        specialization: 'Advanced Calculus & Analytical Geometry',
-        phone: '+1-555-019-3388',
-        address: '42 Academic Way, Suite 12, Seattle, WA',
-        bio: 'Senior Mathematics Faculty with over 10 years of secondary instructional leadership.',
-      },
+      status: SchoolStatus.ACTIVE,
     },
-    {
+  });
+
+  const apex = await prisma.school.upsert({
+    where: { code: 'apex-stem' },
+    update: { status: SchoolStatus.ACTIVE },
+    create: {
       code: 'apex-stem',
       name: 'Apex STEM Academy',
       city: 'Boston',
@@ -89,451 +101,480 @@ async function main() {
       email: 'admissions@apex.ems.local',
       phone: '+1-555-028-1144',
       address: '450 Innovation Parkway, Cambridge Sector',
-      admin: {
-        email: 'admin@apex.ems.local',
-        firstName: 'Dr. Victor',
-        lastName: 'Vance',
-      },
-      teacher: {
-        email: 'teacher@apex.ems.local',
-        firstName: 'Dr. Elena',
-        lastName: 'Rostova',
-        employeeCode: 'TCH-2001',
-        qualification: 'Ph.D. in Quantum Physics & Robotics',
-        specialization: 'Theoretical Physics & Applied Robotics',
-        phone: '+1-555-028-9922',
-        address: '88 Tech Boulevard, Boston, MA',
-        bio: 'Distinguished STEM Fellow and mentor for collegiate robotics competitions.',
-      },
+      status: SchoolStatus.ACTIVE,
+    },
+  });
+  console.log('[Seed] Schools verified: St. Jude Academy & Apex STEM Academy');
+
+  // ---------------------------------------------------------------------------
+  // 3. School Administrators
+  // ---------------------------------------------------------------------------
+  const stJudeAdmin = await prisma.user.upsert({
+    where: { email: 'admin@stjude.ems.local' },
+    update: { passwordHash, isActive: true, schoolId: stJude.id },
+    create: {
+      email: 'admin@stjude.ems.local',
+      passwordHash,
+      firstName: 'Eleanor',
+      lastName: 'Pemberton',
+      role: UserRole.SCHOOL_ADMIN,
+      schoolId: stJude.id,
+      isActive: true,
+    },
+  });
+
+  const apexAdmin = await prisma.user.upsert({
+    where: { email: 'admin@apex.ems.local' },
+    update: { passwordHash, isActive: true, schoolId: apex.id },
+    create: {
+      email: 'admin@apex.ems.local',
+      passwordHash,
+      firstName: 'Dr. Victor',
+      lastName: 'Vance',
+      role: UserRole.SCHOOL_ADMIN,
+      schoolId: apex.id,
+      isActive: true,
+    },
+  });
+  console.log('[Seed] School Admins configured');
+
+  // ---------------------------------------------------------------------------
+  // 4. Academic Years (2026-2027)
+  // ---------------------------------------------------------------------------
+  const stJudeYear = await prisma.academicYear.upsert({
+    where: { schoolId_name: { schoolId: stJude.id, name: '2026-2027' } },
+    update: { isCurrent: true },
+    create: {
+      schoolId: stJude.id,
+      name: '2026-2027',
+      startDate: new Date('2026-09-01'),
+      endDate: new Date('2027-06-30'),
+      isCurrent: true,
+    },
+  });
+
+  const apexYear = await prisma.academicYear.upsert({
+    where: { schoolId_name: { schoolId: apex.id, name: '2026-2027' } },
+    update: { isCurrent: true },
+    create: {
+      schoolId: apex.id,
+      name: '2026-2027',
+      startDate: new Date('2026-09-01'),
+      endDate: new Date('2027-06-30'),
+      isCurrent: true,
+    },
+  });
+
+  // ---------------------------------------------------------------------------
+  // 5. Grading Scales
+  // ---------------------------------------------------------------------------
+  const standardTiers = [
+    { name: 'A+', min: 97.0, max: 100.0, letter: 'A+', gp: 4.0 },
+    { name: 'A', min: 93.0, max: 96.9, letter: 'A', gp: 4.0 },
+    { name: 'A-', min: 90.0, max: 92.9, letter: 'A-', gp: 3.7 },
+    { name: 'B+', min: 87.0, max: 89.9, letter: 'B+', gp: 3.3 },
+    { name: 'B', min: 83.0, max: 86.9, letter: 'B', gp: 3.0 },
+    { name: 'B-', min: 80.0, max: 82.9, letter: 'B-', gp: 2.7 },
+    { name: 'C+', min: 77.0, max: 79.9, letter: 'C+', gp: 2.3 },
+    { name: 'C', min: 70.0, max: 76.9, letter: 'C', gp: 2.0 },
+    { name: 'D', min: 60.0, max: 69.9, letter: 'D', gp: 1.0 },
+    { name: 'F', min: 0.0, max: 59.9, letter: 'F', gp: 0.0 },
+  ];
+
+  for (const s of [stJude, apex]) {
+    for (const t of standardTiers) {
+      const existing = await prisma.gradingScale.findFirst({
+        where: { schoolId: s.id, letterGrade: t.letter },
+      });
+      if (!existing) {
+        await prisma.gradingScale.create({
+          data: {
+            schoolId: s.id,
+            name: 'Institutional Standard Scale',
+            minimumPercentage: t.min,
+            maximumPercentage: t.max,
+            letterGrade: t.letter,
+            gradePoint: t.gp,
+          },
+        });
+      }
+    }
+  }
+  console.log('[Seed] Grading scale tiers seeded for both schools');
+
+  // ---------------------------------------------------------------------------
+  // 6. Assessment Categories (Weighted Scheme)
+  // ---------------------------------------------------------------------------
+  const categoriesConfig = [
+    { name: 'Quiz', weight: 15.0, desc: 'Short weekly comprehension checks' },
+    { name: 'Homework', weight: 15.0, desc: 'Independent practice problem sets' },
+    { name: 'Project', weight: 20.0, desc: 'Collaborative term research or lab build' },
+    { name: 'Midterm Exam', weight: 25.0, desc: 'Summative mid-semester assessment' },
+    { name: 'Final Exam', weight: 25.0, desc: 'Comprehensive end-of-year examination' },
+  ];
+
+  const stJudeCategories: Record<string, any> = {};
+  const apexCategories: Record<string, any> = {};
+
+  for (const cat of categoriesConfig) {
+    let sjCat = await prisma.assessmentCategory.findFirst({
+      where: { schoolId: stJude.id, name: cat.name },
+    });
+    if (!sjCat) {
+      sjCat = await prisma.assessmentCategory.create({
+        data: {
+          schoolId: stJude.id,
+          academicYearId: stJudeYear.id,
+          name: cat.name,
+          weightPercentage: cat.weight,
+          description: cat.desc,
+        },
+      });
+    }
+    stJudeCategories[cat.name] = sjCat;
+
+    let apCat = await prisma.assessmentCategory.findFirst({
+      where: { schoolId: apex.id, name: cat.name },
+    });
+    if (!apCat) {
+      apCat = await prisma.assessmentCategory.create({
+        data: {
+          schoolId: apex.id,
+          academicYearId: apexYear.id,
+          name: cat.name,
+          weightPercentage: cat.weight,
+          description: cat.desc,
+        },
+      });
+    }
+    apexCategories[cat.name] = apCat;
+  }
+  console.log('[Seed] Weighted assessment categories initialized');
+
+  // ---------------------------------------------------------------------------
+  // 7. Teachers (8 Faculty Members across both schools)
+  // ---------------------------------------------------------------------------
+  const teachersList = [
+    // St. Jude Faculty (4)
+    {
+      email: 'teacher@stjude.ems.local',
+      firstName: 'Marcus',
+      lastName: 'Holloway',
+      school: stJude,
+      code: 'TCH-1001',
+      dept: 'Mathematics',
+      spec: 'Advanced Calculus & Analytical Geometry',
     },
     {
-      code: 'beacon-arts',
-      name: 'Beacon Science & Arts Academy',
-      city: 'Chicago',
-      state: 'IL',
-      country: 'USA',
-      domain: 'beacon.ems.local',
-      email: 'admissions@beacon.ems.local',
-      phone: '+1-555-039-7722',
-      address: '720 Millennium Avenue, Arts Quarter',
-      admin: {
-        email: 'admin@beacon.ems.local',
-        firstName: 'Miriam',
-        lastName: 'Webster',
-      },
-      teacher: {
-        email: 'teacher@beacon.ems.local',
-        firstName: 'David',
-        lastName: 'Kim',
-        employeeCode: 'TCH-3001',
-        qualification: 'M.F.A. in Visual Arts & Art History',
-        specialization: 'Classical Fine Arts & Digital Media',
-        phone: '+1-555-039-4455',
-        address: '15 Lakefront Plaza, Chicago, IL',
-        bio: 'Gallery curator and fine arts educator specializing in traditional studio methods.',
-      },
+      email: 'teacher.maya@stjude.ems.local',
+      firstName: 'Maya',
+      lastName: 'Lin',
+      school: stJude,
+      code: 'TCH-1002',
+      dept: 'Physics',
+      spec: 'Classical Mechanics & Wave Dynamics',
     },
     {
-      code: 'oakridge-prep',
-      name: 'Oakridge Preparatory Collegiate',
-      city: 'Austin',
-      state: 'TX',
-      country: 'USA',
-      domain: 'oakridge.ems.local',
-      email: 'admissions@oakridge.ems.local',
-      phone: '+1-555-048-8833',
-      address: '300 Heritage Hills Drive',
-      admin: {
-        email: 'admin@oakridge.ems.local',
-        firstName: 'Arthur',
-        lastName: 'Pendelton',
-      },
-      teacher: {
-        email: 'teacher@oakridge.ems.local',
-        firstName: 'Rachel',
-        lastName: 'Adams',
-        employeeCode: 'TCH-4001',
-        qualification: 'M.A. in English Literature & Rhetoric',
-        specialization: 'AP World Literature & Critical Writing',
-        phone: '+1-555-048-1212',
-        address: '50 Heritage Court, Austin, TX',
-        bio: 'Department chair for humanities focusing on classical rhetoric and debate.',
-      },
+      email: 'teacher.robert@stjude.ems.local',
+      firstName: 'Robert',
+      lastName: 'Frost',
+      school: stJude,
+      code: 'TCH-1003',
+      dept: 'Humanities',
+      spec: 'Rhetoric & Modern World Literature',
     },
     {
-      code: 'horizon-intl',
-      name: 'Horizon International Academy',
-      city: 'San Francisco',
-      state: 'CA',
-      country: 'USA',
-      domain: 'horizon.ems.local',
-      email: 'admissions@horizon.ems.local',
-      phone: '+1-555-058-9944',
-      address: '900 Pacific Crest Way',
-      admin: {
-        email: 'admin@horizon.ems.local',
-        firstName: 'Sophia',
-        lastName: 'Al-Mansoor',
-      },
-      teacher: {
-        email: 'teacher@horizon.ems.local',
-        firstName: 'Carlos',
-        lastName: 'Rivera',
-        employeeCode: 'TCH-5001',
-        qualification: 'M.Sc. in Economics & International Relations',
-        specialization: 'Global Economics & Comparative Government',
-        phone: '+1-555-058-3311',
-        address: '120 Embarcadero Heights, San Francisco, CA',
-        bio: 'International affairs lecturer with expertise in model UN and macroeconomic policy.',
-      },
+      email: 'teacher.alan@stjude.ems.local',
+      firstName: 'Dr. Alan',
+      lastName: 'Turing',
+      school: stJude,
+      code: 'TCH-1004',
+      dept: 'Computer Science',
+      spec: 'Computational Algorithms & Software Architecture',
+    },
+    // Apex STEM Faculty (4)
+    {
+      email: 'teacher@apex.ems.local',
+      firstName: 'Dr. Elena',
+      lastName: 'Rostova',
+      school: apex,
+      code: 'TCH-2001',
+      dept: 'Chemistry',
+      spec: 'Organic Chemistry & Molecular Reactions',
+    },
+    {
+      email: 'teacher.neil@apex.ems.local',
+      firstName: 'Neil',
+      lastName: 'Armstrong',
+      school: apex,
+      code: 'TCH-2002',
+      dept: 'Astrophysics',
+      spec: 'Orbital Mechanics & Astrodynamics',
+    },
+    {
+      email: 'teacher.ada@apex.ems.local',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      school: apex,
+      code: 'TCH-2003',
+      dept: 'Computer Science',
+      spec: 'Data Structures & Distributed Systems',
+    },
+    {
+      email: 'teacher.gregor@apex.ems.local',
+      firstName: 'Gregor',
+      lastName: 'Mendel',
+      school: apex,
+      code: 'TCH-2004',
+      dept: 'Biology',
+      spec: 'Genetics & Cellular Biology',
     },
   ];
 
-  // 3. Seed Each School, Admin, and Teacher
-  for (const s of schoolsData) {
-    const school = await prisma.school.upsert({
-      where: { code: s.code },
-      update: {
-        name: s.name,
-        city: s.city,
-        state: s.state,
-        country: s.country,
-        domain: s.domain,
-        email: s.email,
-        phone: s.phone,
-        address: s.address,
-        status: SchoolStatus.ACTIVE,
-      },
+  const teacherUsers: Record<string, any> = {};
+
+  for (const t of teachersList) {
+    const user = await prisma.user.upsert({
+      where: { email: t.email },
+      update: { passwordHash, isActive: true, schoolId: t.school.id },
       create: {
-        code: s.code,
-        name: s.name,
-        city: s.city,
-        state: s.state,
-        country: s.country,
-        domain: s.domain,
-        email: s.email,
-        phone: s.phone,
-        address: s.address,
-        status: SchoolStatus.ACTIVE,
-      },
-    });
-
-    console.log(`[Seed] School initialized: ${school.name} (${school.id})`);
-
-    // School Admin Account
-    const adminUser = await prisma.user.upsert({
-      where: { email: s.admin.email },
-      update: {
-        firstName: s.admin.firstName,
-        lastName: s.admin.lastName,
-        role: UserRole.SCHOOL_ADMIN,
-        schoolId: school.id,
+        email: t.email,
         passwordHash,
-        isActive: true,
-      },
-      create: {
-        email: s.admin.email,
-        passwordHash,
-        firstName: s.admin.firstName,
-        lastName: s.admin.lastName,
-        role: UserRole.SCHOOL_ADMIN,
-        schoolId: school.id,
-        isActive: true,
-      },
-    });
-    console.log(`  - Admin: ${adminUser.email} -> ${school.name}`);
-
-    // Teacher Account
-    const teacherUser = await prisma.user.upsert({
-      where: { email: s.teacher.email },
-      update: {
-        firstName: s.teacher.firstName,
-        lastName: s.teacher.lastName,
+        firstName: t.firstName,
+        lastName: t.lastName,
         role: UserRole.TEACHER,
-        schoolId: school.id,
-        phone: s.teacher.phone,
-        passwordHash,
-        isActive: true,
-      },
-      create: {
-        email: s.teacher.email,
-        passwordHash,
-        firstName: s.teacher.firstName,
-        lastName: s.teacher.lastName,
-        role: UserRole.TEACHER,
-        schoolId: school.id,
-        phone: s.teacher.phone,
+        schoolId: t.school.id,
         isActive: true,
       },
     });
 
-    // Teacher Profile
     await prisma.teacherProfile.upsert({
-      where: { userId: teacherUser.id },
-      update: {
-        employeeCode: s.teacher.employeeCode,
-        qualification: s.teacher.qualification,
-        specialization: s.teacher.specialization,
-        phone: s.teacher.phone,
-        address: s.teacher.address,
-        bio: s.teacher.bio,
-        employmentStatus: TeacherEmploymentStatus.ACTIVE,
-      },
+      where: { userId: user.id },
+      update: { employeeCode: t.code, specialization: t.spec },
       create: {
-        userId: teacherUser.id,
-        employeeCode: s.teacher.employeeCode,
-        qualification: s.teacher.qualification,
-        specialization: s.teacher.specialization,
-        phone: s.teacher.phone,
-        address: s.teacher.address,
-        bio: s.teacher.bio,
+        userId: user.id,
+        employeeCode: t.code,
+        specialization: t.spec,
         employmentStatus: TeacherEmploymentStatus.ACTIVE,
       },
     });
 
-    // School Membership (Primary)
-    await prisma.schoolMembership.upsert({
+    teacherUsers[t.email] = user;
+  }
+  console.log('[Seed] 8 Teachers verified across St. Jude & Apex STEM');
+
+  // ---------------------------------------------------------------------------
+  // 8. Classes & Class Sections (8 Sections across both schools)
+  // ---------------------------------------------------------------------------
+  // St. Jude Classes
+  const sjGrade10 = await prisma.schoolClass.upsert({
+    where: { schoolId_code: { schoolId: stJude.id, code: 'G10' } },
+    update: {},
+    create: { schoolId: stJude.id, name: 'Grade 10', code: 'G10', order: 1 },
+  });
+
+  const sjGrade11 = await prisma.schoolClass.upsert({
+    where: { schoolId_code: { schoolId: stJude.id, code: 'G11' } },
+    update: {},
+    create: { schoolId: stJude.id, name: 'Grade 11', code: 'G11', order: 2 },
+  });
+
+  const sjSection10A = await prisma.classSection.upsert({
+    where: { classId_academicYearId_name: { classId: sjGrade10.id, academicYearId: stJudeYear.id, name: 'Section A' } },
+    update: { roomNumber: 'Room 101' },
+    create: { classId: sjGrade10.id, academicYearId: stJudeYear.id, name: 'Section A', capacity: 30, roomNumber: 'Room 101' },
+  });
+
+  const sjSection10B = await prisma.classSection.upsert({
+    where: { classId_academicYearId_name: { classId: sjGrade10.id, academicYearId: stJudeYear.id, name: 'Section B' } },
+    update: { roomNumber: 'Room 102' },
+    create: { classId: sjGrade10.id, academicYearId: stJudeYear.id, name: 'Section B', capacity: 30, roomNumber: 'Room 102' },
+  });
+
+  await prisma.classSection.upsert({
+    where: { classId_academicYearId_name: { classId: sjGrade11.id, academicYearId: stJudeYear.id, name: 'Section A' } },
+    update: { roomNumber: 'Room 201' },
+    create: { classId: sjGrade11.id, academicYearId: stJudeYear.id, name: 'Section A', capacity: 30, roomNumber: 'Room 201' },
+  });
+
+  await prisma.classSection.upsert({
+    where: { classId_academicYearId_name: { classId: sjGrade11.id, academicYearId: stJudeYear.id, name: 'Section B' } },
+    update: { roomNumber: 'Room 202' },
+    create: { classId: sjGrade11.id, academicYearId: stJudeYear.id, name: 'Section B', capacity: 30, roomNumber: 'Room 202' },
+  });
+
+  // Apex STEM Classes
+  const apGrade10 = await prisma.schoolClass.upsert({
+    where: { schoolId_code: { schoolId: apex.id, code: 'G10' } },
+    update: {},
+    create: { schoolId: apex.id, name: 'Grade 10', code: 'G10', order: 1 },
+  });
+
+  const apGrade11 = await prisma.schoolClass.upsert({
+    where: { schoolId_code: { schoolId: apex.id, code: 'G11' } },
+    update: {},
+    create: { schoolId: apex.id, name: 'Grade 11', code: 'G11', order: 2 },
+  });
+
+  const apSectionAlpha = await prisma.classSection.upsert({
+    where: { classId_academicYearId_name: { classId: apGrade10.id, academicYearId: apexYear.id, name: 'Alpha Cohort' } },
+    update: { roomNumber: 'Lab Alpha' },
+    create: { classId: apGrade10.id, academicYearId: apexYear.id, name: 'Alpha Cohort', capacity: 30, roomNumber: 'Lab Alpha' },
+  });
+
+  const apSectionBeta = await prisma.classSection.upsert({
+    where: { classId_academicYearId_name: { classId: apGrade10.id, academicYearId: apexYear.id, name: 'Beta Cohort' } },
+    update: { roomNumber: 'Lab Beta' },
+    create: { classId: apGrade10.id, academicYearId: apexYear.id, name: 'Beta Cohort', capacity: 30, roomNumber: 'Lab Beta' },
+  });
+
+  await prisma.classSection.upsert({
+    where: { classId_academicYearId_name: { classId: apGrade11.id, academicYearId: apexYear.id, name: 'Gamma Cohort' } },
+    update: { roomNumber: 'Lab Gamma' },
+    create: { classId: apGrade11.id, academicYearId: apexYear.id, name: 'Gamma Cohort', capacity: 30, roomNumber: 'Lab Gamma' },
+  });
+
+  await prisma.classSection.upsert({
+    where: { classId_academicYearId_name: { classId: apGrade11.id, academicYearId: apexYear.id, name: 'Delta Cohort' } },
+    update: { roomNumber: 'Lab Delta' },
+    create: { classId: apGrade11.id, academicYearId: apexYear.id, name: 'Delta Cohort', capacity: 30, roomNumber: 'Lab Delta' },
+  });
+  console.log('[Seed] 8 Class Sections initialized');
+
+  // ---------------------------------------------------------------------------
+  // 9. Subjects (8 Academic Subjects across both schools)
+  // ---------------------------------------------------------------------------
+  // St. Jude Subjects (4)
+  const mathSubject = await prisma.subject.upsert({
+    where: { schoolId_code: { schoolId: stJude.id, code: 'MATH-101' } },
+    update: {},
+    create: { schoolId: stJude.id, name: 'Advanced Mathematics', code: 'MATH-101', department: 'Mathematics', credits: 1.0 },
+  });
+
+  const physSubject = await prisma.subject.upsert({
+    where: { schoolId_code: { schoolId: stJude.id, code: 'PHYS-101' } },
+    update: {},
+    create: { schoolId: stJude.id, name: 'AP Physics', code: 'PHYS-101', department: 'Science', credits: 1.0 },
+  });
+
+  const engSubject = await prisma.subject.upsert({
+    where: { schoolId_code: { schoolId: stJude.id, code: 'ENG-101' } },
+    update: {},
+    create: { schoolId: stJude.id, name: 'World Literature & Rhetoric', code: 'ENG-101', department: 'Humanities', credits: 1.0 },
+  });
+
+  const csSubject = await prisma.subject.upsert({
+    where: { schoolId_code: { schoolId: stJude.id, code: 'CS-101' } },
+    update: {},
+    create: { schoolId: stJude.id, name: 'Computer Science Principles', code: 'CS-101', department: 'Technology', credits: 1.0 },
+  });
+
+  // Apex STEM Subjects (4)
+  const chemSubject = await prisma.subject.upsert({
+    where: { schoolId_code: { schoolId: apex.id, code: 'CHEM-201' } },
+    update: {},
+    create: { schoolId: apex.id, name: 'Organic Chemistry', code: 'CHEM-201', department: 'Physical Sciences', credits: 1.0 },
+  });
+
+  const astroSubject = await prisma.subject.upsert({
+    where: { schoolId_code: { schoolId: apex.id, code: 'ASTRO-201' } },
+    update: {},
+    create: { schoolId: apex.id, name: 'Astrophysics & Space Mechanics', code: 'ASTRO-201', department: 'Space Sciences', credits: 1.0 },
+  });
+
+  const dsaSubject = await prisma.subject.upsert({
+    where: { schoolId_code: { schoolId: apex.id, code: 'CS-201' } },
+    update: {},
+    create: { schoolId: apex.id, name: 'Data Structures & Algorithms', code: 'CS-201', department: 'Computer Science', credits: 1.0 },
+  });
+
+  const bioSubject = await prisma.subject.upsert({
+    where: { schoolId_code: { schoolId: apex.id, code: 'BIO-201' } },
+    update: {},
+    create: { schoolId: apex.id, name: 'Molecular Biology', code: 'BIO-201', department: 'Life Sciences', credits: 1.0 },
+  });
+  console.log('[Seed] 8 Academic Subjects verified');
+
+  // Teacher Assignments (Assign faculty to their sections)
+  const assignments = [
+    { teacher: teacherUsers['teacher@stjude.ems.local'], section: sjSection10A, subject: mathSubject, year: stJudeYear },
+    { teacher: teacherUsers['teacher.maya@stjude.ems.local'], section: sjSection10A, subject: physSubject, year: stJudeYear },
+    { teacher: teacherUsers['teacher.robert@stjude.ems.local'], section: sjSection10A, subject: engSubject, year: stJudeYear },
+    { teacher: teacherUsers['teacher.alan@stjude.ems.local'], section: sjSection10A, subject: csSubject, year: stJudeYear },
+    { teacher: teacherUsers['teacher@apex.ems.local'], section: apSectionAlpha, subject: chemSubject, year: apexYear },
+    { teacher: teacherUsers['teacher.neil@apex.ems.local'], section: apSectionAlpha, subject: astroSubject, year: apexYear },
+    { teacher: teacherUsers['teacher.ada@apex.ems.local'], section: apSectionAlpha, subject: dsaSubject, year: apexYear },
+    { teacher: teacherUsers['teacher.gregor@apex.ems.local'], section: apSectionAlpha, subject: bioSubject, year: apexYear },
+  ];
+
+  for (const asgn of assignments) {
+    await prisma.teacherSubjectAssignment.upsert({
       where: {
-        userId_schoolId: {
-          userId: teacherUser.id,
-          schoolId: school.id,
+        teacherId_subjectId_sectionId_academicYearId: {
+          teacherId: asgn.teacher.id,
+          subjectId: asgn.subject.id,
+          sectionId: asgn.section.id,
+          academicYearId: asgn.year.id,
         },
       },
-      update: {
-        role: UserRole.TEACHER,
-        employeeCode: s.teacher.employeeCode,
-        isActive: true,
-        employmentStatus: TeacherEmploymentStatus.ACTIVE,
-      },
+      update: {},
       create: {
-        userId: teacherUser.id,
-        schoolId: school.id,
-        role: UserRole.TEACHER,
-        employeeCode: s.teacher.employeeCode,
-        isActive: true,
-        employmentStatus: TeacherEmploymentStatus.ACTIVE,
+        teacherId: asgn.teacher.id,
+        subjectId: asgn.subject.id,
+        sectionId: asgn.section.id,
+        academicYearId: asgn.year.id,
       },
     });
-
-    console.log(`  - Teacher: ${teacherUser.email} (${s.teacher.employeeCode}) -> ${school.name}`);
   }
 
-  // 4. Also ensure Student and Parent test accounts exist for St. Jude Academy
-  const stJude = await prisma.school.findUnique({ where: { code: 'st-jude' } });
-  if (stJude) {
-    // 4.1 Academic Year
-    const academicYear = await prisma.academicYear.upsert({
-      where: { schoolId_name: { schoolId: stJude.id, name: '2026-2027 Academic Year' } },
-      update: { isCurrent: true },
+  // ---------------------------------------------------------------------------
+  // 10. Students (16 Students: 8 per school with realistic performance tags)
+  // ---------------------------------------------------------------------------
+  const studentsList = [
+    // St. Jude Section 10A (8 students)
+    { email: 'student@stjude.ems.local', first: 'Liam', last: 'Chen', school: stJude, section: sjSection10A, year: stJudeYear, adm: 'STJ-2026-001', tag: 'HIGH' },
+    { email: 'student.ethan@stjude.ems.local', first: 'Ethan', last: 'Wright', school: stJude, section: sjSection10A, year: stJudeYear, adm: 'STJ-2026-003', tag: 'HIGH' },
+    { email: 'student.maya@stjude.ems.local', first: 'Maya', last: 'Patel', school: stJude, section: sjSection10A, year: stJudeYear, adm: 'STJ-2026-004', tag: 'AVERAGE' },
+    { email: 'student.chloe@stjude.ems.local', first: 'Chloe', last: 'Bennett', school: stJude, section: sjSection10A, year: stJudeYear, adm: 'STJ-2026-005', tag: 'AVERAGE' },
+    { email: 'student.lucas@stjude.ems.local', first: 'Lucas', last: 'Morales', school: stJude, section: sjSection10A, year: stJudeYear, adm: 'STJ-2026-006', tag: 'LOW' },
+    { email: 'student.noah@stjude.ems.local', first: 'Noah', last: 'Kim', school: stJude, section: sjSection10A, year: stJudeYear, adm: 'STJ-2026-007', tag: 'ZERO_CASE' },
+    { email: 'student.emma@stjude.ems.local', first: 'Emma', last: 'Watson', school: stJude, section: sjSection10A, year: stJudeYear, adm: 'STJ-2026-008', tag: 'MISSING_CASE' },
+    { email: 'student2@stjude.ems.local', first: 'Sophia', last: 'Chen', school: stJude, section: sjSection10B, year: stJudeYear, adm: 'STJ-2026-002', tag: 'AVERAGE' },
+
+    // Apex STEM Section Alpha (8 students)
+    { email: 'student.alex@apex.ems.local', first: 'Alexander', last: 'Ross', school: apex, section: apSectionAlpha, year: apexYear, adm: 'APX-2026-001', tag: 'HIGH' },
+    { email: 'student.zoe@apex.ems.local', first: 'Zoe', last: 'Saldana', school: apex, section: apSectionAlpha, year: apexYear, adm: 'APX-2026-002', tag: 'AVERAGE' },
+    { email: 'student.ben@apex.ems.local', first: 'Benjamin', last: 'Franklin', school: apex, section: apSectionAlpha, year: apexYear, adm: 'APX-2026-003', tag: 'LOW' },
+    { email: 'student.olivia@apex.ems.local', first: 'Olivia', last: 'Wilde', school: apex, section: apSectionAlpha, year: apexYear, adm: 'APX-2026-004', tag: 'HIGH' },
+    { email: 'student.daniel@apex.ems.local', first: 'Daniel', last: 'Craig', school: apex, section: apSectionAlpha, year: apexYear, adm: 'APX-2026-005', tag: 'AVERAGE' },
+    { email: 'student.grace@apex.ems.local', first: 'Grace', last: 'Hopper', school: apex, section: apSectionBeta, year: apexYear, adm: 'APX-2026-006', tag: 'HIGH' },
+    { email: 'student.leo@apex.ems.local', first: 'Leo', last: 'Tolstoy', school: apex, section: apSectionBeta, year: apexYear, adm: 'APX-2026-007', tag: 'AVERAGE' },
+    { email: 'student.harper@apex.ems.local', first: 'Harper', last: 'Lee', school: apex, section: apSectionBeta, year: apexYear, adm: 'APX-2026-008', tag: 'AVERAGE' },
+  ];
+
+  const studentUsers: Record<string, any> = {};
+
+  for (const s of studentsList) {
+    const user = await prisma.user.upsert({
+      where: { email: s.email },
+      update: { passwordHash, isActive: true, schoolId: s.school.id },
       create: {
-        schoolId: stJude.id,
-        name: '2026-2027 Academic Year',
-        startDate: new Date('2026-09-01'),
-        endDate: new Date('2027-06-30'),
-        isCurrent: true,
-      },
-    });
-
-    // 4.2 School Classes
-    const class10 = await prisma.schoolClass.upsert({
-      where: { schoolId_code: { schoolId: stJude.id, code: 'G10' } },
-      update: {},
-      create: {
-        schoolId: stJude.id,
-        name: 'Grade 10',
-        code: 'G10',
-        description: 'Secondary Sophomore Level',
-        order: 10,
-      },
-    });
-
-    await prisma.schoolClass.upsert({
-      where: { schoolId_code: { schoolId: stJude.id, code: 'G11' } },
-      update: {},
-      create: {
-        schoolId: stJude.id,
-        name: 'Grade 11',
-        code: 'G11',
-        description: 'Secondary Junior Level',
-        order: 11,
-      },
-    });
-
-    // 4.3 Teacher user lookup
-    const teacherUser = await prisma.user.findUnique({ where: { email: 'teacher@stjude.ems.local' } });
-
-    // 4.4 Class Sections
-    const sectionA = await prisma.classSection.upsert({
-      where: {
-        classId_academicYearId_name: {
-          classId: class10.id,
-          academicYearId: academicYear.id,
-          name: 'Section A',
-        },
-      },
-      update: {},
-      create: {
-        classId: class10.id,
-        academicYearId: academicYear.id,
-        name: 'Section A',
-        capacity: 30,
-        roomNumber: 'Room 101',
-        classTeacherId: teacherUser?.id || null,
-      },
-    });
-
-    const sectionB = await prisma.classSection.upsert({
-      where: {
-        classId_academicYearId_name: {
-          classId: class10.id,
-          academicYearId: academicYear.id,
-          name: 'Section B',
-        },
-      },
-      update: {},
-      create: {
-        classId: class10.id,
-        academicYearId: academicYear.id,
-        name: 'Section B',
-        capacity: 28,
-        roomNumber: 'Room 102',
-      },
-    });
-
-    // 4.5 Subjects
-    const math = await prisma.subject.upsert({
-      where: { schoolId_code: { schoolId: stJude.id, code: 'MATH-101' } },
-      update: {},
-      create: {
-        schoolId: stJude.id,
-        name: 'Advanced Mathematics',
-        code: 'MATH-101',
-        department: 'Mathematics',
-        credits: 1.0,
-      },
-    });
-
-    const physics = await prisma.subject.upsert({
-      where: { schoolId_code: { schoolId: stJude.id, code: 'PHYS-101' } },
-      update: {},
-      create: {
-        schoolId: stJude.id,
-        name: 'AP Physics',
-        code: 'PHYS-101',
-        department: 'Natural Sciences',
-        credits: 1.0,
-      },
-    });
-
-    await prisma.subject.upsert({
-      where: { schoolId_code: { schoolId: stJude.id, code: 'ENG-101' } },
-      update: {},
-      create: {
-        schoolId: stJude.id,
-        name: 'World Literature & Composition',
-        code: 'ENG-101',
-        department: 'Humanities',
-        credits: 1.0,
-      },
-    });
-
-    // 4.6 Teacher Subject Assignments
-    if (teacherUser) {
-      await prisma.teacherSubjectAssignment.upsert({
-        where: {
-          teacherId_subjectId_sectionId_academicYearId: {
-            teacherId: teacherUser.id,
-            subjectId: math.id,
-            sectionId: sectionA.id,
-            academicYearId: academicYear.id,
-          },
-        },
-        update: {},
-        create: {
-          teacherId: teacherUser.id,
-          subjectId: math.id,
-          sectionId: sectionA.id,
-          academicYearId: academicYear.id,
-        },
-      });
-
-      await prisma.teacherSubjectAssignment.upsert({
-        where: {
-          teacherId_subjectId_sectionId_academicYearId: {
-            teacherId: teacherUser.id,
-            subjectId: physics.id,
-            sectionId: sectionA.id,
-            academicYearId: academicYear.id,
-          },
-        },
-        update: {},
-        create: {
-          teacherId: teacherUser.id,
-          subjectId: physics.id,
-          sectionId: sectionA.id,
-          academicYearId: academicYear.id,
-        },
-      });
-
-      // 4.7 Timetable Entries for Section A
-      const timetableData = [
-        { day: 1, period: 'Period 1', start: '08:30', end: '09:20', subjectId: math.id, room: 'Room 101' },
-        { day: 1, period: 'Period 2', start: '09:30', end: '10:20', subjectId: physics.id, room: 'Room 101' },
-        { day: 2, period: 'Period 1', start: '08:30', end: '09:20', subjectId: physics.id, room: 'Room 101' },
-        { day: 2, period: 'Period 2', start: '09:30', end: '10:20', subjectId: math.id, room: 'Room 101' },
-        { day: 3, period: 'Period 1', start: '08:30', end: '09:20', subjectId: math.id, room: 'Room 101' },
-        { day: 4, period: 'Period 2', start: '09:30', end: '10:20', subjectId: physics.id, room: 'Room 101' },
-        { day: 5, period: 'Period 1', start: '08:30', end: '09:20', subjectId: math.id, room: 'Room 101' },
-      ];
-
-      for (const t of timetableData) {
-        const existingEntry = await prisma.timetableEntry.findFirst({
-          where: {
-            sectionId: sectionA.id,
-            dayOfWeek: t.day,
-            periodName: t.period,
-          },
-        });
-        if (!existingEntry) {
-          await prisma.timetableEntry.create({
-            data: {
-              schoolId: stJude.id,
-              sectionId: sectionA.id,
-              subjectId: t.subjectId,
-              teacherId: teacherUser.id,
-              academicYearId: academicYear.id,
-              dayOfWeek: t.day,
-              periodName: t.period,
-              startTime: t.start,
-              endTime: t.end,
-              roomNumber: t.room,
-            },
-          });
-        }
-      }
-    }
-
-    // 4.8 Students
-    const student1 = await prisma.user.upsert({
-      where: { email: 'student@stjude.ems.local' },
-      update: { passwordHash, isActive: true },
-      create: {
-        email: 'student@stjude.ems.local',
+        email: s.email,
         passwordHash,
-        firstName: 'Liam',
-        lastName: 'Chen',
+        firstName: s.first,
+        lastName: s.last,
         role: UserRole.STUDENT,
-        schoolId: stJude.id,
+        schoolId: s.school.id,
         isActive: true,
       },
     });
 
     await prisma.studentProfile.upsert({
-      where: { userId: student1.id },
-      update: {},
+      where: { userId: user.id },
+      update: { admissionNumber: s.adm, gradeLevel: 'Grade 10' },
       create: {
-        userId: student1.id,
-        admissionNumber: 'STJ-2026-001',
+        userId: user.id,
+        admissionNumber: s.adm,
         gradeLevel: 'Grade 10',
       },
     });
@@ -541,71 +582,50 @@ async function main() {
     await prisma.classEnrollment.upsert({
       where: {
         studentId_academicYearId: {
-          studentId: student1.id,
-          academicYearId: academicYear.id,
+          studentId: user.id,
+          academicYearId: s.year.id,
         },
       },
-      update: { sectionId: sectionA.id },
+      update: { sectionId: s.section.id },
       create: {
-        studentId: student1.id,
-        sectionId: sectionA.id,
-        academicYearId: academicYear.id,
-        rollNumber: '10A-01',
+        studentId: user.id,
+        sectionId: s.section.id,
+        academicYearId: s.year.id,
+        rollNumber: s.adm,
       },
     });
 
-    const student2 = await prisma.user.upsert({
-      where: { email: 'student2@stjude.ems.local' },
-      update: { passwordHash, isActive: true },
-      create: {
-        email: 'student2@stjude.ems.local',
-        passwordHash,
-        firstName: 'Sophia',
-        lastName: 'Chen',
-        role: UserRole.STUDENT,
-        schoolId: stJude.id,
-        isActive: true,
-      },
-    });
+    studentUsers[s.email] = { ...user, tag: s.tag, sectionId: s.section.id };
+  }
+  console.log('[Seed] 16 Students enrolled with realistic academic profiles');
 
-    await prisma.studentProfile.upsert({
-      where: { userId: student2.id },
-      update: {},
-      create: {
-        userId: student2.id,
-        admissionNumber: 'STJ-2026-002',
-        gradeLevel: 'Grade 10',
-      },
-    });
+  // ---------------------------------------------------------------------------
+  // 11. Parents/Guardians (8 Parents with verified relationships)
+  // ---------------------------------------------------------------------------
+  const parentsList = [
+    // St. Jude Parents (5)
+    { email: 'parent@stjude.ems.local', first: 'Sarah', last: 'Chen', school: stJude, wards: ['student@stjude.ems.local', 'student2@stjude.ems.local'], rel: 'MOTHER' }, // Multi-child
+    { email: 'parent.david@stjude.ems.local', first: 'David', last: 'Wright', school: stJude, wards: ['student.ethan@stjude.ems.local'], rel: 'FATHER' },
+    { email: 'parent.sunita@stjude.ems.local', first: 'Sunita', last: 'Patel', school: stJude, wards: ['student.maya@stjude.ems.local'], rel: 'MOTHER' },
+    { email: 'parent.carlos@stjude.ems.local', first: 'Carlos', last: 'Morales', school: stJude, wards: ['student.lucas@stjude.ems.local'], rel: 'FATHER' },
+    { email: 'parent.jennifer@stjude.ems.local', first: 'Jennifer', last: 'Bennett', school: stJude, wards: ['student.chloe@stjude.ems.local'], rel: 'MOTHER' },
+    // Apex STEM Parents (3)
+    { email: 'parent.arthur@apex.ems.local', first: 'Arthur', last: 'Ross', school: apex, wards: ['student.alex@apex.ems.local'], rel: 'FATHER' },
+    { email: 'parent.maria@apex.ems.local', first: 'Maria', last: 'Franklin', school: apex, wards: ['student.ben@apex.ems.local'], rel: 'MOTHER' },
+    { email: 'parent.victor@apex.ems.local', first: 'Victor', last: 'Wilde', school: apex, wards: ['student.olivia@apex.ems.local'], rel: 'FATHER' },
+  ];
 
-    await prisma.classEnrollment.upsert({
-      where: {
-        studentId_academicYearId: {
-          studentId: student2.id,
-          academicYearId: academicYear.id,
-        },
-      },
-      update: { sectionId: sectionB.id },
-      create: {
-        studentId: student2.id,
-        sectionId: sectionB.id,
-        academicYearId: academicYear.id,
-        rollNumber: '10B-05',
-      },
-    });
-
-    // 4.9 Parent Account & Relationships
+  for (const p of parentsList) {
     const parentUser = await prisma.user.upsert({
-      where: { email: 'parent@stjude.ems.local' },
-      update: { passwordHash, isActive: true },
+      where: { email: p.email },
+      update: { passwordHash, isActive: true, schoolId: p.school.id },
       create: {
-        email: 'parent@stjude.ems.local',
+        email: p.email,
         passwordHash,
-        firstName: 'Sarah',
-        lastName: 'Chen',
+        firstName: p.first,
+        lastName: p.last,
         role: UserRole.PARENT,
-        schoolId: stJude.id,
-        phone: '+1-555-019-4411',
+        schoolId: p.school.id,
         isActive: true,
       },
     });
@@ -615,133 +635,388 @@ async function main() {
       update: {},
       create: {
         userId: parentUser.id,
-        occupation: 'Senior Systems Architect',
-        employer: 'Pacific Aerospace',
-        relationshipToFamily: 'Mother',
-        phoneAlt: '+1-555-019-4412',
-        address: '88 Evergreen Terrace, Seattle, WA',
+        occupation: 'Professional Guardian',
+        relationshipToFamily: p.rel,
       },
     });
 
-    // Link Parent to Child 1 (Liam) - VERIFIED
-    await prisma.studentGuardianRelationship.upsert({
-      where: {
-        guardianId_studentId: {
-          guardianId: parentUser.id,
-          studentId: student1.id,
-        },
-      },
-      update: { verificationStatus: 'VERIFIED' },
-      create: {
-        guardianId: parentUser.id,
-        studentId: student1.id,
-        relationshipType: 'MOTHER',
-        verificationStatus: 'VERIFIED',
-        isPrimaryContact: true,
-        isEmergencyContact: true,
-        notes: 'Primary legal guardian and emergency respondent.',
-      },
-    });
-
-    // Link Parent to Child 2 (Sophia) - VERIFIED
-    await prisma.studentGuardianRelationship.upsert({
-      where: {
-        guardianId_studentId: {
-          guardianId: parentUser.id,
-          studentId: student2.id,
-        },
-      },
-      update: { verificationStatus: 'VERIFIED' },
-      create: {
-        guardianId: parentUser.id,
-        studentId: student2.id,
-        relationshipType: 'MOTHER',
-        verificationStatus: 'VERIFIED',
-        isPrimaryContact: true,
-        isEmergencyContact: true,
-        notes: 'Primary legal guardian and emergency respondent.',
-      },
-    });
-
-    console.log(`  - Parent Sarah Chen linked to Liam Chen & Sophia Chen (VERIFIED)`);
-
-    // -------------------------------------------------------------------------
-    // Attendance & NFC Simulation Fixtures (TASK 008)
-    // -------------------------------------------------------------------------
-    const today = new Date();
-    const todayDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-
-    const stJudeAdmin = await prisma.user.findUnique({
-      where: { email: 'admin@stjude.ems.local' },
-    });
-
-    if (academicYear && sectionA && stJudeAdmin) {
-      // Create Today's Daily Attendance Session (Draft)
-      let session1 = await prisma.attendanceSession.findFirst({
-        where: {
-          classSectionId: sectionA.id,
-          attendanceDate: todayDate,
-          sessionType: 'DAILY',
-        },
-      });
-
-      if (!session1) {
-        session1 = await prisma.attendanceSession.create({
-          data: {
-            schoolId: stJude.id,
-            academicYearId: academicYear.id,
-            classSectionId: sectionA.id,
-            attendanceDate: todayDate,
-            sessionType: 'DAILY',
-            createdById: stJudeAdmin.id,
-            status: 'DRAFT',
+    for (const wardEmail of p.wards) {
+      const ward = studentUsers[wardEmail];
+      if (ward) {
+        await prisma.studentGuardianRelationship.upsert({
+          where: {
+            guardianId_studentId: {
+              guardianId: parentUser.id,
+              studentId: ward.id,
+            },
+          },
+          update: { verificationStatus: 'VERIFIED' },
+          create: {
+            guardianId: parentUser.id,
+            studentId: ward.id,
+            relationshipType: p.rel as any,
+            verificationStatus: 'VERIFIED',
+            isPrimaryContact: true,
+            isEmergencyContact: true,
           },
         });
       }
-
-      // Upsert record for Liam Chen (PRESENT)
-      await prisma.attendanceRecord.upsert({
-        where: {
-          attendanceSessionId_studentId: {
-            attendanceSessionId: session1.id,
-            studentId: student1.id,
-          },
-        },
-        update: { status: 'PRESENT' },
-        create: {
-          attendanceSessionId: session1.id,
-          studentId: student1.id,
-          status: 'PRESENT',
-          markedById: stJudeAdmin.id,
-        },
-      });
-
-      console.log(`  - Attendance Session created for ${sectionA.name} with Liam Chen (PRESENT)`);
     }
+  }
+  console.log('[Seed] 8 Verified Parents configured (including multi-child portal)');
 
-    // Provision NFC Simulated Card for Liam Chen (Token: "NFC-STJUDE-1001")
-    const liamToken = 'NFC-STJUDE-1001';
-    const liamTokenHash = crypto.createHash('sha256').update(liamToken).digest('hex');
+  // ---------------------------------------------------------------------------
+  // 12. Assessments (8 Assessments: 6 in St. Jude, 2 in Apex)
+  // ---------------------------------------------------------------------------
+  const marcus = teacherUsers['teacher@stjude.ems.local'];
+  const maya = teacherUsers['teacher.maya@stjude.ems.local'];
+  const elena = teacherUsers['teacher@apex.ems.local'];
 
-    await prisma.nFCIdentity.upsert({
-      where: { studentId: student1.id },
-      update: {
-        simulatedCardTokenHash: liamTokenHash,
-        status: 'ACTIVE',
-        schoolId: stJude.id,
-      },
-      create: {
-        schoolId: stJude.id,
-        studentId: student1.id,
-        simulatedCardTokenHash: liamTokenHash,
-        status: 'ACTIVE',
+  const assessmentsData = [
+    // St. Jude Math Section 10A
+    {
+      key: 'sj-math-q1',
+      title: 'Calculus Quiz 1: Limits & Continuity',
+      school: stJude,
+      year: stJudeYear,
+      section: sjSection10A,
+      subject: mathSubject,
+      category: stJudeCategories['Quiz'],
+      maxMarks: 20.0,
+      date: '2026-09-15',
+      author: marcus,
+      status: AssessmentStatus.PUBLISHED,
+    },
+    {
+      key: 'sj-math-hw1',
+      title: 'Problem Set 1: Differential Equations',
+      school: stJude,
+      year: stJudeYear,
+      section: sjSection10A,
+      subject: mathSubject,
+      category: stJudeCategories['Homework'],
+      maxMarks: 50.0,
+      date: '2026-09-22',
+      author: marcus,
+      status: AssessmentStatus.PUBLISHED,
+    },
+    {
+      key: 'sj-math-mid',
+      title: 'Midterm Examination: Analytical Calculus',
+      school: stJude,
+      year: stJudeYear,
+      section: sjSection10A,
+      subject: mathSubject,
+      category: stJudeCategories['Midterm Exam'],
+      maxMarks: 100.0,
+      date: '2026-10-05',
+      author: marcus,
+      status: AssessmentStatus.PUBLISHED,
+    },
+    {
+      key: 'sj-math-proj',
+      title: 'Computational Math Lab: Fourier Transforms',
+      school: stJude,
+      year: stJudeYear,
+      section: sjSection10A,
+      subject: mathSubject,
+      category: stJudeCategories['Project'],
+      maxMarks: 50.0,
+      date: '2026-10-14',
+      author: marcus,
+      status: AssessmentStatus.DRAFT, // DRAFT assessment scenario
+    },
+    // St. Jude Physics Section 10A
+    {
+      key: 'sj-phys-q1',
+      title: 'Newtonian Dynamics Quiz',
+      school: stJude,
+      year: stJudeYear,
+      section: sjSection10A,
+      subject: physSubject,
+      category: stJudeCategories['Quiz'],
+      maxMarks: 25.0,
+      date: '2026-09-18',
+      author: maya,
+      status: AssessmentStatus.PUBLISHED,
+    },
+    {
+      key: 'sj-phys-mid',
+      title: 'Midterm Examination: Thermodynamics',
+      school: stJude,
+      year: stJudeYear,
+      section: sjSection10A,
+      subject: physSubject,
+      category: stJudeCategories['Midterm Exam'],
+      maxMarks: 100.0,
+      date: '2026-10-08',
+      author: maya,
+      status: AssessmentStatus.PUBLISHED,
+    },
+    // Apex Chemistry Section Alpha
+    {
+      key: 'ap-chem-q1',
+      title: 'Organic Synthesis Lab Quiz',
+      school: apex,
+      year: apexYear,
+      section: apSectionAlpha,
+      subject: chemSubject,
+      category: apexCategories['Quiz'],
+      maxMarks: 30.0,
+      date: '2026-09-20',
+      author: elena,
+      status: AssessmentStatus.PUBLISHED,
+    },
+    {
+      key: 'ap-chem-mid',
+      title: 'Midterm Examination: Molecular Structures',
+      school: apex,
+      year: apexYear,
+      section: apSectionAlpha,
+      subject: chemSubject,
+      category: apexCategories['Midterm Exam'],
+      maxMarks: 100.0,
+      date: '2026-10-06',
+      author: elena,
+      status: AssessmentStatus.PUBLISHED,
+    },
+  ];
+
+  const seededAssessments: Record<string, any> = {};
+
+  for (const a of assessmentsData) {
+    let assess = await prisma.assessment.findFirst({
+      where: {
+        classSectionId: a.section.id,
+        title: a.title,
       },
     });
 
-    console.log(`  - NFC Identity provisioned for Liam Chen (Token: ${liamToken})`);
+    if (!assess) {
+      assess = await prisma.assessment.create({
+        data: {
+          schoolId: a.school.id,
+          academicYearId: a.year.id,
+          classSectionId: a.section.id,
+          subjectId: a.subject.id,
+          categoryId: a.category.id,
+          title: a.title,
+          maximumMarks: a.maxMarks,
+          assessmentDate: a.date,
+          createdById: a.author.id,
+          status: a.status,
+          publishedAt: a.status === AssessmentStatus.PUBLISHED ? new Date(a.date) : null,
+        },
+      });
+    }
+    seededAssessments[a.key] = { ...assess, key: a.key, author: a.author };
+  }
+  console.log('[Seed] 8 Assessments created (Published & Drafts)');
+
+  // ---------------------------------------------------------------------------
+  // 13. Student Grades (Realistic Grade Distribution across enrolled students)
+  // ---------------------------------------------------------------------------
+  // Filter students enrolled in St. Jude Section 10A
+  const stJude10AStudents = Object.values(studentUsers).filter(
+    (s: any) => s.sectionId === sjSection10A.id,
+  );
+
+  // Filter students enrolled in Apex Section Alpha
+  const apexAlphaStudents = Object.values(studentUsers).filter(
+    (s: any) => s.sectionId === apSectionAlpha.id,
+  );
+
+  // Score generator based on student profile tag
+  const calculateScore = (tag: string, max: number, assessmentKey: string): number | null => {
+    if (tag === 'MISSING_CASE' && assessmentKey.includes('mid')) return null; // Missing grade on midterm!
+    if (tag === 'ZERO_CASE' && assessmentKey.includes('q1')) return 0.0; // Zero score on quiz!
+
+    switch (tag) {
+      case 'HIGH':
+        return Math.round(max * (0.92 + Math.random() * 0.07) * 10) / 10;
+      case 'AVERAGE':
+        return Math.round(max * (0.76 + Math.random() * 0.1) * 10) / 10;
+      case 'LOW':
+        return Math.round(max * (0.52 + Math.random() * 0.08) * 10) / 10;
+      case 'ZERO_CASE':
+        return Math.round(max * 0.84 * 10) / 10;
+      case 'MISSING_CASE':
+        return Math.round(max * 0.78 * 10) / 10;
+      default:
+        return Math.round(max * 0.8 * 10) / 10;
+    }
+  };
+
+  // Seed grades for St. Jude assessments
+  for (const aKey of ['sj-math-q1', 'sj-math-hw1', 'sj-math-mid', 'sj-phys-q1', 'sj-phys-mid']) {
+    const assess = seededAssessments[aKey];
+    for (const st of stJude10AStudents) {
+      const marks = calculateScore(st.tag, assess.maximumMarks, aKey);
+      const feedback =
+        marks === null
+          ? 'Absent on exam date — makeup pending.'
+          : marks === 0
+          ? 'Incomplete submission — unattempted quiz.'
+          : marks >= assess.maximumMarks * 0.9
+          ? 'Exceptional analytical precision.'
+          : marks >= assess.maximumMarks * 0.75
+          ? 'Good comprehension with minor arithmetic flaws.'
+          : 'Needs conceptual reinforcement on core formulas.';
+
+      await prisma.studentGrade.upsert({
+        where: {
+          assessmentId_studentId: {
+            assessmentId: assess.id,
+            studentId: st.id,
+          },
+        },
+        update: {
+          marksObtained: marks,
+          feedback,
+          gradedById: assess.author.id,
+        },
+        create: {
+          assessmentId: assess.id,
+          studentId: st.id,
+          marksObtained: marks,
+          feedback,
+          gradedById: assess.author.id,
+        },
+      });
+    }
   }
 
-  console.log('--- Institutional Fixtures Seeding Complete ---');
+  // Seed grades for Apex assessments
+  for (const aKey of ['ap-chem-q1', 'ap-chem-mid']) {
+    const assess = seededAssessments[aKey];
+    for (const st of apexAlphaStudents) {
+      const marks = calculateScore(st.tag, assess.maximumMarks, aKey);
+      const feedback =
+        marks === null
+          ? 'Makeup session requested.'
+          : marks >= assess.maximumMarks * 0.9
+          ? 'Superb lab observation notes.'
+          : 'Solid effort in molecular geometry.';
+
+      await prisma.studentGrade.upsert({
+        where: {
+          assessmentId_studentId: {
+            assessmentId: assess.id,
+            studentId: st.id,
+          },
+        },
+        update: {
+          marksObtained: marks,
+          feedback,
+          gradedById: assess.author.id,
+        },
+        create: {
+          assessmentId: assess.id,
+          studentId: st.id,
+          marksObtained: marks,
+          feedback,
+          gradedById: assess.author.id,
+        },
+      });
+    }
+  }
+  console.log('[Seed] 64+ Student Grade records populated with realistic scores');
+
+  // ---------------------------------------------------------------------------
+  // 14. Attendance Sessions (8 Sessions across dates with varied statuses)
+  // ---------------------------------------------------------------------------
+  const attendanceDates = [
+    '2026-10-02',
+    '2026-10-05',
+    '2026-10-06',
+    '2026-10-07',
+    '2026-10-08',
+    '2026-10-09',
+    '2026-10-12',
+    '2026-10-13',
+  ];
+
+  for (let i = 0; i < attendanceDates.length; i++) {
+    const dateStr = attendanceDates[i];
+    const sessionDate = new Date(`${dateStr}T00:00:00.000Z`);
+    const isApex = i >= 4;
+    const targetSchool = isApex ? apex : stJude;
+    const targetSection = isApex ? apSectionAlpha : sjSection10A;
+    const targetAdmin = isApex ? apexAdmin : stJudeAdmin;
+    const studentsGroup = isApex ? apexAlphaStudents : stJude10AStudents;
+
+    let session = await prisma.attendanceSession.findFirst({
+      where: {
+        classSectionId: targetSection.id,
+        attendanceDate: sessionDate,
+        sessionType: 'DAILY',
+      },
+    });
+
+    if (!session) {
+      session = await prisma.attendanceSession.create({
+        data: {
+          schoolId: targetSchool.id,
+          academicYearId: isApex ? apexYear.id : stJudeYear.id,
+          classSectionId: targetSection.id,
+          attendanceDate: sessionDate,
+          sessionType: 'DAILY',
+          createdById: targetAdmin.id,
+          status: 'FINALIZED',
+          finalizedAt: new Date(dateStr),
+        },
+      });
+    }
+
+    // Populate roster records with realistic attendance mix
+    for (const [stIdx, st] of studentsGroup.entries()) {
+      let status: AttendanceStatus = AttendanceStatus.PRESENT;
+      let remark: string | null = null;
+
+      if (stIdx === 1 && i % 3 === 0) {
+        status = AttendanceStatus.LATE;
+        remark = '10 minutes tardy (transit delay)';
+      } else if (stIdx === 4 && i % 4 === 1) {
+        status = AttendanceStatus.ABSENT;
+        remark = 'Unexcused absence';
+      } else if (stIdx === 6 && i % 5 === 2) {
+        status = AttendanceStatus.EXCUSED;
+        remark = 'Medical appointment clearance';
+      }
+
+      await prisma.attendanceRecord.upsert({
+        where: {
+          attendanceSessionId_studentId: {
+            attendanceSessionId: session.id,
+            studentId: st.id,
+          },
+        },
+        update: { status, remarks: remark },
+        create: {
+          attendanceSessionId: session.id,
+          studentId: st.id,
+          status,
+          remarks: remark,
+          markedById: targetAdmin.id,
+        },
+      });
+    }
+  }
+  console.log('[Seed] 8 Attendance Sessions created with Present/Late/Absent/Excused records');
+
+  // Provision simulated NFC token for Liam Chen
+  const liamToken = 'NFC-STJUDE-1001';
+  const liamHash = crypto.createHash('sha256').update(liamToken).digest('hex');
+  const liam = studentUsers['student@stjude.ems.local'];
+  if (liam) {
+    await prisma.nFCIdentity.upsert({
+      where: { studentId: liam.id },
+      update: { simulatedCardTokenHash: liamHash, status: 'ACTIVE', schoolId: stJude.id },
+      create: { schoolId: stJude.id, studentId: liam.id, simulatedCardTokenHash: liamHash, status: 'ACTIVE' },
+    });
+  }
+
+  console.log('--- Institutional Fixtures Seeding Complete (TASK 009 Ready) ---');
 }
 
 main()
