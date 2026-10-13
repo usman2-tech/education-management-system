@@ -17,11 +17,12 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import {
   ParentDashboardSummaryDto,
-  LinkedStudentDto,
   TimetableEntryDto,
 } from '@ems/contracts';
-import { fetchParentDashboard } from '@/lib/parents-api';
+import { fetchParentDashboard as fetchOldParentDashboard } from '@/lib/parents-api';
+import { fetchParentDashboard as fetchNewParentDashboard } from '@/lib/dashboards-api';
 import { fetchChildTimetable } from '@/lib/classes-api';
+import { DonutMetricChart } from '@/components/dashboard/dashboard-charts';
 import {
   Users,
   GraduationCap,
@@ -34,11 +35,17 @@ import {
   ChevronRight,
   ShieldCheck,
   UserCheck,
+  Award,
+  FileText,
+  AlertCircle,
+  Bell,
+  MessageSquare,
 } from 'lucide-react';
 
 export default function ParentDashboardPage() {
   const { user } = useAuth();
   const [summary, setSummary] = React.useState<ParentDashboardSummaryDto | null>(null);
+  const [dashboardData, setDashboardData] = React.useState<any>(null);
   const [selectedChildId, setSelectedChildId] = React.useState<string | null>(null);
   const [childTimetable, setChildTimetable] = React.useState<TimetableEntryDto[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -50,10 +57,17 @@ export default function ParentDashboardPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await fetchParentDashboard();
-        setSummary(data);
-        if (data.students && data.students.length > 0) {
-          setSelectedChildId(data.students[0].id);
+        const [oldData, newData] = await Promise.all([
+          fetchOldParentDashboard().catch(() => null),
+          fetchNewParentDashboard().catch(() => null),
+        ]);
+        if (oldData) setSummary(oldData);
+        if (newData) setDashboardData(newData);
+
+        if (oldData?.students && oldData.students.length > 0) {
+          setSelectedChildId(oldData.students[0].id);
+        } else if (newData?.children && newData.children.length > 0) {
+          setSelectedChildId(newData.children[0].studentId);
         }
       } catch (err: any) {
         console.error('Failed to load parent dashboard:', err);
@@ -65,15 +79,19 @@ export default function ParentDashboardPage() {
     load();
   }, []);
 
-  // When selected child changes, load their verified timetable
+  // When selected child changes, load their verified timetable and dashboard data
   React.useEffect(() => {
     if (!selectedChildId) return;
 
     async function loadSchedule() {
       setIsLoadingSchedule(true);
       try {
-        const schedule = await fetchChildTimetable(selectedChildId!);
+        const [schedule, childDash] = await Promise.all([
+          fetchChildTimetable(selectedChildId!).catch(() => []),
+          fetchNewParentDashboard(selectedChildId!).catch(() => null),
+        ]);
         setChildTimetable(schedule || []);
+        if (childDash) setDashboardData(childDash);
       } catch (err: any) {
         console.error('Failed to load child timetable:', err);
         setChildTimetable([]);
@@ -369,6 +387,180 @@ export default function ParentDashboardPage() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Child Performance Metrics & Analytics */}
+      {dashboardData && (
+        <div className="space-y-6">
+          {/* Quick Metrics Cards */}
+          {(() => {
+            const childInfo = dashboardData.children?.find((c: any) => c.studentId === selectedChildId) || dashboardData.children?.[0];
+            if (!childInfo) return null;
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 rounded-2xl border border-border bg-card shadow-sm flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Attendance Rate
+                    </p>
+                    <h3 className="text-2xl font-bold text-foreground mt-1">
+                      {childInfo.attendancePercentage}%
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Verified presence</p>
+                  </div>
+                  <div className="w-16 h-16">
+                    <DonutMetricChart
+                      percentage={childInfo.attendancePercentage}
+                      label=""
+                      size={64}
+                      strokeWidth={6}
+                      color={childInfo.attendancePercentage >= 80 ? 'stroke-emerald-500' : 'stroke-amber-500'}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-2xl border border-border bg-card shadow-sm flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Term GPA
+                    </p>
+                    <h3 className="text-2xl font-bold text-foreground mt-1">
+                      {childInfo.gpa !== null ? childInfo.gpa : 'N/A'}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {childInfo.letterGrade ? `Grade: ${childInfo.letterGrade}` : 'Assessments in progress'}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                    <Award className="w-6 h-6" />
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-2xl border border-border bg-card shadow-sm flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Pending Homework
+                    </p>
+                    <h3 className="text-2xl font-bold text-foreground mt-1">
+                      {childInfo.pendingHomeworkCount}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Tasks due soon</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-2xl border border-border bg-card shadow-sm flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Upcoming Tests
+                    </p>
+                    <h3 className="text-2xl font-bold text-foreground mt-1">
+                      {childInfo.upcomingExamsCount}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Scheduled exams</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <AlertCircle className="w-6 h-6" />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Recent Grades & Communications Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent Assessment Marks */}
+            <div className="p-6 rounded-2xl border border-border bg-card space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-primary" />
+                  <h3 className="font-bold text-foreground">Recent Published Marks</h3>
+                </div>
+                <Link href="/grades" className="text-xs font-semibold text-primary hover:underline">
+                  Full Report Card →
+                </Link>
+              </div>
+
+              <div className="divide-y divide-border">
+                {(!dashboardData.selectedChildRecentGrades || dashboardData.selectedChildRecentGrades.length === 0) ? (
+                  <p className="py-8 text-center text-xs text-muted-foreground">
+                    No graded assessments recorded for this student yet.
+                  </p>
+                ) : (
+                  dashboardData.selectedChildRecentGrades.map((g: any, idx: number) => (
+                    <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-semibold text-foreground">{g.title}</span>
+                        <p className="text-[11px] text-muted-foreground">{g.subjectName}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-foreground">
+                          {g.marksObtained} / {g.maximumMarks}
+                        </span>
+                        {g.letterGrade && (
+                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                            {g.letterGrade}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* School Bulletins & Teacher Communications */}
+            <div className="p-6 rounded-2xl border border-border bg-card space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-primary" />
+                  <h3 className="font-bold text-foreground">Campus Bulletins & Messages</h3>
+                </div>
+                <Link href="/messages" className="text-xs font-semibold text-primary hover:underline">
+                  Message Teachers →
+                </Link>
+              </div>
+
+              <div className="space-y-3">
+                {(!dashboardData.schoolAnnouncements || dashboardData.schoolAnnouncements.length === 0) &&
+                (!dashboardData.teacherMessages || dashboardData.teacherMessages.length === 0) ? (
+                  <p className="py-8 text-center text-xs text-muted-foreground">
+                    No active school announcements or new messages.
+                  </p>
+                ) : (
+                  <>
+                    {dashboardData.schoolAnnouncements?.map((ann: any) => (
+                      <div key={ann.id} className="p-3 rounded-xl border border-primary/20 bg-primary/5 text-xs">
+                        <div className="flex items-center justify-between font-semibold text-foreground">
+                          <span>{ann.title}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(ann.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground mt-1 text-[11px]">{ann.message}</p>
+                      </div>
+                    ))}
+
+                    {dashboardData.teacherMessages?.map((msg: any) => (
+                      <div key={msg.id} className="p-3 rounded-xl border border-border bg-muted/20 text-xs">
+                        <div className="flex items-center justify-between font-semibold text-foreground">
+                          <span>Teacher: {msg.senderName}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(msg.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground mt-1 text-[11px] truncate">{msg.content}</p>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
