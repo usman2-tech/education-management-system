@@ -524,6 +524,167 @@ This document guides the user through manually verifying the architecture, front
      - Timetable switches to day tabs or horizontal scroll without horizontal page breakage.
 - **Expected Result**: Flawless responsive layout and dark/light contrast across desktop and mobile viewports.
 
+---
+
+# Manual Testing Guide — TASK 008: Institutional Attendance Management & NFC Simulation
+
+## Test Scenario A: School Admin Creates Attendance Session
+- **URL**: `http://localhost:3000/attendance/sessions/new`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to **Attendance** in the sidebar or go to `http://localhost:3000/attendance`.
+  3. Click **Start Attendance Register** (`/attendance/sessions/new`).
+  4. Select Class Section: `Grade 10 — Section A`.
+  5. Select Attendance Date: Today's date (`2026-10-13`).
+  6. Select Session Type: `Daily Full Register`.
+  7. Click **Create Attendance Register**.
+- **Expected Result**: Session is created in PostgreSQL with status `DRAFT` and redirects directly to `/attendance/sessions/[id]`.
+
+---
+
+## Test Scenario B: Assigned Teacher Marks Attendance
+- **URL**: `http://localhost:3000/attendance/sessions/[id]`
+- **Steps**:
+  1. Log in as **Assigned Teacher** Marcus Holloway (`teacher@stjude.ems.local` / `Password123!`).
+  2. Open the attendance register created for Grade 10 Section A.
+  3. Verify the enrolled roster shows students (e.g. Liam Chen).
+  4. Click the quick button **Mark All Present** to rapidly set everyone to `PRESENT`.
+  5. For Liam Chen, switch status to `LATE` and enter remark: `"Arrived 10 minutes late due to transit delay."`.
+  6. Click **Save Attendance Register**.
+- **Expected Result**: Success banner appears: `"Attendance register saved successfully"`.
+
+---
+
+## Test Scenario C: Teacher Finalizes Register
+- **URL**: `http://localhost:3000/attendance/sessions/[id]`
+- **Steps**:
+  1. On the saved register page, click **Finalize & Lock Register**.
+  2. A confirmation modal appears warning that finalizing locks ordinary modifications.
+  3. Click **Confirm Finalization**.
+- **Expected Result**: Status badge changes from amber `DRAFT` to emerald `FINALIZED`. Inputs are locked in read-only mode for the teacher.
+
+---
+
+## Test Scenario D: Persistence After Page Refresh
+- **URL**: `http://localhost:3000/attendance/sessions/[id]`
+- **Steps**:
+  1. Hard refresh the page (`Ctrl + F5`).
+  2. Verify:
+     - Register status remains `FINALIZED`.
+     - Liam Chen's status is still `LATE`.
+     - Remark text remains `"Arrived 10 minutes late due to transit delay."`.
+- **Expected Result**: Live data is fully persisted in PostgreSQL and reloads without loss.
+
+---
+
+## Test Scenario E: Unassigned Teacher Denied Access
+- **URL**: `http://localhost:3000/attendance/sessions/[id]`
+- **Steps**:
+  1. Log in as **Unassigned Teacher** Sophia Rodriguez (`teacher@apex.ems.local` or an unassigned faculty account).
+  2. Attempt to open or mark the Grade 10 Section A register.
+- **Expected Result**: Route or API blocks with `403 Forbidden` ("You are not assigned to instruct or manage this class section").
+
+---
+
+## Test Scenario F: Student Sees Own Attendance
+- **URL**: `http://localhost:3000/attendance`
+- **Steps**:
+  1. Log in as **Student** Liam Chen (`student@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/attendance`.
+  3. Observe the student portal:
+     - Attendance rate gauge (e.g. `100%` presence).
+     - Breakdown cards: Days Present, Days Absent, Late / Excused.
+     - Chronological attendance records table displaying session date, class, status badge (`LATE`), and teacher remarks.
+  4. Notice that editing/marking buttons are completely absent.
+- **Expected Result**: Student has clean, read-only visibility into their own attendance history.
+
+---
+
+## Test Scenario G: Parent Sees Linked Child Attendance
+- **URL**: `http://localhost:3000/attendance`
+- **Steps**:
+  1. Log in as **Parent** Sarah Chen (`parent@stjude.ems.local` / `Password123!`).
+  2. Open `/attendance`.
+  3. The page displays the **Select Ward** switcher with verified children: **Liam Chen** and **Sophia Chen**.
+  4. With Liam Chen selected, observe his attendance percentage, presence counts, and recent sessions.
+  5. Click on **Sophia Chen**; metrics and history immediately update to Sophia's personal attendance records.
+- **Expected Result**: Verified parent can seamlessly monitor attendance for each of their linked children.
+
+---
+
+## Test Scenario H: Parent Cannot See Unrelated Student
+- **URL**: `http://localhost:3000/attendance/students/[unrelatedStudentId]`
+- **Steps**:
+  1. While logged in as Sarah Chen (`parent@stjude.ems.local`), attempt to navigate to a student history endpoint for an unverified/unlinked student.
+- **Expected Result**: API returns `403 Forbidden` ("Access denied to attendance records for this student").
+
+---
+
+## Test Scenario I: Attendance Reports Show Correct Real Percentages
+- **URL**: `http://localhost:3000/attendance/reports`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Open `/attendance/reports`.
+  3. Select Class Section: `Grade 10 — Section A`.
+  4. Observe the institutional summary:
+     - Total Sessions: Real count from database.
+     - Presence Rate %: Correct calculation `(Present + Late) / Total * 100`.
+     - Status distribution: Exact counts of Present, Absent, Late, Excused.
+  5. Click **Export to CSV**.
+  6. Verify the downloaded `.csv` file contains matching headers and student rows.
+- **Expected Result**: Zero fabrication; metrics, charts, and exports derive strictly from real database records.
+
+---
+
+## Test Scenario J: NFC Simulation Accepts Valid Scan
+- **URL**: `http://localhost:3000/attendance/nfc-simulator`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Open `/attendance/nfc-simulator`.
+  3. In the provision card, provision card token `NFC-STJUDE-1001` for student Liam Chen (or use the pre-seeded active card).
+  4. Select an active attendance session for Grade 10 Section A.
+  5. In the Card Scanner simulation input, enter `NFC-STJUDE-1001`.
+  6. Click **Simulate Card Tap**.
+- **Expected Result**: Green success card appears: `"Scan Accepted: Attendance recorded for Liam Chen (Status: PRESENT)"`.
+
+---
+
+## Test Scenario K: NFC Rejects Duplicate & Invalid Scans
+- **URL**: `http://localhost:3000/attendance/nfc-simulator`
+- **Steps**:
+  1. Immediately tap `NFC-STJUDE-1001` a second time for the same session.
+  2. Observe result banner: Status `DUPLICATE` ("Student attendance is already recorded for this session").
+  3. Enter an unregistered token: `NFC-UNKNOWN-9999` and tap.
+  4. Observe result banner: Status `REJECTED` ("Unknown or unregistered NFC token").
+  5. Review the **Recent NFC Scan Events** table below to see logged audit entries with timestamps.
+- **Expected Result**: Anti-duplicate logic protects registers; unauthorized cards are rejected and audited safely.
+
+---
+
+## Test Scenario L: Cross-School Access Denied
+- **URL**: `http://localhost:3000/attendance`
+- **Steps**:
+  1. Log in as **School Admin (School B)** (`admin@apex.ems.local` / `Password123!`).
+  2. Navigate to `/attendance`.
+  3. Verify that St. Jude sessions and classes are NOT visible in the sessions register or filters.
+  4. Attempt to query a St. Jude session ID directly via `/attendance/sessions/[stJudeSessionId]`.
+- **Expected Result**: Direct access is rejected with `404 / 403` School Tenant Isolation error.
+
+---
+
+## Test Scenario M: Mobile Responsiveness & Theme Testing
+- **URL**: `http://localhost:3000/attendance` & `http://localhost:3000/attendance/nfc-simulator`
+- **Steps**:
+  1. Toggle system theme from Light to Dark mode using the theme switcher.
+  2. Verify:
+     - Register table, radio buttons, and status pill badges maintain clear contrast.
+     - NFC scan terminal has polished dark styling.
+  3. Open Developer Tools and emulate mobile viewport (iPhone 14, 390px width):
+     - Roster displays cards gracefully on narrow screens.
+     - Bulk marking toolbar wraps cleanly without horizontal overflow.
+- **Expected Result**: Flawless responsive layout and dark/light contrast across desktop and mobile viewports.
+
+
 
 
 

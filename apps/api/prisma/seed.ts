@@ -15,6 +15,7 @@
 
 import { PrismaClient, UserRole, SchoolStatus, TeacherEmploymentStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -663,6 +664,81 @@ async function main() {
     });
 
     console.log(`  - Parent Sarah Chen linked to Liam Chen & Sophia Chen (VERIFIED)`);
+
+    // -------------------------------------------------------------------------
+    // Attendance & NFC Simulation Fixtures (TASK 008)
+    // -------------------------------------------------------------------------
+    const today = new Date();
+    const todayDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
+    const stJudeAdmin = await prisma.user.findUnique({
+      where: { email: 'admin@stjude.ems.local' },
+    });
+
+    if (academicYear && sectionA && stJudeAdmin) {
+      // Create Today's Daily Attendance Session (Draft)
+      let session1 = await prisma.attendanceSession.findFirst({
+        where: {
+          classSectionId: sectionA.id,
+          attendanceDate: todayDate,
+          sessionType: 'DAILY',
+        },
+      });
+
+      if (!session1) {
+        session1 = await prisma.attendanceSession.create({
+          data: {
+            schoolId: stJude.id,
+            academicYearId: academicYear.id,
+            classSectionId: sectionA.id,
+            attendanceDate: todayDate,
+            sessionType: 'DAILY',
+            createdById: stJudeAdmin.id,
+            status: 'DRAFT',
+          },
+        });
+      }
+
+      // Upsert record for Liam Chen (PRESENT)
+      await prisma.attendanceRecord.upsert({
+        where: {
+          attendanceSessionId_studentId: {
+            attendanceSessionId: session1.id,
+            studentId: student1.id,
+          },
+        },
+        update: { status: 'PRESENT' },
+        create: {
+          attendanceSessionId: session1.id,
+          studentId: student1.id,
+          status: 'PRESENT',
+          markedById: stJudeAdmin.id,
+        },
+      });
+
+      console.log(`  - Attendance Session created for ${sectionA.name} with Liam Chen (PRESENT)`);
+    }
+
+    // Provision NFC Simulated Card for Liam Chen (Token: "NFC-STJUDE-1001")
+    const liamToken = 'NFC-STJUDE-1001';
+    const liamTokenHash = crypto.createHash('sha256').update(liamToken).digest('hex');
+
+    await prisma.nFCIdentity.upsert({
+      where: { studentId: student1.id },
+      update: {
+        simulatedCardTokenHash: liamTokenHash,
+        status: 'ACTIVE',
+        schoolId: stJude.id,
+      },
+      create: {
+        schoolId: stJude.id,
+        studentId: student1.id,
+        simulatedCardTokenHash: liamTokenHash,
+        status: 'ACTIVE',
+      },
+    });
+
+    console.log(`  - NFC Identity provisioned for Liam Chen (Token: ${liamToken})`);
   }
 
   console.log('--- Institutional Fixtures Seeding Complete ---');

@@ -70,6 +70,34 @@ enum EnrollmentStatus {
   COMPLETED
 }
 
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum AttendanceSessionType {
+  DAILY
+  PERIOD
+}
+
+enum AttendanceSessionStatus {
+  DRAFT
+  FINALIZED
+}
+
+enum NFCIdentityStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum NFCEventStatus {
+  ACCEPTED
+  REJECTED
+  DUPLICATE
+}
+
 // ------------------------------------------------------------------------------
 // Core Multi-Tenant Institutional Models
 // ------------------------------------------------------------------------------
@@ -90,12 +118,15 @@ model School {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
-  users            User[]
-  memberships      SchoolMembership[]
-  academicYears    AcademicYear[]
-  classes          SchoolClass[]
-  subjects         Subject[]
-  timetableEntries TimetableEntry[]
+  users               User[]
+  memberships         SchoolMembership[]
+  academicYears       AcademicYear[]
+  classes             SchoolClass[]
+  subjects            Subject[]
+  timetableEntries    TimetableEntry[]
+  attendanceSessions  AttendanceSession[]
+  nfcIdentities       NFCIdentity[]
+  nfcAttendanceEvents NFCAttendanceEvent[]
 
   @@map("schools")
 }
@@ -147,6 +178,14 @@ model User {
   teacherSubjectAssignments TeacherSubjectAssignment[]
   classEnrollments          ClassEnrollment[]
   timetableEntries          TimetableEntry[]
+
+  // Attendance Management & NFC Simulation
+  createdAttendanceSessions   AttendanceSession[]  @relation("AttendanceCreator")
+  finalizedAttendanceSessions AttendanceSession[]  @relation("AttendanceFinalizer")
+  studentAttendanceRecords    AttendanceRecord[]   @relation("AttendanceStudent")
+  markedAttendanceRecords     AttendanceRecord[]   @relation("AttendanceMarker")
+  studentNfcIdentity          NFCIdentity?         @relation("StudentNFC")
+  nfcAttendanceEvents         NFCAttendanceEvent[] @relation("NFCEventStudent")
 
   @@index([schoolId])
   @@index([email])
@@ -241,6 +280,7 @@ model AcademicYear {
   enrollments               ClassEnrollment[]
   teacherSubjectAssignments TeacherSubjectAssignment[]
   timetableEntries          TimetableEntry[]
+  attendanceSessions        AttendanceSession[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -282,6 +322,7 @@ model ClassSection {
   enrollments               ClassEnrollment[]
   teacherSubjectAssignments TeacherSubjectAssignment[]
   timetableEntries          TimetableEntry[]
+  attendanceSessions        AttendanceSession[]
 
   @@unique([classId, academicYearId, name])
   @@index([classId])
@@ -364,8 +405,10 @@ model TimetableEntry {
   startTime      String       // e.g. "08:30"
   endTime        String       // e.g. "09:20"
   roomNumber     String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  attendanceSessions AttendanceSession[]
 
   @@index([schoolId])
   @@index([sectionId, dayOfWeek])
@@ -405,6 +448,93 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// ------------------------------------------------------------------------------
+// Attendance Management & NFC Simulation Models (TASK 008)
+// ------------------------------------------------------------------------------
+model AttendanceSession {
+  id               String                  @id @default(uuid())
+  schoolId         String
+  school           School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYearId   String
+  academicYear     AcademicYear            @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  classSectionId   String
+  classSection     ClassSection            @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  attendanceDate   DateTime
+  sessionType      AttendanceSessionType   @default(DAILY)
+  timetableEntryId String?
+  timetableEntry   TimetableEntry?         @relation(fields: [timetableEntryId], references: [id], onDelete: SetNull)
+  createdById      String
+  createdBy        User                    @relation("AttendanceCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  status           AttendanceSessionStatus @default(DRAFT)
+  finalizedAt      DateTime?
+  finalizedById    String?
+  finalizedBy      User?                   @relation("AttendanceFinalizer", fields: [finalizedById], references: [id], onDelete: SetNull)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  records          AttendanceRecord[]
+  nfcEvents        NFCAttendanceEvent[]
+
+  @@index([schoolId])
+  @@index([classSectionId, attendanceDate])
+  @@index([attendanceDate])
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id                  String            @id @default(uuid())
+  attendanceSessionId String
+  attendanceSession   AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  studentId           String
+  student             User              @relation("AttendanceStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  status              AttendanceStatus  @default(PRESENT)
+  remarks             String?
+  markedById          String
+  markedBy            User              @relation("AttendanceMarker", fields: [markedById], references: [id], onDelete: Cascade)
+  markedAt            DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@unique([attendanceSessionId, studentId])
+  @@index([studentId])
+  @@index([attendanceSessionId])
+  @@map("attendance_records")
+}
+
+model NFCIdentity {
+  id                     String            @id @default(uuid())
+  schoolId               String
+  school                 School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId              String            @unique
+  student                User              @relation("StudentNFC", fields: [studentId], references: [id], onDelete: Cascade)
+  simulatedCardTokenHash String            @unique
+  status                 NFCIdentityStatus @default(ACTIVE)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  @@index([schoolId])
+  @@index([simulatedCardTokenHash])
+  @@map("nfc_identities")
+}
+
+model NFCAttendanceEvent {
+  id                  String            @id @default(uuid())
+  schoolId            String
+  school              School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  attendanceSessionId String
+  attendanceSession   AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  studentId           String?
+  student             User?             @relation("NFCEventStudent", fields: [studentId], references: [id], onDelete: SetNull)
+  eventType           String            @default("SIMULATED_SCAN")
+  eventStatus         NFCEventStatus    @default(ACCEPTED)
+  rejectionReason     String?
+  createdAt           DateTime          @default(now())
+
+  @@index([schoolId])
+  @@index([attendanceSessionId])
+  @@index([studentId])
+  @@map("nfc_attendance_events")
 }
 
 

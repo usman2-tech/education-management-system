@@ -35,6 +35,9 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'Academic Years', href: '/academic-years', icon: 'Calendar', description: 'Institutional terms & calendars' },
         { title: 'Subjects', href: '/subjects', icon: 'FileText', description: 'Courses & departments' },
         { title: 'Timetable Schedules', href: '/timetable', icon: 'Clock', description: 'Master institutional schedules' },
+        { title: 'Attendance Oversight', href: '/attendance', icon: 'Clock', description: 'Institutional attendance logs' },
+        { title: 'Attendance Reports', href: '/attendance/reports', icon: 'BarChart2', description: 'Metrics & exports' },
+        { title: 'NFC Simulator', href: '/attendance/nfc-simulator', icon: 'Radio', description: 'Simulate card gate scans' },
       ],
     },
     {
@@ -65,7 +68,9 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
     {
       title: 'Operations & Records',
       items: [
-        { title: 'Attendance Oversight', href: '/attendance', icon: 'Clock', description: 'Daily attendance logs & trends' },
+        { title: 'Attendance Register', href: '/attendance', icon: 'CheckSquare', description: 'Daily attendance logs & sessions' },
+        { title: 'Attendance Reports', href: '/attendance/reports', icon: 'BarChart2', description: 'Institutional attendance analytics' },
+        { title: 'NFC Gate Simulator', href: '/attendance/nfc-simulator', icon: 'Radio', description: 'Simulate student badge scans' },
         { title: 'Campus Bulletins', href: '/announcements', icon: 'Megaphone', description: 'Official broadcast messages' },
       ],
     },
@@ -79,6 +84,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Personal teaching timetable' },
         { title: 'Classes & Sections', href: '/classes', icon: 'BookOpen', description: 'Assigned sections and rosters' },
         { title: 'Daily Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Record student attendance' },
+        { title: 'NFC Gate Scanner', href: '/attendance/nfc-simulator', icon: 'Radio', description: 'Classroom gate scanner' },
       ],
     },
   ],
@@ -89,6 +95,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       items: [
         { title: 'Student Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Classes, deadlines & updates' },
         { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Class timetable & room numbers' },
+        { title: 'My Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Personal attendance records' },
       ],
     },
   ],
@@ -100,6 +107,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'Parent Dashboard', href: '/parent/dashboard', icon: 'LayoutDashboard', description: 'Children overview & updates' },
         { title: 'My Children', href: '/parent/children', icon: 'Users', description: 'Academic records & classes' },
         { title: 'Children Timetable', href: '/timetable', icon: 'Calendar', description: 'Verified child class schedule' },
+        { title: 'Child Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Verified child attendance logs' },
       ],
     },
   ],

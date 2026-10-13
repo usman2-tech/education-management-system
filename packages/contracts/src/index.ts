@@ -676,6 +676,226 @@ export interface TimetableConflictDto {
   conflictingEntry?: TimetableEntryDto;
 }
 
+// ------------------------------------------------------------------------------
+// Attendance Management & NFC Simulation Contracts (TASK 008)
+// ------------------------------------------------------------------------------
+export enum AttendanceStatus {
+  PRESENT = 'PRESENT',
+  ABSENT = 'ABSENT',
+  LATE = 'LATE',
+  EXCUSED = 'EXCUSED',
+}
+
+export enum AttendanceSessionType {
+  DAILY = 'DAILY',
+  PERIOD = 'PERIOD',
+}
+
+export enum AttendanceSessionStatus {
+  DRAFT = 'DRAFT',
+  FINALIZED = 'FINALIZED',
+}
+
+export enum NFCIdentityStatus {
+  ACTIVE = 'ACTIVE',
+  DISABLED = 'DISABLED',
+}
+
+export enum NFCEventStatus {
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED',
+  DUPLICATE = 'DUPLICATE',
+}
+
+export interface AttendanceRecordDto {
+  id: string;
+  attendanceSessionId: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  admissionNumber?: string | null;
+  rollNumber?: string | null;
+  status: AttendanceStatus;
+  remarks?: string | null;
+  markedById: string;
+  markedByName: string;
+  markedAt: string;
+  updatedAt: string;
+}
+
+export interface AttendanceSessionDto {
+  id: string;
+  schoolId: string;
+  schoolName: string;
+  academicYearId: string;
+  academicYearName: string;
+  classSectionId: string;
+  sectionName: string;
+  className: string;
+  attendanceDate: string; // YYYY-MM-DD
+  sessionType: AttendanceSessionType;
+  timetableEntryId?: string | null;
+  periodName?: string | null;
+  subjectName?: string | null;
+  status: AttendanceSessionStatus;
+  createdById: string;
+  createdByName: string;
+  finalizedAt?: string | null;
+  finalizedById?: string | null;
+  finalizedByName?: string | null;
+  recordsCount: number;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  excusedCount: number;
+  attendancePercentage: number;
+  records?: AttendanceRecordDto[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAttendanceSessionRequest {
+  classSectionId: string;
+  attendanceDate: string; // YYYY-MM-DD
+  sessionType?: AttendanceSessionType;
+  timetableEntryId?: string;
+  academicYearId?: string;
+}
+
+export interface UpdateAttendanceSessionRequest {
+  attendanceDate?: string;
+  timetableEntryId?: string;
+}
+
+export interface BulkMarkAttendanceItem {
+  studentId: string;
+  status: AttendanceStatus;
+  remarks?: string;
+}
+
+export interface BulkMarkAttendanceRequest {
+  records: BulkMarkAttendanceItem[];
+}
+
+export interface StudentAttendanceSummaryDto {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  className: string;
+  sectionName: string;
+  totalSessions: number;
+  presentSessions: number;
+  absentSessions: number;
+  lateSessions: number;
+  excusedSessions: number;
+  attendancePercentage: number;
+  records: Array<{
+    id: string;
+    sessionId: string;
+    date: string;
+    sessionType: AttendanceSessionType;
+    periodName?: string | null;
+    subjectName?: string | null;
+    status: AttendanceStatus;
+    remarks?: string | null;
+  }>;
+}
+
+export interface ClassAttendanceSummaryDto {
+  classSectionId: string;
+  sectionName: string;
+  className: string;
+  totalStudents: number;
+  totalSessions: number;
+  averageAttendancePercentage: number;
+  sessions: AttendanceSessionDto[];
+}
+
+export interface AttendanceReportFilterQuery {
+  schoolId?: string;
+  classSectionId?: string;
+  studentId?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface AttendanceReportDto {
+  totalSessions: number;
+  totalRecords: number;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  excusedCount: number;
+  overallAttendancePercentage: number;
+  byDate: Array<{
+    date: string;
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    percentage: number;
+  }>;
+  byStudent?: Array<{
+    studentId: string;
+    studentName: string;
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    percentage: number;
+  }>;
+}
+
+export interface NFCIdentityDto {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  status: NFCIdentityStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProvisionNFCIdentityRequest {
+  studentId: string;
+  cardToken: string;
+}
+
+export interface ProvisionNFCIdentityResponse {
+  identity: NFCIdentityDto;
+  maskedToken: string;
+  message: string;
+}
+
+export interface NFCScanRequest {
+  attendanceSessionId: string;
+  cardToken: string;
+}
+
+export interface NFCScanResultDto {
+  eventStatus: NFCEventStatus;
+  message: string;
+  studentId?: string;
+  studentName?: string;
+  markedStatus?: AttendanceStatus;
+  rejectionReason?: string;
+}
+
+export interface NFCAttendanceEventDto {
+  id: string;
+  schoolId: string;
+  attendanceSessionId: string;
+  studentId?: string | null;
+  studentName?: string | null;
+  eventType: string;
+  eventStatus: NFCEventStatus;
+  rejectionReason?: string | null;
+  createdAt: string;
+}
+
 
 
 
