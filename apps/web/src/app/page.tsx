@@ -19,6 +19,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { UserRole } from '@ems/contracts';
 import {
@@ -58,13 +59,18 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAuthLoading || !user) return;
+    if (isAuthLoading) return;
+    if (!user) {
+      router.push('/login');
+      return;
+    }
 
     async function loadDashboard() {
       setIsLoading(true);
@@ -83,8 +89,8 @@ export default function DashboardPage() {
           const res = await fetchStudentDashboard();
           setData(res);
         } else if (user?.role === UserRole.PARENT) {
-          // Parents use dedicated /parent/dashboard
-          window.location.href = '/parent/dashboard';
+          router.replace('/parent/dashboard');
+          return;
         }
       } catch (err: any) {
         console.error('Failed to load dashboard:', err);
@@ -95,7 +101,7 @@ export default function DashboardPage() {
     }
 
     loadDashboard();
-  }, [user, isAuthLoading]);
+  }, [user, isAuthLoading, router]);
 
   if (isAuthLoading || isLoading) {
     return (

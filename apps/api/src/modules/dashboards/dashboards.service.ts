@@ -192,6 +192,14 @@ export class DashboardsService {
     user: AuthUser,
     querySchoolId?: string,
   ): Promise<SchoolAdminDashboardDto> {
+    if (
+      user.role !== UserRole.PLATFORM_ADMIN &&
+      querySchoolId &&
+      querySchoolId !== user.schoolId
+    ) {
+      throw new ForbiddenException("School Administrator cannot access another school's analytics.");
+    }
+
     const schoolId =
       user.role === UserRole.PLATFORM_ADMIN
         ? querySchoolId || user.schoolId

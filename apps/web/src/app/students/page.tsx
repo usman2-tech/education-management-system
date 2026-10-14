@@ -15,6 +15,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
+import { apiClient } from '@/lib/api-client';
 import {
   GraduationCap,
   Search,
@@ -51,30 +52,13 @@ export default function StudentsDirectoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-
   useEffect(() => {
     async function loadStudents() {
       setIsLoading(true);
       setError(null);
       try {
-        const token = localStorage.getItem('accessToken');
-        const url = new URL(`${API_BASE_URL}/students`);
-        if (searchTerm) url.searchParams.set('search', searchTerm);
-
-        const res = await fetch(url.toString(), {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.message || 'Failed to load students roster.');
-        }
-
-        const data = await res.json();
+        const qs = searchTerm.trim() ? `?search=${encodeURIComponent(searchTerm.trim())}` : '';
+        const data = await apiClient.get<any>(`/students${qs}`);
         setStudents(Array.isArray(data) ? data : []);
       } catch (err: any) {
         console.error('Failed to load students:', err);
