@@ -20,3 +20,4 @@
 | **MOD-016** | Agentic AI Assistants | Tutor, TA, Exam Generator, Lesson Summarizer | Teachers, Students, Parents | Task 016 |
 | **MOD-017** | NFC Verification Simulator | Simulated Card Reader & Gate Tap-in APIs | School Admin, Security | Task 017 |
 | **MOD-018** | Security Hardening & CI/CD | Docker Production Builds, Audit Trails, Rate Limits | Platform Admin, DevOps | Task 018 |
+| **MOD-022** | Google Gemini AI Academic Assistant | Role-Aware Chat, Scoped EMS Data Tools, Conversation History | All Roles | **Task 022 (Awaiting Manual Test)** |

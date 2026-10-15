@@ -960,6 +960,44 @@ This document guides the user through manually verifying the architecture, front
   6. Attempting to tamper with parameters or view other students' records returns 403 Forbidden.
 - **Expected Result**: Student has personal read-only visibility into their tuition and payment status.
 
+---
+
+## Test Scenario AF: Role-Aware AI Academic Assistant (TASK 022)
+- **URL**: `http://localhost:3000/ai-assistant`
+- **Steps**:
+  1. **Sidebar Navigation**:
+     - Log in as any of the 5 roles (Platform Admin, School Admin, Teacher, Student, Parent).
+     - Verify **AI Assistant** appears in the navigation sidebar with the `Gemini` badge and Bot icon.
+  2. **Page Loading**:
+     - Click **AI Assistant** to open `/ai-assistant`.
+     - Observe the two-panel responsive workspace:
+       - Left panel: Conversation History drawer with search, timestamp groupings, and **New Chat** button.
+       - Right panel: Active chat window with current role badge, suggested prompt chips, message stream, and input box.
+  3. **Role-Aware Suggested Prompts**:
+     - For **Student**: Verify prompts ask about personal attendance, grades, homework, and timetable.
+     - For **Teacher**: Verify prompts ask about assigned classes, lesson starters, and teaching explanations.
+     - For **School Admin**: Verify prompts ask about school enrollment, attendance trends, and academic performance.
+     - For **Parent**: Verify prompts ask about linked children's progress.
+     - For **Platform Admin**: Verify prompts ask about multi-school metrics.
+  4. **Live Chat Interaction**:
+     - Click one of the suggested prompt chips or type a question (e.g. `"What is my attendance rate?"`).
+     - Click the send button or press `Enter`.
+     - Verify the user message bubble appears immediately.
+     - Verify typing/loading indicator pulses while processing.
+     - Verify the Assistant response appears with markdown formatting, tool execution badges (e.g. `get_attendance_summary`), token usage tracking, and source citations.
+  5. **Conversation Persistence & Lifecycle**:
+     - Send a follow-up message to continue the conversation.
+     - Click **New Chat** to start a fresh thread.
+     - Click an earlier conversation in the left history drawer to load past messages.
+     - Refresh the page (`F5`) and verify previous conversations and messages remain intact.
+  6. **Security & Boundary Isolation Verification**:
+     - Verify Teacher cannot access student financial records via AI questions.
+     - Verify Student cannot inquire about other students' private marks.
+     - Verify Parent can only access linked children.
+     - Verify unauthorized conversation access returns 404 Not Found.
+- **Expected Result**: Secure, responsive, role-aware academic assistance grounded in verified institutional data.
+
+
 
 
 

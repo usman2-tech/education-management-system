@@ -209,6 +209,10 @@ model School {
   feeInvoices         FeeInvoice[]
   feePayments         FeePayment[]
 
+  // AI Assistant (TASK 022)
+  aiConversations     AIConversation[]
+  aiUsageRecords      AIUsageRecord[]
+
   @@map("schools")
 }
 
@@ -304,6 +308,10 @@ model User {
   studentFeeInvoices          FeeInvoice[]           @relation("StudentFeeInvoices")
   studentFeePayments          FeePayment[]           @relation("StudentFeePayments")
   recordedFeePayments         FeePayment[]           @relation("RecordedFeePayments")
+
+  // AI Assistant (TASK 022)
+  aiConversations             AIConversation[]       @relation("UserAIConversations")
+  aiUsageRecords              AIUsageRecord[]        @relation("UserAIUsage")
 
   @@index([schoolId])
   @@index([email])
@@ -1395,6 +1403,69 @@ model FeePayment {
   @@index([invoiceId])
   @@index([studentId])
   @@map("fee_payments")
+}
+
+// ------------------------------------------------------------------------------
+// AI Assistant Foundation (TASK 022)
+// ------------------------------------------------------------------------------
+
+enum AIMessageSender {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model AIConversation {
+  id           String          @id @default(uuid())
+  userId       String
+  user         User            @relation("UserAIConversations", fields: [userId], references: [id], onDelete: Cascade)
+  schoolId     String?
+  school       School?         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  title        String          @default("New Conversation")
+  roleContext  UserRole
+  messages     AIMessage[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([schoolId])
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             String          @id @default(uuid())
+  conversationId String
+  conversation   AIConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         AIMessageSender
+  content        String          @db.Text
+  toolCalls      Json?
+  tokensUsed     Int?
+  modelName      String?
+  createdAt      DateTime        @default(now())
+
+  @@index([conversationId])
+  @@map("ai_messages")
+}
+
+model AIUsageRecord {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation("UserAIUsage", fields: [userId], references: [id], onDelete: Cascade)
+  schoolId     String?
+  school       School?   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  modelName    String
+  promptTokens Int       @default(0)
+  outputTokens Int       @default(0)
+  totalTokens  Int       @default(0)
+  toolName     String?
+  success      Boolean   @default(true)
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([schoolId])
+  @@index([createdAt])
+  @@map("ai_usage_records")
 }
 
 

@@ -27,6 +27,7 @@ import { SubscriptionCodesModule } from './modules/subscription-codes/subscripti
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { DashboardsModule } from './modules/dashboards/dashboards.module';
 import { FeesModule } from './modules/fees/fees.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -51,6 +52,8 @@ import { FeesModule } from './modules/fees/fees.module';
     CommunicationsModule,
     DashboardsModule,
     FeesModule,
+    AiModule,
   ],
 })
 export class AppModule {}
+

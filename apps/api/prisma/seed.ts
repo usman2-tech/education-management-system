@@ -37,6 +37,7 @@ import {
   ExamAttemptStatus,
   SubscriptionStatus,
   NotificationType,
+  AIMessageSender,
 } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -1781,7 +1782,142 @@ async function main() {
   }
   console.log('[Seed] 8 Security Audit Trail entries populated');
 
-  console.log('--- Institutional Fixtures Seeding Complete (TASKS 001–018 Ready) ---');
+  // ===========================================================================
+  // 22. TASK 022 — AI Academic Assistant Seed Conversations (8 Idempotent Examples)
+  // ===========================================================================
+  const seedAIConversations = [
+    {
+      userEmail: 'platform.admin@ems.local',
+      role: UserRole.PLATFORM_ADMIN,
+      schoolId: null,
+      title: 'Platform-Wide Institutional Summary',
+      prompt: 'What is the total student enrollment and teacher count across all schools?',
+      response: 'Based on verified institutional records across all registered campuses:\n\n- **Active Schools**: 2 (St. Jude Institutional Academy & Apex STEM Academy)\n- **Total Students Enrolled**: 16\n- **Total Faculty Teachers**: 8\n\n*Source: Live Educational Management System Records.*',
+      tool: 'get_enrollment_summary',
+    },
+    {
+      userEmail: 'admin@stjude.ems.local',
+      role: UserRole.SCHOOL_ADMIN,
+      schoolId: stJude.id,
+      title: 'St. Jude Campus Enrollment & Class Summary',
+      prompt: 'Give me an overview of our campus enrollment and academic classes.',
+      response: 'Here is your verified institutional data for St. Jude Institutional Academy:\n\n- **Enrolled Students**: 8\n- **Faculty Teachers**: 4\n- **Classes & Sections**: 4 classes, 4 active class sections\n\n*Source: Live Educational Management System Records.*',
+      tool: 'get_enrollment_summary',
+    },
+    {
+      userEmail: 'admin@apex.ems.local',
+      role: UserRole.SCHOOL_ADMIN,
+      schoolId: apex.id,
+      title: 'Apex STEM Tuition & Fee Collections',
+      prompt: 'What is our school fee collection rate and outstanding balance?',
+      response: 'Here is your verified institutional fee collection summary for Apex STEM Academy:\n\n- **Total Billed**: $42,500\n- **Total Collected**: $31,800\n- **Outstanding Balance**: $10,700\n- **Collection Rate**: 75%\n\n*Source: Live Educational Management System Records.*',
+      tool: 'get_fee_summary',
+    },
+    {
+      userEmail: 'teacher@stjude.ems.local',
+      role: UserRole.TEACHER,
+      schoolId: stJude.id,
+      title: 'Weekly Teaching Periods Schedule',
+      prompt: 'What classes and teaching periods are scheduled on my weekly timetable?',
+      response: 'Here are your verified teaching schedule periods from the master timetable:\n\n| Day | Time | Subject | Room / Class |\n|---|---|---|---|\n| Monday | 08:30 - 09:20 | Mathematics | Room 101 (Section 10-A) |\n| Tuesday | 09:30 - 10:20 | Calculus I | Room 102 (Section 11-A) |\n| Thursday | 10:30 - 11:20 | Advanced Algebra | Room 101 (Section 10-A) |\n\n*Source: Live Educational Management System Records.*',
+      tool: 'get_timetable',
+    },
+    {
+      userEmail: 'teacher@stjude.ems.local',
+      role: UserRole.TEACHER,
+      schoolId: stJude.id,
+      title: 'Homework Tasks & Submissions Oversight',
+      prompt: 'Summarize homework tasks I have assigned and pending submissions.',
+      response: 'Here are your active homework curriculum assignments:\n\n| Title | Subject / Info | Status / Submissions |\n|---|---|---|\n| Fourier Transforms Problem Set 3 | Advanced Calculus | 8 Submissions Recorded |\n| Matrix Algebra Lab Worksheet | Linear Algebra | 6 Submissions Recorded |\n\n*Source: Live Educational Management System Records.*',
+      tool: 'get_homework_summary',
+    },
+    {
+      userEmail: 'student@stjude.ems.local',
+      role: UserRole.STUDENT,
+      schoolId: stJude.id,
+      title: 'Personal Attendance Rate Inquiry',
+      prompt: 'What is my overall attendance rate and how many sessions have I attended?',
+      response: 'Here is your verified personal attendance summary:\n\n- **Attendance Rate**: 95%\n- **Total Sessions Logged**: 20\n- **Present**: 19 | **Absent**: 1 | **Late**: 0\n\n*Source: Live Educational Management System Records.*',
+      tool: 'get_attendance_summary',
+    },
+    {
+      userEmail: 'student@apex.ems.local',
+      role: UserRole.STUDENT,
+      schoolId: apex.id,
+      title: 'Published Assessment Marks',
+      prompt: 'What published grades and assessment marks do I currently have?',
+      response: 'Here are your published academic grades from the institutional gradebook:\n\n| Subject | Assessment | Score | Max | Grade |\n|---|---|---|---|---|\n| Physics | Midterm Examination | 92 | 100 | Completed |\n| Chemistry | Organic Chemistry Lab 1 | 88 | 100 | Completed |\n\n*Source: Live Educational Management System Records.*',
+      tool: 'get_grade_summary',
+    },
+    {
+      userEmail: 'parent@stjude.ems.local',
+      role: UserRole.PARENT,
+      schoolId: stJude.id,
+      title: 'Liam Chen Attendance & Academic Check',
+      prompt: 'What is the attendance record and attendance rate for my child Liam?',
+      response: 'Here is the verified attendance summary for your linked child, **Liam Chen**:\n\n- **Student**: Liam Chen (Grade 10)\n- **Attendance Rate**: 95%\n- **Total Sessions**: 20\n- **Present**: 19\n- **Absent**: 1\n\n*Source: Live Educational Management System Records.*',
+      tool: 'get_attendance_summary',
+    },
+  ];
+
+  for (const item of seedAIConversations) {
+    const userObj = await prisma.user.findUnique({ where: { email: item.userEmail } });
+    if (!userObj) continue;
+
+    let existingConv = await prisma.aIConversation.findFirst({
+      where: { userId: userObj.id, title: item.title },
+    });
+
+    if (!existingConv) {
+      existingConv = await prisma.aIConversation.create({
+        data: {
+          userId: userObj.id,
+          roleContext: item.role,
+          schoolId: item.schoolId,
+          title: item.title,
+        },
+      });
+
+      // User Message
+      await prisma.aIMessage.create({
+        data: {
+          conversationId: existingConv.id,
+          sender: AIMessageSender.USER,
+          content: item.prompt,
+        },
+      });
+
+      // Assistant Message
+      await prisma.aIMessage.create({
+        data: {
+          conversationId: existingConv.id,
+          sender: AIMessageSender.ASSISTANT,
+          content: item.response,
+          toolCalls: [{ name: item.tool, success: true }],
+          tokensUsed: Math.round((item.prompt.length + item.response.length) / 4),
+          modelName: 'gemini-3.8-flash',
+        },
+      });
+
+      // Usage Record
+      await prisma.aIUsageRecord.create({
+        data: {
+          userId: userObj.id,
+          schoolId: item.schoolId,
+          modelName: 'gemini-3.8-flash',
+          promptTokens: Math.round(item.prompt.length / 4),
+          outputTokens: Math.round(item.response.length / 4),
+          totalTokens: Math.round((item.prompt.length + item.response.length) / 4),
+          toolName: item.tool,
+          success: true,
+        },
+      });
+    }
+  }
+  console.log('[Seed] 8 AI Academic Assistant seed conversations verified');
+
+  console.log('--- Institutional Fixtures Seeding Complete (TASKS 001–022 Ready) ---');
+
 }
 
 main()

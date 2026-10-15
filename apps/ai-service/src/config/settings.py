@@ -9,6 +9,7 @@ SECURITY:
 Requires internal shared secrets to authorize incoming orchestrations from the main backend.
 """
 
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
@@ -27,7 +28,15 @@ class Settings(BaseSettings):
     )
     langgraph_enabled: bool = True
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Google Gemini AI Configuration (TASK 022)
+    gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-3.8-flash", alias="GEMINI_MODEL")
+    gemini_request_timeout: int = Field(default=30, alias="GEMINI_REQUEST_TIMEOUT")
+    gemini_max_retries: int = Field(default=3, alias="GEMINI_MAX_RETRIES")
+    ai_mock_fallback: bool = Field(default=True, alias="AI_MOCK_FALLBACK")
+
+    model_config = SettingsConfigDict(env_file=(".env", "../../.env"), extra="ignore")
 
 
 settings = Settings()
+

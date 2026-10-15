@@ -2097,6 +2097,68 @@ export interface StudentFeeProfileDto {
   discounts: FeeDiscountDto[];
 }
 
+// ==============================================================================
+// AI Assistant Contracts (TASK 022)
+// ==============================================================================
+
+export enum AIMessageSender {
+  USER = 'USER',
+  ASSISTANT = 'ASSISTANT',
+  SYSTEM = 'SYSTEM',
+}
+
+export interface AIMessageDto {
+  id: string;
+  conversationId: string;
+  sender: AIMessageSender;
+  content: string;
+  toolCalls?: Array<{
+    name: string;
+    args?: Record<string, any>;
+    result?: Record<string, any>;
+  }> | null;
+  tokensUsed?: number | null;
+  modelName?: string | null;
+  createdAt: string;
+}
+
+export interface AIConversationDto {
+  id: string;
+  userId: string;
+  schoolId?: string | null;
+  title: string;
+  roleContext: UserRole;
+  messages?: AIMessageDto[];
+  messageCount?: number;
+  lastMessageSnippet?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAIConversationDto {
+  title?: string;
+  initialMessage?: string;
+}
+
+export interface SendAIMessageDto {
+  conversationId?: string;
+  message: string;
+}
+
+export interface AIChatResponseDto {
+  conversationId: string;
+  message: AIMessageDto;
+  suggestedQuestions?: string[];
+  toolsUsed?: string[];
+}
+
+export interface AIUsageSummaryDto {
+  totalRequests: number;
+  totalTokens: number;
+  modelName: string;
+  activeProvider: string;
+}
+
 
 
 

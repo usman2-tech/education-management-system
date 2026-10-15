@@ -21,7 +21,7 @@ packages/*/dist/
 *.tsbuildinfo
 
 # Python / AI Service
-apps/ai-service/.venv/
+apps/ai-service/.venv*/
 apps/ai-service/venv/
 apps/ai-service/__pycache__/
 *.py[cod]
