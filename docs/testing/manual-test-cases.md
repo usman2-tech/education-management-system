@@ -841,6 +841,125 @@ This document guides the user through manually verifying the architecture, front
   3. Inspect PostgreSQL counts: verify no duplicate schools, teachers, students, parents, assessments, or grades were created.
 - **Expected Result**: Seed script completes with exit code 0 repeatedly, preserving stable identifiers and zero duplicates.
 
+---
+
+## Test Scenario Y: School Administrator Fee Management & Dashboard (TASK 021)
+- **URL**: `http://localhost:3000/fees`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Verify **Fee Management** appears in the sidebar with Receipt icon.
+  3. Click **Fee Management** and open `/fees`.
+  4. Verify KPI Cards populate with authentic database statistics:
+     - Total Invoiced
+     - Total Collected
+     - Total Outstanding
+     - Total Overdue
+     - Collection Rate %
+     - Students with Outstanding Fees count
+  5. Inspect Visualizations:
+     - Monthly Billed vs Collected cashflow chart
+     - Payment Method Distribution (Cash, Bank Transfer, Cheque, Other)
+     - Outstanding Fees by Class breakdown
+  6. Switch tabs: **Invoices**, **Payments & Receipts**, **Fee Structures**, **Student Assignments**, **Discounts & Concessions**.
+- **Expected Result**: Real dashboard metrics render from PostgreSQL without placeholder data; tab navigation is smooth and reactive.
+
+---
+
+## Test Scenario Z: Fee Structure Creation & Student Assignment (TASK 021)
+- **URL**: `http://localhost:3000/fees`
+- **Steps**:
+  1. As School Admin, switch to **Fee Structures** tab.
+  2. Click **+ Create Fee Structure**:
+     - Category: `Tuition Fee`
+     - Name: `Grade 10 Annual Academic Tuition 2026-2027`
+     - Grade Level: `Grade 10`
+     - Amount: `3500`
+     - Billing Frequency: `Annually`
+     - Due Date Window: `30` days
+  3. Submit and verify structure appears in the ledger table.
+  4. Switch to **Student Assignments** tab. Click **+ Assign Fee to Student**:
+     - Select Student: `Liam Chen`
+     - Fee Structure: Select the created structure
+     - Check: `Generate Student Invoice Immediately`
+  5. Submit assignment.
+  6. Switch to **Invoices** tab: verify new invoice `#INV-2026-...` generated with total amount `$3,500` and status `UNPAID`.
+- **Expected Result**: Fee structure persists to school scope and issues a tracked invoice to the enrolled student.
+
+---
+
+## Test Scenario AA: Manual Payment Collection & Numbered Receipt Generation (TASK 021)
+- **URL**: `http://localhost:3000/fees`
+- **Steps**:
+  1. On the **Invoices** tab, locate an unpaid invoice with a positive balance.
+  2. Click **Record Payment**:
+     - Payment Method: `CASH`
+     - Amount: Enter a partial payment (e.g., `$100.00`)
+     - Notes: `In-person cashier reception desk`
+  3. Submit payment.
+  4. Verify:
+     - Invoice status updates to `PARTIALLY_PAID`.
+     - Invoice remaining balance decreases by exactly `$100.00`.
+     - Official numbered receipt is generated (e.g., `REC-2026-00009`).
+  5. Click **Receipt** button:
+     - Verify modal opens with Samahat Taibah Group branding, school name, student details, amount received, and cashier identity.
+     - Click **Print / Save PDF** to trigger browser print preview.
+- **Expected Result**: Payment records atomically in a database transaction, updates invoice balance, and produces an official numbered voucher.
+
+---
+
+## Test Scenario AB: Overpayment Protection & Concurrent Guard (TASK 021)
+- **URL**: `http://localhost:3000/fees`
+- **Steps**:
+  1. On an invoice with balance `$200.00`, click **Record Payment**.
+  2. Enter payment amount: `$300.00`.
+  3. Submit payment.
+  4. Verify error banner: `Payment amount ($300) exceeds outstanding invoice balance ($200)`.
+  5. The payment is rejected; invoice balance remains unchanged.
+- **Expected Result**: Backend and frontend prevent overpayment unless a dedicated credit workflow exists.
+
+---
+
+## Test Scenario AC: Teacher Confidential Financial Access Denial (TASK 021)
+- **URL**: `http://localhost:3000/fees` & `http://localhost:3000/students`
+- **Steps**:
+  1. Log in as **Teacher** (`teacher@stjude.ems.local` / `Password123!`).
+  2. Verify **Fee Management** is completely absent from the educator sidebar.
+  3. Attempt navigating directly to `http://localhost:3000/fees`:
+     - Access is blocked / redirected.
+  4. Open `http://localhost:3000/students` and view any student's profile modal.
+  5. Click the **Fees & Finances** tab:
+     - Error banner displays: `Access Restricted: Educators and faculty members do not possess permissions to view confidential student financial records.`
+- **Expected Result**: Institutional confidentiality is strictly maintained; teachers cannot inspect student balances or invoices.
+
+---
+
+## Test Scenario AD: Parent / Guardian Fee Portal & Child Switcher (TASK 021)
+- **URL**: `http://localhost:3000/parent/fees`
+- **Steps**:
+  1. Log in as **Parent** (`parent@stjude.ems.local` / `Password123!`).
+  2. Verify **Fees & Payments** appears in the sidebar.
+  3. Click **Fees & Payments** and open `/parent/fees`.
+  4. Child Switcher: Click between `Liam Chen` and `Sophia Chen`:
+     - Student header updates with the selected child's name, admission number, and class.
+     - KPI cards show genuine Billed, Paid, Outstanding, and Overdue balances for that specific child.
+  5. Invoices table: Click **View / Print** on an invoice to open the official fee statement.
+  6. Receipts table: Click **Official Receipt** on any payment to inspect or print the receipt voucher.
+  7. Verify parents have NO buttons to create invoices, record payments, or edit structures.
+- **Expected Result**: Parents have transparent, strictly read-only access to their verified children's financial profiles.
+
+---
+
+## Test Scenario AE: Student Self-Service Fee Portal (TASK 021)
+- **URL**: `http://localhost:3000/my-fees`
+- **Steps**:
+  1. Log in as **Student** (`student@stjude.ems.local` / `Password123!`).
+  2. Verify **My Fees** appears in the student sidebar.
+  3. Click **My Fees** to open `/my-fees`.
+  4. Verify student info banner shows personal student details (Liam Chen).
+  5. Verify student can view own issued invoices, payment receipts, and assigned structures.
+  6. Attempting to tamper with parameters or view other students' records returns 403 Forbidden.
+- **Expected Result**: Student has personal read-only visibility into their tuition and payment status.
+
 
 
 

@@ -38,6 +38,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'Attendance Oversight', href: '/attendance', icon: 'Clock', description: 'Institutional attendance logs' },
         { title: 'Attendance Reports', href: '/attendance/reports', icon: 'FileSpreadsheet', description: 'Metrics & exports' },
         { title: 'Grades Oversight', href: '/grades', icon: 'Award', description: 'Cross-school academic assessments & reports' },
+        { title: 'Fee Management', href: '/fees', icon: 'Receipt', description: 'Institutional fee oversight & collections' },
         { title: 'Examinations', href: '/exams', icon: 'FileCheck', description: 'Institutional examinations & assessments' },
         { title: 'NFC Simulator', href: '/attendance/nfc-simulator', icon: 'Radio', description: 'Simulate card gate scans' },
       ],
@@ -72,6 +73,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
     {
       title: 'Operations & Records',
       items: [
+        { title: 'Fee Management', href: '/fees', icon: 'Receipt', description: 'Fee structures, invoices & payments' },
         { title: 'Grades & Assessments', href: '/grades', icon: 'Award', description: 'Assessments, gradebook & scales' },
         { title: 'Examinations', href: '/exams', icon: 'FileCheck', description: 'Exam schedules, question banks & grading' },
         { title: 'Academic Reports', href: '/grades/reports', icon: 'FileSpreadsheet', description: 'Class analytics & distributions' },
@@ -116,6 +118,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
         { title: 'My Homework', href: '/homework', icon: 'FileText', description: 'Assignments, submissions & grades' },
         { title: 'Examinations', href: '/exams', icon: 'FileCheck', description: 'Online tests & assessment results' },
         { title: 'My Report Card', href: '/grades', icon: 'Award', description: 'View assessments, GPA & feedback' },
+        { title: 'My Fees & Invoices', href: '/my-fees', icon: 'Receipt', description: 'Tuition balance, invoices & receipts' },
         { title: 'My Attendance', href: '/attendance', icon: 'CheckSquare', description: 'Personal attendance records' },
         { title: 'Messages', href: '/messages', icon: 'MessageSquare', description: 'Chat with subject teachers' },
         { title: 'Notifications', href: '/notifications', icon: 'Bell', description: 'School notices & activity alerts' },
@@ -130,6 +133,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       items: [
         { title: 'Parent Dashboard', href: '/parent/dashboard', icon: 'LayoutDashboard', description: 'Children overview & updates' },
         { title: 'My Children', href: '/parent/children', icon: 'Users', description: 'Academic records & classes' },
+        { title: 'Fees & Invoices', href: '/parent/fees', icon: 'Receipt', description: 'Child tuition, invoices & receipts' },
         { title: 'Children Grades', href: '/grades', icon: 'Award', description: 'Verified child gradebook & progress' },
         { title: 'Children Exams', href: '/exams', icon: 'FileCheck', description: 'Verified child exam results' },
         { title: 'Children Courses', href: '/courses', icon: 'GraduationCap', description: 'Course progress & lesson tracking' },

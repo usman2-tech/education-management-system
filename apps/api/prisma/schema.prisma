@@ -156,6 +156,7 @@ enum NotificationType {
   ATTENDANCE
   SUBSCRIPTION
   ANNOUNCEMENT
+  FEE
 }
 
 // ------------------------------------------------------------------------------
@@ -199,6 +200,14 @@ model School {
   notifications       Notification[]
   conversations       Conversation[]
   invitations         UserInvitation[]
+
+  // Fee Management (TASK 021)
+  feeCategories       FeeCategory[]
+  feeStructures       FeeStructure[]
+  feeDiscounts        FeeDiscount[]
+  studentFeeAssignments StudentFeeAssignment[]
+  feeInvoices         FeeInvoice[]
+  feePayments         FeePayment[]
 
   @@map("schools")
 }
@@ -289,6 +298,12 @@ model User {
   notifications               Notification[]         @relation("NotificationUser")
   conversationParticipants    ConversationParticipant[] @relation("ConversationUser")
   sentDirectMessages          DirectMessage[]        @relation("MessageSender")
+
+  // Fee Management (TASK 021)
+  studentFeeAssignments       StudentFeeAssignment[] @relation("StudentFeeAssignments")
+  studentFeeInvoices          FeeInvoice[]           @relation("StudentFeeInvoices")
+  studentFeePayments          FeePayment[]           @relation("StudentFeePayments")
+  recordedFeePayments         FeePayment[]           @relation("RecordedFeePayments")
 
   @@index([schoolId])
   @@index([email])
@@ -388,6 +403,11 @@ model AcademicYear {
   assessments               Assessment[]
   homeworks                 Homework[]
   exams                     Exam[]
+
+  // Fee Management (TASK 021)
+  feeStructures             FeeStructure[]
+  studentFeeAssignments     StudentFeeAssignment[]
+  feeInvoices               FeeInvoice[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -1174,6 +1194,207 @@ model DirectMessage {
   @@index([conversationId])
   @@index([senderId])
   @@map("direct_messages")
+}
+
+// ==============================================================================
+// Fee Management Module (TASK 021)
+// ==============================================================================
+
+enum FeeFrequency {
+  ONE_TIME
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+  CUSTOM
+}
+
+enum FeeInvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum FeePaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  OTHER
+}
+
+enum DiscountType {
+  FIXED_AMOUNT
+  PERCENTAGE
+  SCHOLARSHIP
+  SIBLING
+  WAIVER
+}
+
+model FeeCategory {
+  id          String   @id @default(uuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name        String
+  code        String?
+  description String?
+  isTuition   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  structures  FeeStructure[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@map("fee_categories")
+}
+
+model FeeStructure {
+  id             String       @id @default(uuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       FeeCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name           String
+  gradeLevel     String?
+  amount         Float
+  currency       String       @default("USD")
+  frequency      FeeFrequency @default(ANNUALLY)
+  dueDateDays    Int          @default(30)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  assignments    StudentFeeAssignment[]
+  invoiceItems   FeeInvoiceItem[]
+
+  @@index([schoolId])
+  @@index([academicYearId])
+  @@index([categoryId])
+  @@map("fee_structures")
+}
+
+model FeeDiscount {
+  id          String       @id @default(uuid())
+  schoolId    String
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name        String
+  type        DiscountType @default(FIXED_AMOUNT)
+  value       Float
+  reason      String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  assignments StudentFeeAssignment[]
+  invoices    FeeInvoice[]
+
+  @@index([schoolId])
+  @@map("fee_discounts")
+}
+
+model StudentFeeAssignment {
+  id             String       @id @default(uuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        User         @relation("StudentFeeAssignments", fields: [studentId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  feeStructureId String
+  feeStructure   FeeStructure @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
+  discountId     String?
+  discount       FeeDiscount? @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  customAmount   Float?
+  notes          String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([studentId, feeStructureId, academicYearId])
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([academicYearId])
+  @@map("student_fee_assignments")
+}
+
+model FeeInvoice {
+  id             String           @id @default(uuid())
+  invoiceNumber  String           @unique
+  schoolId       String
+  school         School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        User             @relation("StudentFeeInvoices", fields: [studentId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear     @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  discountId     String?
+  discount       FeeDiscount?     @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  subtotal       Float
+  discountAmount Float            @default(0)
+  totalAmount    Float
+  paidAmount     Float            @default(0)
+  balanceAmount  Float
+  currency       String           @default("USD")
+  status         FeeInvoiceStatus @default(UNPAID)
+  issueDate      DateTime         @default(now())
+  dueDate        DateTime
+  voidReason     String?
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  items          FeeInvoiceItem[]
+  payments       FeePayment[]
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([academicYearId])
+  @@index([status])
+  @@map("fee_invoices")
+}
+
+model FeeInvoiceItem {
+  id             String        @id @default(uuid())
+  invoiceId      String
+  invoice        FeeInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  feeStructureId String?
+  feeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id], onDelete: SetNull)
+  name           String
+  amount         Float
+  createdAt      DateTime      @default(now())
+
+  @@index([invoiceId])
+  @@map("fee_invoice_items")
+}
+
+model FeePayment {
+  id              String           @id @default(uuid())
+  receiptNumber   String           @unique
+  invoiceId       String
+  invoice         FeeInvoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  schoolId        String
+  school          School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User             @relation("StudentFeePayments", fields: [studentId], references: [id], onDelete: Cascade)
+  recordedById    String
+  recordedBy      User             @relation("RecordedFeePayments", fields: [recordedById], references: [id], onDelete: Cascade)
+  amount          Float
+  currency        String           @default("USD")
+  paymentMethod   FeePaymentMethod @default(CASH)
+  paymentDate     DateTime         @default(now())
+  referenceNumber String?
+  notes           String?
+  isReversed      Boolean          @default(false)
+  reversalReason  String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([schoolId])
+  @@index([invoiceId])
+  @@index([studentId])
+  @@map("fee_payments")
 }
 
 

@@ -29,4 +29,5 @@ Feature lifecycle states:
 | **TASK-017** | Simulated NFC Gate & Attendance APIs | `PLANNED` | — | — | — |
 | **TASK-018** | Security Hardening, Observability & Production CI/CD | `PLANNED` | — | — | — |
 | **TASK-018.1** | Final Authentication, Registration & Student Enrollment Refinement | **AWAITING MANUAL TEST** | `feature/TASK-018.1-auth-refinement` | `3843eeb` | Ready for User Approval |
+| **TASK-021** | Student Fee Management Module (Manual Payments First) | **AWAITING MANUAL TEST** | `feature/TASK-021-fee-management` | Current | Ready for User Approval |
 

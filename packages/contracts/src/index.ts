@@ -1632,7 +1632,7 @@ export interface CodeRedemptionDto {
 // ==============================================================================
 // TASK 015 — NOTIFICATIONS & MESSAGING CONTRACTS
 // ==============================================================================
-export type NotificationType = 'INFO' | 'WARNING' | 'HOMEWORK' | 'EXAM' | 'GRADE' | 'ATTENDANCE' | 'SUBSCRIPTION' | 'ANNOUNCEMENT';
+export type NotificationType = 'INFO' | 'WARNING' | 'HOMEWORK' | 'EXAM' | 'GRADE' | 'ATTENDANCE' | 'SUBSCRIPTION' | 'ANNOUNCEMENT' | 'FEE';
 
 export interface NotificationDto {
   id: string;
@@ -1870,6 +1870,231 @@ export interface ParentDashboardDto {
   }>;
   schoolAnnouncements: NotificationDto[];
   teacherMessages: DirectMessageDto[];
+}
+
+// ==============================================================================
+// TASK 021 — STUDENT FEE MANAGEMENT CONTRACTS
+// ==============================================================================
+
+export type FeeFrequency = 'ONE_TIME' | 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY' | 'CUSTOM';
+export type FeeInvoiceStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'VOID';
+export type FeePaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'OTHER';
+export type DiscountType = 'FIXED_AMOUNT' | 'PERCENTAGE' | 'SCHOLARSHIP' | 'SIBLING' | 'WAIVER';
+
+export interface FeeCategoryDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  code?: string | null;
+  description?: string | null;
+  isTuition: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFeeCategoryRequest {
+  schoolId?: string;
+  name: string;
+  code?: string;
+  description?: string;
+  isTuition?: boolean;
+}
+
+export interface FeeStructureDto {
+  id: string;
+  schoolId: string;
+  academicYearId: string;
+  categoryId: string;
+  name: string;
+  gradeLevel?: string | null;
+  amount: number;
+  currency: string;
+  frequency: FeeFrequency;
+  dueDateDays: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  category?: FeeCategoryDto;
+  academicYear?: { id: string; name: string };
+}
+
+export interface CreateFeeStructureRequest {
+  schoolId?: string;
+  academicYearId: string;
+  categoryId: string;
+  name: string;
+  gradeLevel?: string;
+  amount: number;
+  currency?: string;
+  frequency?: FeeFrequency;
+  dueDateDays?: number;
+  isActive?: boolean;
+}
+
+export interface FeeDiscountDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  type: DiscountType;
+  value: number;
+  reason?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFeeDiscountRequest {
+  schoolId?: string;
+  name: string;
+  type: DiscountType;
+  value: number;
+  reason?: string;
+  isActive?: boolean;
+}
+
+export interface StudentFeeAssignmentDto {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  studentName?: string;
+  admissionNumber?: string | null;
+  academicYearId: string;
+  academicYearName?: string;
+  feeStructureId: string;
+  feeStructureName?: string;
+  amount?: number;
+  currency?: string;
+  discountId?: string | null;
+  discountName?: string | null;
+  customAmount?: number | null;
+  notes?: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface AssignStudentFeeRequest {
+  schoolId?: string;
+  studentId?: string;
+  classSectionId?: string;
+  academicYearId: string;
+  feeStructureId: string;
+  discountId?: string;
+  customAmount?: number;
+  notes?: string;
+  generateInvoice?: boolean;
+}
+
+export interface FeeInvoiceItemDto {
+  id: string;
+  invoiceId: string;
+  feeStructureId?: string | null;
+  name: string;
+  amount: number;
+}
+
+export interface FeeInvoiceDto {
+  id: string;
+  invoiceNumber: string;
+  schoolId: string;
+  schoolName?: string;
+  studentId: string;
+  studentName: string;
+  admissionNumber?: string | null;
+  gradeLevel?: string | null;
+  className?: string | null;
+  academicYearId: string;
+  academicYearName?: string;
+  discountId?: string | null;
+  discountName?: string | null;
+  subtotal: number;
+  discountAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  currency: string;
+  status: FeeInvoiceStatus;
+  issueDate: string;
+  dueDate: string;
+  voidReason?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  items: FeeInvoiceItemDto[];
+  payments?: FeePaymentDto[];
+}
+
+export interface CreateFeeInvoiceRequest {
+  schoolId?: string;
+  studentId: string;
+  academicYearId: string;
+  discountId?: string;
+  dueDate: string;
+  notes?: string;
+  items: Array<{ name: string; amount: number; feeStructureId?: string }>;
+}
+
+export interface FeePaymentDto {
+  id: string;
+  receiptNumber: string;
+  invoiceId: string;
+  invoiceNumber?: string;
+  schoolId: string;
+  schoolName?: string;
+  studentId: string;
+  studentName: string;
+  admissionNumber?: string | null;
+  recordedById: string;
+  recordedByName: string;
+  amount: number;
+  currency: string;
+  paymentMethod: FeePaymentMethod;
+  paymentDate: string;
+  referenceNumber?: string | null;
+  notes?: string | null;
+  isReversed: boolean;
+  reversalReason?: string | null;
+  remainingBalance?: number;
+  createdAt: string;
+}
+
+export interface RecordFeePaymentRequest {
+  invoiceId: string;
+  amount: number;
+  paymentMethod: FeePaymentMethod;
+  referenceNumber?: string;
+  notes?: string;
+  paymentDate?: string;
+}
+
+export interface FeeDashboardDto {
+  totalInvoiced: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  totalOverdue: number;
+  collectionRate: number;
+  studentsWithOutstandingFees: number;
+  currency: string;
+  monthlyBilledVsCollected: Array<{ month: string; billed: number; collected: number }>;
+  paymentMethodDistribution: Array<{ method: string; count: number; total: number }>;
+  collectionByCategory: Array<{ category: string; amount: number }>;
+  outstandingByClass: Array<{ className: string; amount: number }>;
+  recentPayments: FeePaymentDto[];
+  overdueInvoices: FeeInvoiceDto[];
+}
+
+export interface StudentFeeProfileDto {
+  studentId: string;
+  studentName: string;
+  admissionNumber?: string | null;
+  className?: string | null;
+  totalBilled: number;
+  totalPaid: number;
+  outstandingBalance: number;
+  overdueBalance: number;
+  currency: string;
+  assignments: StudentFeeAssignmentDto[];
+  invoices: FeeInvoiceDto[];
+  payments: FeePaymentDto[];
+  discounts: FeeDiscountDto[];
 }
 
 

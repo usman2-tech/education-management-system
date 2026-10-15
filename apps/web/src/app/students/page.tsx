@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { apiClient } from '@/lib/api-client';
 import { UserRole } from '@ems/contracts';
+import { feesApi } from '@/lib/fees-api';
 import {
   GraduationCap,
   Search,
@@ -48,6 +49,10 @@ import {
   KeyRound,
   Copy,
   Check,
+  Receipt,
+  DollarSign,
+  CreditCard,
+  Printer,
 } from 'lucide-react';
 
 interface StudentItem {
@@ -107,6 +112,10 @@ export default function StudentsDirectoryPage() {
 
   // Profile View Modal state
   const [viewStudent, setViewStudent] = useState<StudentItem | null>(null);
+  const [profileTab, setProfileTab] = useState<'overview' | 'fees'>('overview');
+  const [feesProfile, setFeesProfile] = useState<any | null>(null);
+  const [isLoadingFeesProfile, setIsLoadingFeesProfile] = useState(false);
+  const [feesProfileError, setFeesProfileError] = useState<string | null>(null);
 
   // Edit / Photo Modal state
   const [editStudent, setEditStudent] = useState<StudentItem | null>(null);
@@ -164,6 +173,19 @@ export default function StudentsDirectoryPage() {
     }, 250);
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  const loadStudentFees = async (studentId: string) => {
+    setIsLoadingFeesProfile(true);
+    setFeesProfileError(null);
+    try {
+      const data = await feesApi.getStudentFeeProfile(studentId);
+      setFeesProfile(data);
+    } catch (err: any) {
+      setFeesProfileError(err.message || 'Failed to load student fee profile.');
+    } finally {
+      setIsLoadingFeesProfile(false);
+    }
+  };
 
   // Handle Photo Selection
   const handlePhotoSelect = (
@@ -963,11 +985,14 @@ export default function StudentsDirectoryPage() {
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
         >
-          <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+          <div className={`relative w-full ${profileTab === 'fees' ? 'max-w-2xl' : 'max-w-md'} rounded-2xl border border-border bg-card p-6 shadow-2xl transition-all max-h-[90vh] overflow-y-auto`}>
             <button
               type="button"
-              onClick={() => setViewStudent(null)}
-              className="absolute top-4 right-4 rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() => {
+                setViewStudent(null);
+                setProfileTab('overview');
+              }}
+              className="absolute top-4 right-4 rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground z-10"
             >
               <X className="h-5 w-5" />
             </button>
@@ -995,39 +1020,208 @@ export default function StudentsDirectoryPage() {
                   {viewStudent.gradeLevel || 'Enrolled Student'}
                 </p>
               </div>
+
+              {/* Tabs */}
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/50 border border-border mt-2">
+                <button
+                  type="button"
+                  onClick={() => setProfileTab('overview')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    profileTab === 'overview'
+                      ? 'bg-card text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Overview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileTab('fees');
+                    if (viewStudent && !feesProfile) {
+                      loadStudentFees(viewStudent.id);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    profileTab === 'fees'
+                      ? 'bg-card text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <DollarSign className="h-3 w-3" />
+                  <span>Fees & Finances</span>
+                </button>
+              </div>
             </div>
 
-            <div className="mt-6 space-y-2.5 rounded-xl border border-border bg-muted/30 p-3.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Class & Section:</span>
-                <span className="font-semibold text-foreground">
-                  {viewStudent.section
-                    ? `${viewStudent.section.className} — ${viewStudent.section.name}`
-                    : 'Unassigned'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Email:</span>
-                <span className="font-semibold text-foreground">{viewStudent.email}</span>
-              </div>
-              {viewStudent.phone && (
+            {profileTab === 'overview' ? (
+              <div className="mt-5 space-y-2.5 rounded-xl border border-border bg-muted/30 p-3.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Phone:</span>
-                  <span className="font-semibold text-foreground">{viewStudent.phone}</span>
+                  <span className="text-muted-foreground">Class & Section:</span>
+                  <span className="font-semibold text-foreground">
+                    {viewStudent.section
+                      ? `${viewStudent.section.className} — ${viewStudent.section.name}`
+                      : 'Unassigned'}
+                  </span>
                 </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Enrolled Since:</span>
-                <span className="font-semibold text-foreground">
-                  {new Date(viewStudent.createdAt).toLocaleDateString()}
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-semibold text-foreground">{viewStudent.email}</span>
+                </div>
+                {viewStudent.phone && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Phone:</span>
+                    <span className="font-semibold text-foreground">{viewStudent.phone}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Enrolled Since:</span>
+                  <span className="font-semibold text-foreground">
+                    {new Date(viewStudent.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="mt-5 space-y-4">
+                {effectiveRole === UserRole.TEACHER ? (
+                  <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-2.5">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                    <span>
+                      Access Restricted: Educators and faculty members do not possess permissions to view confidential student financial records.
+                    </span>
+                  </div>
+                ) : isLoadingFeesProfile ? (
+                  <div className="p-8 text-center space-y-2">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+                    <p className="text-xs text-muted-foreground">Loading fee records...</p>
+                  </div>
+                ) : feesProfileError ? (
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-xs text-destructive">
+                    {feesProfileError}
+                  </div>
+                ) : feesProfile ? (
+                  <div className="space-y-4 text-xs">
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="rounded-xl border border-border bg-muted/30 p-2.5 text-center">
+                        <span className="text-[10px] text-muted-foreground">Billed</span>
+                        <div className="font-bold text-foreground">
+                          ${feesProfile.summary.totalBilled.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/30 p-2.5 text-center">
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400">Paid</span>
+                        <div className="font-bold text-emerald-600 dark:text-emerald-400">
+                          ${feesProfile.summary.totalPaid.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/30 p-2.5 text-center">
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400">Balance</span>
+                        <div className="font-bold text-amber-600 dark:text-amber-400">
+                          ${feesProfile.summary.outstandingBalance.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/30 p-2.5 text-center">
+                        <span className="text-[10px] text-rose-600 dark:text-rose-400">Overdue</span>
+                        <div className="font-bold text-rose-600 dark:text-rose-400">
+                          ${feesProfile.summary.overdueBalance.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Invoices */}
+                    <div className="rounded-xl border border-border overflow-hidden">
+                      <div className="p-2.5 bg-muted/40 font-semibold text-foreground text-[11px] flex justify-between items-center">
+                        <span>Issued Invoices ({feesProfile.invoices.length})</span>
+                        <Link
+                          href="/fees"
+                          className="text-[10px] text-primary hover:underline flex items-center gap-1 font-semibold"
+                        >
+                          <span>Fee Ledger</span>
+                          <ArrowRight className="h-2.5 w-2.5" />
+                        </Link>
+                      </div>
+                      {feesProfile.invoices.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground text-[11px]">
+                          No invoices issued for this student.
+                        </div>
+                      ) : (
+                        <div className="max-h-36 overflow-y-auto divide-y divide-border">
+                          {feesProfile.invoices.map((inv: any) => (
+                            <div key={inv.id} className="p-2.5 flex items-center justify-between">
+                              <div>
+                                <span className="font-mono font-bold text-primary">
+                                  #{inv.invoiceNumber}
+                                </span>
+                                <span className="text-muted-foreground ml-2 text-[10px]">
+                                  Due: {new Date(inv.dueDate).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-semibold text-foreground">
+                                  ${inv.totalAmount.toLocaleString()}
+                                </span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                    inv.status === 'PAID'
+                                      ? 'bg-emerald-500/10 text-emerald-600'
+                                      : inv.status === 'PARTIALLY_PAID'
+                                      ? 'bg-blue-500/10 text-blue-600'
+                                      : inv.status === 'OVERDUE'
+                                      ? 'bg-rose-500/10 text-rose-600'
+                                      : 'bg-amber-500/10 text-amber-600'
+                                  }`}
+                                >
+                                  {inv.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Receipts / Payments */}
+                    <div className="rounded-xl border border-border overflow-hidden">
+                      <div className="p-2.5 bg-muted/40 font-semibold text-foreground text-[11px]">
+                        Payment Receipts ({feesProfile.payments.length})
+                      </div>
+                      {feesProfile.payments.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground text-[11px]">
+                          No payment receipts recorded.
+                        </div>
+                      ) : (
+                        <div className="max-h-32 overflow-y-auto divide-y divide-border">
+                          {feesProfile.payments.map((pmt: any) => (
+                            <div key={pmt.id} className="p-2.5 flex items-center justify-between">
+                              <div>
+                                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                  {pmt.receiptNumber}
+                                </span>
+                                <span className="text-muted-foreground ml-2 text-[10px]">
+                                  {new Date(pmt.paymentDate).toLocaleDateString()} &bull; {pmt.paymentMethod}
+                                </span>
+                              </div>
+                              <div className="font-mono font-bold text-foreground">
+                                ${pmt.amount.toLocaleString()}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             <div className="mt-6 flex items-center justify-end">
               <button
                 type="button"
-                onClick={() => setViewStudent(null)}
+                onClick={() => {
+                  setViewStudent(null);
+                  setProfileTab('overview');
+                }}
                 className="w-full py-2 rounded-lg bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 Close Profile

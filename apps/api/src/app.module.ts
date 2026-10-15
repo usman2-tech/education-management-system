@@ -26,6 +26,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 import { SubscriptionCodesModule } from './modules/subscription-codes/subscription-codes.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { DashboardsModule } from './modules/dashboards/dashboards.module';
+import { FeesModule } from './modules/fees/fees.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { DashboardsModule } from './modules/dashboards/dashboards.module';
     SubscriptionCodesModule,
     CommunicationsModule,
     DashboardsModule,
+    FeesModule,
   ],
 })
 export class AppModule {}

@@ -44,6 +44,8 @@ import {
   School,
   X,
   Shield,
+  Receipt,
+  Banknote,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -79,6 +81,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   MessageSquare,
   Bot,
   Bell,
+  Receipt,
+  Banknote,
 };
 
 export function Sidebar({
