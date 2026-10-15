@@ -35,6 +35,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize session from localStorage and verify against /auth/me
   React.useEffect(() => {
+    let isMounted = true;
+
+    // Safety watchdog: ensure loading never gets stuck indefinitely
+    const watchdog = setTimeout(() => {
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    }, 4000);
+
     async function initAuth() {
       try {
         const storedUser = localStorage.getItem('ems_user');
@@ -42,26 +51,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (storedUser && token) {
           try {
-            setUser(JSON.parse(storedUser));
+            const parsed = JSON.parse(storedUser);
+            if (isMounted) setUser(parsed);
           } catch {
             // Invalid JSON in localStorage
           }
 
-          // Verify with live backend
-          const meUser = await apiClient.get<AuthUser>('/auth/me');
-          setUser(meUser);
-          localStorage.setItem('ems_user', JSON.stringify(meUser));
+          // Unblock loading state immediately with authenticated cached state
+          if (isMounted) setIsLoading(false);
+
+          // Verify with live backend in background
+          try {
+            const meUser = await apiClient.get<AuthUser>('/auth/me');
+            if (isMounted) {
+              setUser(meUser);
+              localStorage.setItem('ems_user', JSON.stringify(meUser));
+            }
+          } catch (err: any) {
+            // Explicit token invalidation (401)
+            if (err?.statusCode === 401) {
+              apiClient.clearTokens();
+              if (isMounted) setUser(null);
+            } else {
+              console.warn('Background session verification network error (retaining cached credentials):', err?.message);
+            }
+          }
+        } else {
+          if (isMounted) {
+            setUser(null);
+            setIsLoading(false);
+          }
         }
       } catch (err) {
         console.warn('Session verification failed:', err);
         apiClient.clearTokens();
-        setUser(null);
+        if (isMounted) setUser(null);
       } finally {
-        setIsLoading(false);
+        clearTimeout(watchdog);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
     initAuth();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(watchdog);
+    };
   }, []);
 
   const login = React.useCallback(

@@ -80,28 +80,34 @@ export default function AIAssistantPage() {
       setError(null);
       try {
         const [convList, promptsData, usageData] = await Promise.all([
-          aiApi.listConversations(),
-          aiApi.getSuggestedPrompts(),
+          aiApi.listConversations().catch((e) => {
+            console.warn('Could not load AI conversations (service may be initializing):', e?.message);
+            return [] as AIConversationDto[];
+          }),
+          aiApi.getSuggestedPrompts().catch((e) => {
+            console.warn('Could not load AI prompts:', e?.message);
+            return { role: effectiveRole, prompts: [] };
+          }),
           aiApi.getUsage().catch(() => null),
         ]);
 
         setConversations(convList);
-        setSuggestedPrompts(promptsData.prompts || []);
+        setSuggestedPrompts(promptsData?.prompts || []);
         if (usageData) setUsage(usageData);
 
         if (convList.length > 0) {
-          await loadConversation(convList[0].id);
+          await loadConversation(convList[0].id).catch(() => {});
         }
       } catch (err: any) {
-        console.error('Failed to load AI Assistant initial state:', err);
-        setError(err.message || 'Failed to initialize AI Assistant.');
+        console.error('AI Assistant initialization notice:', err);
+        setError('AI Assistant is currently operating in limited offline mode. Other institutional modules remain fully operational.');
       } finally {
         setIsLoading(false);
       }
     }
 
     init();
-  }, []);
+  }, [effectiveRole]);
 
   // Load a specific conversation's history
   const loadConversation = async (id: string) => {

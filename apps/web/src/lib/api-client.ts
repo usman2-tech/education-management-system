@@ -67,11 +67,17 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const signal = options.signal || controller.signal;
+
     try {
       const response = await fetch(url, {
         ...options,
+        signal,
         headers,
       });
+      clearTimeout(timeoutId);
 
       // Handle 401 Unauthorized for token refresh
       if (response.status === 401 && !isRetry && !endpoint.includes('/auth/login')) {
@@ -93,8 +99,12 @@ class ApiClient {
 
       return data as T;
     } catch (err: any) {
+      clearTimeout(timeoutId);
       if (err instanceof ApiError) {
         throw err;
+      }
+      if (err?.name === 'AbortError') {
+        throw new ApiError(408, 'Institutional backend request timed out. Please verify service connectivity.');
       }
       throw new ApiError(500, err?.message || 'Network connection error.');
     }
@@ -107,22 +117,29 @@ class ApiClient {
       return false;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     try {
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         this.clearTokens();
         return false;
       }
 
-      const tokens: AuthTokens = await response.json();
+      const data = await response.json();
+      const tokens: AuthTokens = data.tokens || data;
       this.setTokens(tokens);
       return true;
     } catch {
+      clearTimeout(timeoutId);
       this.clearTokens();
       return false;
     }
