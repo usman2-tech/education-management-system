@@ -997,8 +997,51 @@ This document guides the user through manually verifying the architecture, front
      - Verify unauthorized conversation access returns 404 Not Found.
 - **Expected Result**: Secure, responsive, role-aware academic assistance grounded in verified institutional data.
 
+---
 
+## Test Scenario AG: AI Teacher Copilot (TASK 023)
+- **URL**: http://localhost:3000/teacher/copilot
+- **User**: Teacher (teacher@stjude.ems.local / Password123!)
+- **Objective**: Verify end-to-end pedagogical assistance across the 6 copilot tools, drafts repository, and human approval publishing workflows.
 
+### Steps:
+1. **Sidebar Navigation**:
+   - Log in as Teacher (teacher@stjude.ems.local / Password123!).
+   - Locate **AI Teacher Copilot** in the left sidebar with Sparkles icon and Gemini badge.
+   - Click it to navigate to http://localhost:3000/teacher/copilot.
 
+2. **Feature 1 — AI Lesson Plan Generator**:
+   - In the Lesson Planner tab, select assigned Class, Subject, and Course.
+   - Enter Topic and Objectives, then click Generate Lesson Plan with Gemini.
+   - Review structured output, edit sections, and save as draft.
 
+3. **Feature 2 — AI Homework Generator & Publishing**:
+   - In the Homework tab, configure topic, question count, and difficulty.
+   - Click Generate Homework with Gemini. Preview generated problems and suggested answers.
+   - Click Approve & Publish to Class. Verify it appears in the Homework module.
 
+4. **Feature 3 — AI Quiz & Exam Generator**:
+   - In the Quiz & Exam tab, configure topic, question count, and total marks.
+   - Generate exam with Gemini. Confirm question marks sum up to total.
+   - Verify answer keys remain hidden from student queries. Save draft.
+
+5. **Feature 4 — AI Grading Assistant (Human-in-the-Loop)**:
+   - In the Grading Assistant tab, select an eligible pending submission.
+   - Generate AI Feedback & Score Suggestion.
+   - Verify student grade is NOT modified automatically.
+   - Confirm teacher reviewed score and apply grade.
+
+6. **Feature 5 — AI Student Performance Insights**:
+   - In the Performance Insights tab, analyze class performance.
+   - Verify metrics (average grade, attendance, homework completion) derive from verified database records.
+
+7. **Feature 6 — AI Teaching Materials Generator**:
+   - In Teaching Materials tab, select material type (Study Guide, Worksheet, Flashcards).
+   - Generate and test copying content or printing.
+
+8. **Drafts Repository & Lifecycle**:
+   - In Saved Drafts tab, verify drafts persist after page refresh, filter by type, and edit inline.
+
+9. **Security & Role Enforcement**:
+   - Verify Student and Parent access is blocked (HTTP 403).
+   - Verify cross-school access is forbidden.

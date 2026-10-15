@@ -2159,6 +2159,127 @@ export interface AIUsageSummaryDto {
   activeProvider: string;
 }
 
+// ==============================================================================
+// AI Teacher Copilot Contracts (TASK 023)
+// ==============================================================================
+
+export enum AICopilotContentType {
+  LESSON_PLAN = 'LESSON_PLAN',
+  HOMEWORK = 'HOMEWORK',
+  EXAM = 'EXAM',
+  GRADING_SUGGESTION = 'GRADING_SUGGESTION',
+  PERFORMANCE_INSIGHT = 'PERFORMANCE_INSIGHT',
+  TEACHING_MATERIAL = 'TEACHING_MATERIAL',
+}
+
+export enum AICopilotDraftStatus {
+  DRAFT = 'DRAFT',
+  APPROVED = 'APPROVED',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export interface AICopilotDraftDto {
+  id: string;
+  schoolId: string;
+  teacherId: string;
+  teacherName?: string;
+  contentType: AICopilotContentType;
+  title: string;
+  content: any;
+  classSectionId?: string | null;
+  classSectionName?: string | null;
+  subjectId?: string | null;
+  subjectName?: string | null;
+  courseId?: string | null;
+  courseTitle?: string | null;
+  status: AICopilotDraftStatus;
+  metadata?: Record<string, any> | null;
+  publishedEntityId?: string | null;
+  approvedAt?: string | null;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GenerateLessonPlanDto {
+  classSectionId: string;
+  subjectId?: string;
+  courseId?: string;
+  topic: string;
+  learningObjectives: string;
+  durationMinutes?: number;
+  difficultyLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  instructions?: string;
+}
+
+export interface GenerateHomeworkDto {
+  classSectionId: string;
+  subjectId: string;
+  topic: string;
+  learningObjectives?: string;
+  difficultyLevel?: 'EASY' | 'MEDIUM' | 'HARD';
+  questionCount?: number;
+  instructions?: string;
+  dueDate?: string;
+}
+
+export interface GenerateExamDto {
+  classSectionId: string;
+  subjectId: string;
+  courseId?: string;
+  topic: string;
+  questionTypes?: ('MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER' | 'ESSAY')[];
+  difficultyLevel?: 'EASY' | 'MEDIUM' | 'HARD';
+  questionCount?: number;
+  totalMarks?: number;
+  durationMinutes?: number;
+  instructions?: string;
+}
+
+export interface GenerateGradingSuggestionDto {
+  submissionId: string;
+  rubricCriteria?: string;
+  markingGuide?: string;
+}
+
+export interface GeneratePerformanceInsightDto {
+  classSectionId: string;
+  subjectId?: string;
+}
+
+export interface GenerateTeachingMaterialDto {
+  classSectionId?: string;
+  subjectId?: string;
+  courseId?: string;
+  materialType: 'WORKSHEET' | 'REVISION_NOTES' | 'STUDY_GUIDE' | 'CLASSROOM_ACTIVITY' | 'FLASHCARDS' | 'TOPIC_SUMMARY';
+  topic: string;
+  difficultyLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  length?: 'BRIEF' | 'STANDARD' | 'COMPREHENSIVE';
+  learningObjectives?: string;
+}
+
+export interface UpdateCopilotDraftDto {
+  title?: string;
+  content?: any;
+  status?: AICopilotDraftStatus;
+}
+
+export interface ApproveAndPublishDto {
+  targetStatus: 'APPROVED' | 'PUBLISHED';
+  confirmedScore?: number;
+  teacherFeedback?: string;
+  publishOptions?: {
+    dueDate?: string;
+    examDate?: string;
+    maxPoints?: number;
+    totalMarks?: number;
+    passingMarks?: number;
+    teacherConfirmedScore?: number;
+    teacherConfirmedFeedback?: string;
+  };
+}
+
 
 
 

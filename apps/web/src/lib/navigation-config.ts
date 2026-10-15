@@ -96,7 +96,8 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       title: 'Teaching Workspace',
       items: [
         { title: 'Teacher Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Class schedule & daily agenda' },
-        { title: 'AI Assistant', href: '/ai-assistant', icon: 'Bot', badge: 'Gemini', description: 'Lesson planner & teaching copilot' },
+        { title: 'AI Teacher Copilot', href: '/teacher/copilot', icon: 'Sparkles', badge: 'Gemini', description: 'Pedagogical copilot, quizzes, grading & materials' },
+        { title: 'AI Assistant', href: '/ai-assistant', icon: 'Bot', badge: 'Gemini', description: 'Institutional AI assistant & Q&A' },
         { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Personal teaching timetable' },
         { title: 'Classes & Sections', href: '/classes', icon: 'BookOpen', description: 'Assigned sections and rosters' },
         { title: 'Courses & Syllabus', href: '/courses', icon: 'GraduationCap', description: 'Course content & learning modules' },

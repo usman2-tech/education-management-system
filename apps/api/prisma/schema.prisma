@@ -213,6 +213,9 @@ model School {
   aiConversations     AIConversation[]
   aiUsageRecords      AIUsageRecord[]
 
+  // AI Teacher Copilot (TASK 023)
+  copilotDrafts       AICopilotDraft[]
+
   @@map("schools")
 }
 
@@ -312,6 +315,9 @@ model User {
   // AI Assistant (TASK 022)
   aiConversations             AIConversation[]       @relation("UserAIConversations")
   aiUsageRecords              AIUsageRecord[]        @relation("UserAIUsage")
+
+  // AI Teacher Copilot (TASK 023)
+  copilotDrafts               AICopilotDraft[]       @relation("TeacherCopilotDrafts")
 
   @@index([schoolId])
   @@index([email])
@@ -461,6 +467,7 @@ model ClassSection {
   assessments               Assessment[]
   homeworks                 Homework[]
   exams                     Exam[]
+  copilotDrafts             AICopilotDraft[]
 
   @@unique([classId, academicYearId, name])
   @@index([classId])
@@ -486,6 +493,7 @@ model Subject {
   homeworks                 Homework[]
   courses                   Course[]
   exams                     Exam[]
+  copilotDrafts             AICopilotDraft[]
 
   @@unique([schoolId, code])
   @@index([schoolId])
@@ -888,6 +896,7 @@ model Course {
 
   modules      CourseModule[]
   enrollments  CourseEnrollment[]
+  copilotDrafts AICopilotDraft[]
 
   @@unique([schoolId, code])
   @@index([schoolId])
@@ -1466,6 +1475,56 @@ model AIUsageRecord {
   @@index([schoolId])
   @@index([createdAt])
   @@map("ai_usage_records")
+}
+
+// ------------------------------------------------------------------------------
+// AI Teacher Copilot (TASK 023)
+// ------------------------------------------------------------------------------
+
+enum AICopilotContentType {
+  LESSON_PLAN
+  HOMEWORK
+  EXAM
+  GRADING_SUGGESTION
+  PERFORMANCE_INSIGHT
+  TEACHING_MATERIAL
+}
+
+enum AICopilotDraftStatus {
+  DRAFT
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+model AICopilotDraft {
+  id                String               @id @default(uuid())
+  schoolId          String
+  school            School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacherId         String
+  teacher           User                 @relation("TeacherCopilotDrafts", fields: [teacherId], references: [id], onDelete: Cascade)
+  contentType       AICopilotContentType
+  title             String
+  content           Json
+  classSectionId    String?
+  classSection      ClassSection?        @relation(fields: [classSectionId], references: [id], onDelete: SetNull)
+  subjectId         String?
+  subject           Subject?             @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  courseId          String?
+  course            Course?              @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  status            AICopilotDraftStatus @default(DRAFT)
+  metadata          Json?
+  publishedEntityId String?
+  approvedAt        DateTime?
+  publishedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([contentType])
+  @@index([status])
+  @@map("ai_copilot_drafts")
 }
 
 
