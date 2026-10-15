@@ -97,10 +97,46 @@ export interface NavigationItem {
 export interface LoginRequest {
   email: string;
   password: string;
+  selectedRole?: UserRole;
 }
 
 export interface RefreshTokenRequest {
   refreshToken: string;
+}
+
+export interface InviteUserRequest {
+  email: string;
+  role: UserRole;
+  schoolId?: string;
+}
+
+export interface ActivateAccountRequest {
+  token: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+export interface GenericActionResponse {
+  success: boolean;
+  message: string;
+  resetToken?: string;
+  activationToken?: string;
+}
+
+export interface InvitationDetailsResponse {
+  email: string;
+  role: UserRole;
+  schoolName?: string;
 }
 
 export interface JwtPayload {

@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { UserRole } from '@ems/contracts';
 import { ROLE_NAVIGATION } from '@/lib/navigation-config';
+import { useAuth } from '@/hooks/use-auth';
 import {
   GraduationCap,
   LayoutDashboard,
@@ -42,11 +43,11 @@ import {
   ChevronRight,
   School,
   X,
+  Shield,
 } from 'lucide-react';
 
 interface SidebarProps {
   currentRole: UserRole;
-  onRoleChange: (role: UserRole) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   isMobileOpen: boolean;
@@ -82,22 +83,25 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 export function Sidebar({
   currentRole,
-  onRoleChange,
   isCollapsed,
   onToggleCollapse,
   isMobileOpen,
   onCloseMobile,
 }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
   const navSections = ROLE_NAVIGATION[currentRole] || [];
 
   const roleLabels: Record<UserRole, string> = {
-    [UserRole.PLATFORM_ADMIN]: 'Platform Admin',
-    [UserRole.SCHOOL_ADMIN]: 'School Admin',
+    [UserRole.PLATFORM_ADMIN]: 'Platform Administrator',
+    [UserRole.SCHOOL_ADMIN]: 'School Administrator',
     [UserRole.TEACHER]: 'Teacher',
     [UserRole.STUDENT]: 'Student',
     [UserRole.PARENT]: 'Parent / Guardian',
   };
+
+  const schoolName = user?.school?.name || (currentRole === UserRole.PLATFORM_ADMIN ? 'Global Platform Scope' : 'St. Jude Academy');
+  const schoolCode = user?.school?.code || (currentRole === UserRole.PLATFORM_ADMIN ? 'GLOBAL' : 'SCH-001');
 
   const sidebarContent = (
     <div className="flex h-full flex-col justify-between overflow-hidden bg-sidebar text-sidebar-foreground">
@@ -110,11 +114,11 @@ export function Sidebar({
             </div>
             {!isCollapsed && (
               <div className="truncate">
-                <div className="text-sm font-semibold tracking-tight text-sidebar-foreground">
-                  St. Jude Academy
+                <div className="text-sm font-semibold tracking-tight text-sidebar-foreground truncate">
+                  {schoolName}
                 </div>
                 <div className="text-xs text-sidebar-foreground/60">
-                  Campus ID: #SCH-001
+                  Campus ID: #{schoolCode}
                 </div>
               </div>
             )}
@@ -131,35 +135,29 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* Role Selector Preview Bar */}
+        {/* Read-Only Authenticated Role Indicator */}
         <div className="border-b border-sidebar-border p-3">
           {!isCollapsed ? (
-            <div>
-              <label
-                htmlFor="role-selector"
-                className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50"
-              >
-                Active Role View
-              </label>
-              <select
-                id="role-selector"
-                value={currentRole}
-                onChange={(e) => onRoleChange(e.target.value as UserRole)}
-                className="w-full rounded-md border border-sidebar-border bg-sidebar-accent px-2.5 py-1.5 text-xs font-medium text-sidebar-foreground outline-none focus:ring-1 focus:ring-sidebar-ring"
-              >
-                {Object.entries(roleLabels).map(([roleKey, label]) => (
-                  <option key={roleKey} value={roleKey} className="bg-slate-900 text-white">
-                    {label}
-                  </option>
-                ))}
-              </select>
+            <div className="rounded-lg bg-sidebar-accent/50 p-2.5 border border-sidebar-border">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
+                  Authenticated Role
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Verified
+                </span>
+              </div>
+              <div className="text-xs font-bold text-sidebar-foreground">
+                {roleLabels[currentRole] || currentRole}
+              </div>
+              <div className="mt-1 text-[11px] text-sidebar-foreground/70 truncate">
+                {user ? `${user.firstName} ${user.lastName}` : 'Active Session'}
+              </div>
             </div>
           ) : (
-            <div className="flex justify-center">
-              <span
-                title={roleLabels[currentRole]}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sidebar-accent text-[10px] font-bold text-sidebar-foreground"
-              >
+            <div className="flex justify-center" title={`${roleLabels[currentRole]} (Verified)`}>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/20 text-xs font-bold text-primary border border-primary/30">
                 {currentRole.charAt(0)}
               </span>
             </div>

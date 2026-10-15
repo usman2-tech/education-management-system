@@ -39,6 +39,10 @@ import {
   EnrollmentStatus,
   RelationshipVerificationStatus,
 } from '@ems/contracts';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
+import * as bcrypt from 'bcryptjs';
 import {
   CreateAcademicYearDto,
   UpdateAcademicYearDto,
@@ -52,6 +56,8 @@ import {
   AssignTeacherSubjectDto,
   CreateTimetableEntryDto,
   UpdateTimetableEntryDto,
+  CreateStudentDto,
+  UpdateStudentDto,
 } from './dto/classes.dto';
 
 @Injectable()
@@ -1305,6 +1311,7 @@ export class ClassesService {
       lastName: s.lastName,
       email: s.email,
       phone: s.phone,
+      avatarUrl: s.avatarUrl,
       admissionNumber: s.studentProfile?.admissionNumber || null,
       gradeLevel: s.studentProfile?.gradeLevel || null,
       section: s.classEnrollments[0]?.section
@@ -1316,6 +1323,328 @@ export class ClassesService {
         : null,
       createdAt: s.createdAt.toISOString(),
     }));
+  }
+
+  // ---------------------------------------------------------------------------
+  // STUDENT ENROLLMENT & PHOTO STORAGE (TASK 018.1)
+  // ---------------------------------------------------------------------------
+
+  private async saveStudentPhoto(photoBase64: string, existingAvatarUrl?: string | null): Promise<string> {
+    const matches = photoBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    let base64Data = photoBase64;
+
+    if (matches && matches.length === 3) {
+      base64Data = matches[2];
+    }
+
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // 2MB size limit (2 * 1024 * 1024 = 2,097,152 bytes)
+    if (buffer.length > 2 * 1024 * 1024) {
+      throw new BadRequestException('Student photo file size exceeds 2 MB limit.');
+    }
+
+    // Format & magic bytes validation (JPG, PNG, WebP)
+    let ext = 'jpg';
+    if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+      ext = 'jpg';
+    } else if (
+      buffer.length >= 8 &&
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47
+    ) {
+      ext = 'png';
+    } else if (
+      buffer.length >= 12 &&
+      buffer.toString('utf8', 0, 4) === 'RIFF' &&
+      buffer.toString('utf8', 8, 12) === 'WEBP'
+    ) {
+      ext = 'webp';
+    } else {
+      throw new BadRequestException('Unsupported image format. Allowed formats: JPG, PNG, and WebP.');
+    }
+
+    const uploadDir = path.resolve(process.cwd(), 'uploads', 'student-photos');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    // Remove old file if it exists
+    if (existingAvatarUrl && existingAvatarUrl.includes('/api/v1/classes/students/photos/')) {
+      const oldFileName = path.basename(existingAvatarUrl);
+      const oldPath = path.join(uploadDir, oldFileName);
+      if (fs.existsSync(oldPath)) {
+        try {
+          fs.unlinkSync(oldPath);
+        } catch {}
+      }
+    }
+
+    const fileName = `${crypto.randomUUID()}.${ext}`;
+    const filePath = path.join(uploadDir, fileName);
+    fs.writeFileSync(filePath, buffer);
+
+    return `/api/v1/classes/students/photos/${fileName}`;
+  }
+
+  private removeStudentPhotoFile(avatarUrl?: string | null): void {
+    if (!avatarUrl || !avatarUrl.includes('/api/v1/classes/students/photos/')) return;
+    const uploadDir = path.resolve(process.cwd(), 'uploads', 'student-photos');
+    const fileName = path.basename(avatarUrl);
+    const filePath = path.join(uploadDir, fileName);
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch {}
+    }
+  }
+
+  async enrollNewStudent(dto: CreateStudentDto, currentUser: AuthUser) {
+    this.assertAdminAccess(currentUser);
+    const schoolId = this.resolveSchoolId(currentUser, dto.schoolId);
+
+    const email = dto.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (existing) {
+      throw new ConflictException('A user with this email address already exists in the institutional registry.');
+    }
+
+    let avatarUrl: string | null = null;
+    if (dto.photoBase64) {
+      avatarUrl = await this.saveStudentPhoto(dto.photoBase64);
+    }
+
+    const defaultPassword = dto.password || 'Password123!';
+    const passwordHash = await bcrypt.hash(defaultPassword, 10);
+
+    const student = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        firstName: dto.firstName.trim(),
+        lastName: dto.lastName.trim(),
+        phone: dto.phone?.trim() || null,
+        role: UserRole.STUDENT,
+        schoolId,
+        avatarUrl,
+        isActive: true,
+        studentProfile: {
+          create: {
+            admissionNumber: dto.admissionNumber?.trim() || `STU-${Date.now().toString().slice(-4)}`,
+            gradeLevel: dto.gradeLevel?.trim() || null,
+            dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
+            gender: dto.gender?.trim() || null,
+            bloodGroup: dto.bloodGroup?.trim() || null,
+            emergencyContact: dto.emergencyContact?.trim() || null,
+            address: dto.address?.trim() || null,
+          },
+        },
+      },
+      include: {
+        studentProfile: true,
+      },
+    });
+
+    if (dto.sectionId) {
+      await this.enrollStudent(dto.sectionId, { studentId: student.id }, currentUser).catch((err) => {
+        this.prisma.auditLog.create({
+          data: {
+            action: 'STUDENT_SECTION_ENROLL_WARNING',
+            entityType: 'User',
+            entityId: student.id,
+            actorId: currentUser.id,
+            details: { message: err.message },
+          },
+        }).catch(() => {});
+      });
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'STUDENT_ENROLLED',
+        entityType: 'User',
+        entityId: student.id,
+        actorId: currentUser.id,
+        actorEmail: currentUser.email,
+        schoolId,
+        details: { email: student.email, name: `${student.firstName} ${student.lastName}` },
+      },
+    });
+
+    return this.getStudentById(student.id, currentUser);
+  }
+
+  async getStudentById(studentId: string, currentUser: AuthUser) {
+    const student = await this.prisma.user.findUnique({
+      where: { id: studentId },
+      include: {
+        studentProfile: true,
+        school: { select: { id: true, name: true, code: true } },
+        classEnrollments: {
+          where: { status: 'ACTIVE' },
+          include: {
+            section: {
+              include: {
+                schoolClass: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!student || student.role !== UserRole.STUDENT) {
+      throw new NotFoundException('Student record not found.');
+    }
+
+    this.resolveSchoolId(currentUser, student.schoolId || undefined);
+
+    const activeEnrollment = student.classEnrollments[0];
+    return {
+      id: student.id,
+      email: student.email,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      phone: student.phone,
+      avatarUrl: student.avatarUrl,
+      admissionNumber: student.studentProfile?.admissionNumber || null,
+      gradeLevel: student.studentProfile?.gradeLevel || null,
+      dateOfBirth: student.studentProfile?.dateOfBirth ? student.studentProfile.dateOfBirth.toISOString() : null,
+      gender: student.studentProfile?.gender || null,
+      bloodGroup: student.studentProfile?.bloodGroup || null,
+      emergencyContact: student.studentProfile?.emergencyContact || null,
+      address: student.studentProfile?.address || null,
+      schoolId: student.schoolId,
+      schoolName: student.school?.name || null,
+      section: activeEnrollment
+        ? {
+            id: activeEnrollment.section.id,
+            name: activeEnrollment.section.name,
+            className: activeEnrollment.section.schoolClass.name,
+          }
+        : null,
+      createdAt: student.createdAt.toISOString(),
+      updatedAt: student.updatedAt.toISOString(),
+    };
+  }
+
+  async updateStudent(studentId: string, dto: UpdateStudentDto, currentUser: AuthUser) {
+    this.assertAdminAccess(currentUser);
+
+    const existing = await this.prisma.user.findUnique({
+      where: { id: studentId },
+      include: { studentProfile: true },
+    });
+    if (!existing || existing.role !== UserRole.STUDENT) {
+      throw new NotFoundException('Student record not found.');
+    }
+
+    this.resolveSchoolId(currentUser, existing.schoolId || undefined);
+
+    let avatarUrl = existing.avatarUrl;
+    if (dto.photoBase64) {
+      avatarUrl = await this.saveStudentPhoto(dto.photoBase64, existing.avatarUrl);
+    } else if (dto.avatarUrl === null || dto.photoBase64 === null) {
+      this.removeStudentPhotoFile(existing.avatarUrl);
+      avatarUrl = null;
+    }
+
+    await this.prisma.user.update({
+      where: { id: studentId },
+      data: {
+        firstName: dto.firstName?.trim() || undefined,
+        lastName: dto.lastName?.trim() || undefined,
+        phone: dto.phone?.trim() !== undefined ? dto.phone.trim() : undefined,
+        avatarUrl,
+      },
+    });
+
+    if (
+      dto.admissionNumber ||
+      dto.gradeLevel ||
+      dto.dateOfBirth ||
+      dto.gender ||
+      dto.bloodGroup ||
+      dto.emergencyContact ||
+      dto.address
+    ) {
+      await this.prisma.studentProfile.upsert({
+        where: { userId: studentId },
+        update: {
+          admissionNumber: dto.admissionNumber?.trim() || undefined,
+          gradeLevel: dto.gradeLevel?.trim() || undefined,
+          dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+          gender: dto.gender?.trim() || undefined,
+          bloodGroup: dto.bloodGroup?.trim() || undefined,
+          emergencyContact: dto.emergencyContact?.trim() || undefined,
+          address: dto.address?.trim() || undefined,
+        },
+        create: {
+          userId: studentId,
+          admissionNumber: dto.admissionNumber?.trim() || `STU-${Date.now().toString().slice(-4)}`,
+          gradeLevel: dto.gradeLevel?.trim() || null,
+          dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
+          gender: dto.gender?.trim() || null,
+          bloodGroup: dto.bloodGroup?.trim() || null,
+          emergencyContact: dto.emergencyContact?.trim() || null,
+          address: dto.address?.trim() || null,
+        },
+      });
+    }
+
+    if (dto.sectionId) {
+      await this.enrollStudent(dto.sectionId, { studentId }, currentUser);
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'STUDENT_UPDATED',
+        entityType: 'User',
+        entityId: studentId,
+        actorId: currentUser.id,
+        actorEmail: currentUser.email,
+        schoolId: existing.schoolId,
+        details: { updatedFields: Object.keys(dto) },
+      },
+    });
+
+    return this.getStudentById(studentId, currentUser);
+  }
+
+  async uploadStudentPhoto(studentId: string, photoBase64: string, currentUser: AuthUser) {
+    this.assertAdminAccess(currentUser);
+    const student = await this.prisma.user.findUnique({ where: { id: studentId } });
+    if (!student || student.role !== UserRole.STUDENT) {
+      throw new NotFoundException('Student record not found.');
+    }
+    this.resolveSchoolId(currentUser, student.schoolId || undefined);
+
+    const avatarUrl = await this.saveStudentPhoto(photoBase64, student.avatarUrl);
+    await this.prisma.user.update({
+      where: { id: studentId },
+      data: { avatarUrl },
+    });
+    return { success: true, avatarUrl };
+  }
+
+  async removeStudentPhoto(studentId: string, currentUser: AuthUser) {
+    this.assertAdminAccess(currentUser);
+    const student = await this.prisma.user.findUnique({ where: { id: studentId } });
+    if (!student || student.role !== UserRole.STUDENT) {
+      throw new NotFoundException('Student record not found.');
+    }
+    this.resolveSchoolId(currentUser, student.schoolId || undefined);
+
+    this.removeStudentPhotoFile(student.avatarUrl);
+    await this.prisma.user.update({
+      where: { id: studentId },
+      data: { avatarUrl: null },
+    });
+    return { success: true, message: 'Student photo removed successfully.' };
   }
 
   private mapTimetableEntry(entry: any): TimetableEntryDto {

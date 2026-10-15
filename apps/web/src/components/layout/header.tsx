@@ -24,7 +24,7 @@ interface HeaderProps {
 }
 
 export function Header({ currentRole, onOpenMobileNav }: HeaderProps) {
-  const { user, logout, previewRole, setPreviewRole } = useAuth();
+  const { user, logout } = useAuth();
 
   const roleDisplayNames: Record<UserRole, string> = {
     [UserRole.PLATFORM_ADMIN]: 'System Administrator',
@@ -58,19 +58,6 @@ export function Header({ currentRole, onOpenMobileNav }: HeaderProps) {
           <span className="rounded bg-primary/10 px-2 py-0.5 font-medium text-primary">
             Session 2026-2027
           </span>
-          {previewRole && (
-            <span className="hidden sm:inline-flex items-center gap-1 rounded bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600 text-[11px]">
-              Previewing: {roleDisplayNames[previewRole]}
-              <button
-                type="button"
-                onClick={() => setPreviewRole(null)}
-                className="ml-1 text-amber-700 hover:underline font-bold"
-                title="Reset to your real role"
-              >
-                &times;
-              </button>
-            </span>
-          )}
         </div>
       </div>
 

@@ -198,6 +198,7 @@ model School {
   codeRedemptions     CodeRedemption[]
   notifications       Notification[]
   conversations       Conversation[]
+  invitations         UserInvitation[]
 
   @@map("schools")
 }
@@ -235,6 +236,8 @@ model User {
   updatedAt                 DateTime                      @updatedAt
 
   refreshTokens             RefreshToken[]
+  passwordResetTokens       PasswordResetToken[]
+  sentInvitations           UserInvitation[]              @relation("InvitedByUser")
   teacherProfile            TeacherProfile?
   studentProfile            StudentProfile?
   parentProfile             ParentGuardianProfile?
@@ -560,6 +563,40 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("password_reset_tokens")
+}
+
+model UserInvitation {
+  id          String    @id @default(uuid())
+  email       String
+  role        UserRole
+  schoolId    String?
+  school      School?   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  accepted    Boolean   @default(false)
+  acceptedAt  DateTime?
+  invitedById String
+  invitedBy   User      @relation("InvitedByUser", fields: [invitedById], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([email])
+  @@index([schoolId])
+  @@index([tokenHash])
+  @@map("user_invitations")
 }
 
 // ------------------------------------------------------------------------------

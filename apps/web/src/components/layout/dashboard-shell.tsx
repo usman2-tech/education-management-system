@@ -21,12 +21,18 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname();
-  const { effectiveRole, setPreviewRole } = useAuth();
+  const { effectiveRole } = useAuth();
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(false);
   const [isMobileOpen, setIsMobileOpen] = React.useState<boolean>(false);
 
-  // Standalone authentication page bypasses shell scaffolding
-  if (pathname === '/login') {
+  // Standalone authentication and activation pages bypass shell scaffolding
+  const isAuthPage =
+    pathname === '/login' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password' ||
+    pathname === '/activate';
+
+  if (isAuthPage) {
     return <>{children}</>;
   }
 
@@ -36,7 +42,6 @@ export function DashboardShell({ children }: DashboardShellProps) {
         {/* Role-Aware Sidebar */}
         <Sidebar
           currentRole={effectiveRole}
-          onRoleChange={setPreviewRole}
           isCollapsed={isCollapsed}
           onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
           isMobileOpen={isMobileOpen}

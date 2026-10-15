@@ -18,6 +18,7 @@ apps/api/build/
 
 # Package builds
 packages/*/dist/
+*.tsbuildinfo
 
 # Python / AI Service
 apps/ai-service/.venv/

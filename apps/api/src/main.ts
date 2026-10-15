@@ -18,6 +18,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AppLogger } from './common/logger/app.logger';
+import { json, urlencoded } from 'express';
 import { config } from './config/env.config';
 
 async function bootstrap() {
@@ -27,6 +28,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger,
   });
+
+  // Enable generous payload limits for photo uploads
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // Enable graceful termination hooks for Docker / Kubernetes
   app.enableShutdownHooks();

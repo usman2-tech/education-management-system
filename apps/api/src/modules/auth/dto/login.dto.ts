@@ -9,7 +9,8 @@
  */
 
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
+import { UserRole } from '@ems/contracts';
 
 export class LoginDto {
   @ApiProperty({
@@ -27,4 +28,13 @@ export class LoginDto {
   @IsString({ message: 'Password must be a string.' })
   @MinLength(6, { message: 'Password must contain at least 6 characters.' })
   password!: string;
+
+  @ApiProperty({
+    description: 'Selected portal role for authentication verification',
+    enum: UserRole,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(UserRole, { message: 'Selected role must be a valid institutional UserRole.' })
+  selectedRole?: UserRole;
 }

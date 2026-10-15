@@ -21,9 +21,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   effectiveRole: UserRole;
-  previewRole: UserRole | null;
-  setPreviewRole: (role: UserRole | null) => void;
-  login: (email: string, pass: string) => Promise<AuthUser>;
+  login: (email: string, pass: string, selectedRole?: UserRole) => Promise<AuthUser>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -34,7 +32,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = React.useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
-  const [previewRole, setPreviewRole] = React.useState<UserRole | null>(null);
 
   // Initialize session from localStorage and verify against /auth/me
   React.useEffect(() => {
@@ -68,17 +65,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = React.useCallback(
-    async (email: string, pass: string): Promise<AuthUser> => {
+    async (email: string, pass: string, selectedRole?: UserRole): Promise<AuthUser> => {
       setIsLoading(true);
       try {
         const res = await apiClient.post<AuthResponse>('/auth/login', {
           email,
           password: pass,
+          selectedRole,
         });
 
         apiClient.setTokens(res.tokens);
         setUser(res.user);
-        setPreviewRole(null);
         localStorage.setItem('ems_user', JSON.stringify(res.user));
         return res.user;
       } finally {
@@ -94,7 +91,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       apiClient.clearTokens();
       setUser(null);
-      setPreviewRole(null);
       router.push('/login');
     }
   }, [router]);
@@ -109,8 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [logout]);
 
-  const effectiveRole: UserRole =
-    previewRole || user?.role || UserRole.SCHOOL_ADMIN;
+  const effectiveRole: UserRole = user?.role || UserRole.SCHOOL_ADMIN;
 
   const value = React.useMemo<AuthContextValue>(
     () => ({
@@ -118,8 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isAuthenticated: !!user,
       effectiveRole,
-      previewRole,
-      setPreviewRole,
       login,
       logout,
       refreshProfile,
@@ -128,8 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       isLoading,
       effectiveRole,
-      previewRole,
-      setPreviewRole,
       login,
       logout,
       refreshProfile,
