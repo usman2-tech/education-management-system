@@ -1630,7 +1630,7 @@ export interface CodeRedemptionDto {
 }
 
 // ==============================================================================
-// TASK 015 — NOTIFICATIONS & MESSAGING CONTRACTS
+// TASK 015 & TASK 030 — NOTIFICATIONS & DIRECT MESSAGING CONTRACTS
 // ==============================================================================
 export type NotificationType = 'INFO' | 'WARNING' | 'HOMEWORK' | 'EXAM' | 'GRADE' | 'ATTENDANCE' | 'SUBSCRIPTION' | 'ANNOUNCEMENT' | 'FEE';
 
@@ -1643,6 +1643,7 @@ export interface NotificationDto {
   type: NotificationType;
   read: boolean;
   link?: string | null;
+  metadata?: Record<string, any> | null;
   createdAt: string;
 }
 
@@ -1653,6 +1654,7 @@ export interface CreateNotificationDto {
   type?: NotificationType;
   link?: string;
   schoolId?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface DirectMessageDto {
@@ -1662,6 +1664,8 @@ export interface DirectMessageDto {
   senderName: string;
   senderRole: string;
   content: string;
+  isRead?: boolean;
+  readAt?: string | null;
   createdAt: string;
 }
 
@@ -1692,6 +1696,55 @@ export interface CreateConversationDto {
 
 export interface SendMessageDto {
   content: string;
+}
+
+export interface AnnouncementPreviewDto {
+  recipientCount: number;
+  targetRole?: string;
+  classSectionId?: string;
+  sampleRecipients: {
+    id: string;
+    name: string;
+    role: string;
+    email: string;
+  }[];
+}
+
+export interface BroadcastAnnouncementRequest {
+  title: string;
+  message: string;
+  targetRole?: string;
+  classSectionId?: string;
+  link?: string;
+}
+
+export interface RecipientContactDto {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  context?: string;
+}
+
+export interface NotificationPreferenceDto {
+  id: string;
+  schoolId: string;
+  absenceAlertsEnabled: boolean;
+  attendanceCorrectionAlertsEnabled: boolean;
+  homeworkAlertsEnabled: boolean;
+  feeAlertsEnabled: boolean;
+  transportAlertsEnabled: boolean;
+  libraryAlertsEnabled: boolean;
+  updatedAt: string;
+}
+
+export interface UpdateNotificationPreferenceRequest {
+  absenceAlertsEnabled?: boolean;
+  attendanceCorrectionAlertsEnabled?: boolean;
+  homeworkAlertsEnabled?: boolean;
+  feeAlertsEnabled?: boolean;
+  transportAlertsEnabled?: boolean;
+  libraryAlertsEnabled?: boolean;
 }
 
 // ==============================================================================

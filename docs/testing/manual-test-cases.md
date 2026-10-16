@@ -1258,3 +1258,66 @@ This document guides the user through manually verifying the architecture, front
    - Click **Library Records** in the left sidebar.
    - Verify active books checked out by linked child (*Alex Johnson*), due dates, and zero outstanding fines.
    - Verify parent CANNOT access library records of unlinked students.
+
+---
+
+## TASK 030: Direct Messaging, Announcements & Automated Student Absence Notifications
+
+### Verification Pre-requisites
+- **Services Running**:
+  - PostgreSQL 18: `localhost:5433`
+  - NestJS API: `http://localhost:4000/api/v1`
+  - Next.js Web: `http://localhost:3000`
+- **Routes Tested**:
+  - Direct Messaging: `http://localhost:3000/messages`
+  - Notifications Center: `http://localhost:3000/notifications`
+  - Daily Attendance Register: `http://localhost:3000/attendance`
+- **Demo Users (Password: `Password123!`)**:
+  - School Admin: `admin@stjude.ems.local`
+  - Teacher: `teacher@stjude.ems.local`
+  - Student: `student@stjude.ems.local`
+  - Parent: `parent@stjude.ems.local`
+  - Platform Admin: `platform.admin@ems.local`
+
+### Test Suite 1: Automated Student Absence Alert Workflow
+1. Log in as Teacher (`teacher@stjude.ems.local`).
+2. Navigate to `/attendance` and open an active class register session.
+3. Mark a student absent.
+4. Finalize the register session.
+5. Log out and log in as the verified linked Parent (`parent@stjude.ems.local`).
+6. Notice the unread badge on the top navigation bar and `/messages` / `/notifications`.
+7. Navigate to `/notifications`. Verify the "Student Absence Alert" appears with student name, date, and school context.
+8. Click "Mark Read" and confirm the unread counter decrements.
+9. Log in as an unrelated parent and confirm they cannot see this alert.
+
+### Test Suite 2: Attendance Correction Workflow
+1. Log in as School Admin (`admin@stjude.ems.local`).
+2. Navigate to `/attendance` and open the finalized session.
+3. Update the student's status from `ABSENT` to `EXCUSED` with reason "Medical note verified". Save.
+4. Log in as the verified linked Parent (`parent@stjude.ems.local`).
+5. Open `/notifications` and confirm an "Attendance Record Corrected" notification is received indicating the status was corrected from `ABSENT` to `EXCUSED`.
+
+### Test Suite 3: Direct Messaging & Thread Conversation
+1. Log in as School Admin (`admin@stjude.ems.local`).
+2. Navigate to `/messages`.
+3. Click "Compose Message". Select a parent contact. Enter subject and message body. Click Send.
+4. Log out and log in as Parent (`parent@stjude.ems.local`).
+5. Open `/messages`. Notice the conversation thread appears in the Inbox with unread indicator.
+6. Open the conversation. Reply to the administrator.
+7. Log out and log in as School Admin. Confirm the reply appears in the conversation thread with delivery timestamp.
+
+### Test Suite 4: Announcements & Audience Preview
+1. Log in as School Admin (`admin@stjude.ems.local`).
+2. Navigate to `/messages` and click "Announcements".
+3. Select target audience: "Parents & Guardians Only".
+4. Confirm recipient preview displays the exact number of eligible recipients and sample names.
+5. Enter announcement title and content. Click "Broadcast Now".
+6. Log in as Parent and confirm the announcement appears in `/notifications`.
+7. Log in as Student and confirm the parent-targeted announcement is NOT delivered to students.
+
+### Test Suite 5: Notification Preferences (Admin Control)
+1. Log in as School Admin (`admin@stjude.ems.local`).
+2. Navigate to `/messages` and click "Preferences".
+3. Review toggles: Student Absence Alerts (enabled by default), Attendance Correction Alerts, Homework Alerts, Fee Alerts, Transport Alerts, Library Alerts.
+4. Toggle an optional setting and save. Verify the setting persists across page reloads.
+

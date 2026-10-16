@@ -6,11 +6,21 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CommunicationsService } from './communications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ForbiddenException, BadRequestException } from '@nestjs/common';
-import { UserRole, NotificationType } from '@prisma/client';
+import { NotificationType } from '@prisma/client';
+import { UserRole, AuthUser } from '@ems/contracts';
 
 describe('CommunicationsService', () => {
   let service: CommunicationsService;
   let prisma: any;
+
+  const mockUser = (id: string, role: UserRole, schoolId: string = 'school-1'): AuthUser => ({
+    id,
+    email: `${id}@test.local`,
+    firstName: 'Test',
+    lastName: 'User',
+    role,
+    schoolId,
+  });
 
   beforeEach(async () => {
     prisma = {
@@ -32,9 +42,11 @@ describe('CommunicationsService', () => {
       },
       classEnrollment: {
         findMany: jest.fn(),
+        findFirst: jest.fn(),
       },
       teacherSubjectAssignment: {
         findFirst: jest.fn(),
+        findMany: jest.fn(),
       },
       conversation: {
         findMany: jest.fn(),
@@ -82,7 +94,7 @@ describe('CommunicationsService', () => {
     ]);
     prisma.notification.count.mockResolvedValue(1);
 
-    const res = await service.getNotifications({ id: 'u-1' });
+    const res = await service.getNotifications(mockUser('u-1', UserRole.STUDENT));
 
     expect(res.unreadCount).toBe(1);
     expect(res.notifications.length).toBe(1);
@@ -104,7 +116,7 @@ describe('CommunicationsService', () => {
       createdAt: new Date(),
     });
 
-    const res = await service.markAsRead({ id: 'u-1' }, 'n-1');
+    const res = await service.markAsRead(mockUser('u-1', UserRole.STUDENT), 'n-1');
 
     expect(res.read).toBe(true);
     expect(prisma.notification.update).toHaveBeenCalledWith({
@@ -121,7 +133,7 @@ describe('CommunicationsService', () => {
     });
 
     await expect(
-      service.markAsRead({ id: 'u-1' }, 'n-2'),
+      service.markAsRead(mockUser('u-1', UserRole.STUDENT), 'n-2'),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -130,7 +142,7 @@ describe('CommunicationsService', () => {
     prisma.notification.createMany.mockResolvedValue({ count: 3 });
 
     const res = await service.broadcastAnnouncement(
-      { id: 'admin-1', role: UserRole.SCHOOL_ADMIN, schoolId: 'school-1' },
+      mockUser('admin-1', UserRole.SCHOOL_ADMIN, 'school-1'),
       {
         title: 'Campus Spring Festival',
         message: 'All parents and students welcome on Friday',
@@ -151,7 +163,7 @@ describe('CommunicationsService', () => {
 
     await expect(
       service.createConversation(
-        { id: 'teacher-1', role: UserRole.TEACHER, schoolId: 'school-1' },
+        mockUser('teacher-1', UserRole.TEACHER, 'school-1'),
         { recipientId: 'teacher-2', initialMessage: 'Hello colleague' },
       ),
     ).rejects.toThrow(ForbiddenException);
@@ -160,7 +172,7 @@ describe('CommunicationsService', () => {
   it('should reject creating conversation with oneself with BadRequestException', async () => {
     await expect(
       service.createConversation(
-        { id: 'user-1', role: UserRole.TEACHER, schoolId: 'school-1' },
+        mockUser('user-1', UserRole.TEACHER, 'school-1'),
         { recipientId: 'user-1', initialMessage: 'Note to self' },
       ),
     ).rejects.toThrow(BadRequestException);
@@ -175,7 +187,7 @@ describe('CommunicationsService', () => {
 
     await expect(
       service.createConversation(
-        { id: 'student-1', role: UserRole.STUDENT, schoolId: 'school-1' },
+        mockUser('student-1', UserRole.STUDENT, 'school-1'),
         { recipientId: 'student-2', initialMessage: 'Hey classmate' },
       ),
     ).rejects.toThrow(ForbiddenException);
@@ -222,7 +234,7 @@ describe('CommunicationsService', () => {
     prisma.notification.create.mockResolvedValue({});
 
     const res = await service.createConversation(
-      { id: 'parent-1', role: UserRole.PARENT, schoolId: 'school-1' },
+      mockUser('parent-1', UserRole.PARENT, 'school-1'),
       { recipientId: 'teacher-1', initialMessage: 'Inquiry regarding homework' },
     );
 

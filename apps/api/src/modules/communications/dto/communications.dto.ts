@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsUUID,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { NotificationType, UserRole } from '@prisma/client';
 
@@ -35,6 +36,19 @@ export class CreateNotificationDto {
   @IsUUID()
   @IsOptional()
   schoolId?: string;
+
+  @IsOptional()
+  metadata?: Record<string, any>;
+}
+
+export class PreviewAnnouncementDto {
+  @IsEnum(UserRole)
+  @IsOptional()
+  targetRole?: UserRole;
+
+  @IsUUID()
+  @IsOptional()
+  classSectionId?: string;
 }
 
 export class BroadcastAnnouncementDto {
@@ -48,7 +62,11 @@ export class BroadcastAnnouncementDto {
 
   @IsEnum(UserRole)
   @IsOptional()
-  targetRole?: UserRole; // If null, broadcasts to entire school
+  targetRole?: UserRole; // If null, broadcasts to entire school or specified class
+
+  @IsUUID()
+  @IsOptional()
+  classSectionId?: string;
 
   @IsString()
   @IsOptional()
@@ -73,4 +91,30 @@ export class SendMessageDto {
   @IsString()
   @IsNotEmpty()
   content!: string;
+}
+
+export class UpdateNotificationPreferenceDto {
+  @IsBoolean()
+  @IsOptional()
+  absenceAlertsEnabled?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  attendanceCorrectionAlertsEnabled?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  homeworkAlertsEnabled?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  feeAlertsEnabled?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  transportAlertsEnabled?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  libraryAlertsEnabled?: boolean;
 }

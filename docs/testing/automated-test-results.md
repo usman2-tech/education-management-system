@@ -238,3 +238,53 @@
 - **Contracts Build**: `npm run build --workspace=packages/contracts` -> **PASSED (0 errors)**
 - **NestJS API Build**: `npx tsc --noEmit` -> **PASSED (0 errors)**
 - **Next.js Web Typecheck**: `npx tsc --noEmit` -> **PASSED (0 errors)**
+
+---
+
+## TASK 030: Direct Messaging, Announcements & Automated Parent Notifications
+**Executed:** October 17, 2026
+**Branch:** `feature/TASK-030-direct-messaging-notifications`
+**Scope:** Direct Messaging, Recipient Scoping, Automated Absence Alerts on Attendance Finalization, Attendance Correction Alerts, Announcements with Preview, Notification Preferences, RBAC Defenses.
+
+### 1. Jest Unit Tests (`communications.service.spec.ts`)
+- `√ should fetch user notifications and compute unread count` -> **PASS**
+- `√ should mark user notification as read` -> **PASS**
+- `√ should forbid user from marking another user notification as read` -> **PASS**
+- `√ should allow School Admin to broadcast announcement to all school users` -> **PASS**
+- `√ should forbid cross-school direct messaging` -> **PASS**
+- `√ should reject creating conversation with oneself with BadRequestException` -> **PASS**
+- `√ should forbid student-to-student direct messaging` -> **PASS**
+- `√ should allow parent to message a teacher assigned to their verified child` -> **PASS**
+**Result: 8/8 PASSED**
+
+### 2. Live HTTP E2E Verification Suite (`scratch/verify-task-030.js`)
+- `1.1`: Administrator can fetch authorized recipient contacts across school -> **PASS**
+- `1.2`: School Administrator successfully creates conversation with teacher -> **PASS**
+- `2.1`: Teacher available recipients strictly scoped by assigned classes and verified guardians -> **PASS**
+- `2.2`: Teacher can initiate communication with verified linked parent -> **PASS**
+- `3.1`: Teacher attempting to message unrelated recipient is rejected (400/403/404) -> **PASS**
+- `4.1`: Parent cannot access messages belonging to an unrelated conversation (403/404) -> **PASS**
+- `5.1`: Cross-school messaging is strictly rejected with 403 Forbidden -> **PASS**
+- `6.1`: Student can communicate with assigned teacher -> **PASS**
+- `6.2`: Student cannot message other students (Forbidden / Bad Request) -> **PASS**
+- `8.1`: Attendance session created in DRAFT status -> **PASS**
+- `8.2`: Marked student as ABSENT in draft register -> **PASS**
+- `8.3`: Draft attendance DOES NOT dispatch absence alerts to parent -> **PASS**
+- `7.1`: Attendance session finalized successfully -> **PASS**
+- `7.2`: Verified parent receives Student Absence Alert upon finalization -> **PASS**
+- `10.1`: Duplicate finalization call is idempotent and does not create duplicate alerts -> **PASS**
+- `11.1`: Attendance correction applied by administrator -> **PASS**
+- `11.2`: Attendance correction alert dispatched to parent upon correction -> **PASS**
+- `12.1`: Notification marked as read successfully -> **PASS**
+- `12.2`: Direct message unread-count returns valid integer -> **PASS**
+- `13.1`: Administrator can view institutional notification preferences -> **PASS**
+- `13.2`: Administrator can update notification preferences -> **PASS**
+- `14.1`: Recipient preview calculates eligible audience before broadcast -> **PASS**
+- `14.2`: Announcement broadcast succeeds and reports recipient count -> **PASS**
+- `15.1`: Notifications endpoint returns complete payload with unreadCount and list -> **PASS**
+- `16.1`: Transport module functional -> **PASS**
+- `16.2`: Library module functional -> **PASS**
+- `16.3`: Fees module functional -> **PASS**
+- `16.4`: AI module functional -> **PASS**
+**Result: 29/29 PASSED**
+

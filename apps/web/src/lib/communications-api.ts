@@ -1,7 +1,3 @@
-/**
- * Communications, Notifications & Direct Messaging API Client
- */
-
 import { apiClient } from './api-client';
 import {
   NotificationDto,
@@ -9,18 +5,16 @@ import {
   DirectMessageDto,
   CreateConversationDto,
   SendMessageDto,
+  RecipientContactDto,
+  AnnouncementPreviewDto,
+  BroadcastAnnouncementRequest,
+  NotificationPreferenceDto,
+  UpdateNotificationPreferenceRequest,
 } from '@ems/contracts';
 
 export interface NotificationsResponse {
   unreadCount: number;
   notifications: NotificationDto[];
-}
-
-export interface BroadcastAnnouncementDto {
-  title: string;
-  message: string;
-  targetRole?: string;
-  link?: string;
 }
 
 export const communicationsApi = {
@@ -38,13 +32,38 @@ export const communicationsApi = {
     return apiClient.post<{ success: boolean }>('/communications/notifications/read-all', {});
   },
 
-  async broadcastAnnouncement(dto: BroadcastAnnouncementDto): Promise<{ count: number; message: string }> {
+  // Announcements & Preview
+  async previewAnnouncement(dto: {
+    targetRole?: string;
+    classSectionId?: string;
+  }): Promise<AnnouncementPreviewDto> {
+    return apiClient.post<AnnouncementPreviewDto>('/communications/announcements/preview', dto);
+  },
+
+  async broadcastAnnouncement(
+    dto: BroadcastAnnouncementRequest,
+  ): Promise<{ count: number; message: string }> {
     return apiClient.post<{ count: number; message: string }>('/communications/announcements', dto);
   },
 
   // Conversations & Direct Messaging
-  async getConversations(): Promise<ConversationDto[]> {
-    return apiClient.get<ConversationDto[]>('/communications/conversations');
+  async getUnreadCount(): Promise<{ unreadCount: number }> {
+    return apiClient.get<{ unreadCount: number }>('/communications/unread-count');
+  },
+
+  async getAvailableRecipients(): Promise<RecipientContactDto[]> {
+    return apiClient.get<RecipientContactDto[]>('/communications/recipients');
+  },
+
+  async getConversations(
+    type: 'inbox' | 'sent' | 'unread' | 'all' = 'all',
+    search?: string,
+  ): Promise<ConversationDto[]> {
+    const params = new URLSearchParams();
+    if (type && type !== 'all') params.append('type', type);
+    if (search) params.append('search', search);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return apiClient.get<ConversationDto[]>(`/communications/conversations${qs}`);
   },
 
   async createConversation(dto: CreateConversationDto): Promise<{
@@ -57,7 +76,9 @@ export const communicationsApi = {
     }>('/communications/conversations', dto);
   },
 
-  async getConversationMessages(conversationId: string): Promise<(DirectMessageDto & { isMine: boolean })[]> {
+  async getConversationMessages(
+    conversationId: string,
+  ): Promise<(DirectMessageDto & { isMine: boolean })[]> {
     return apiClient.get<(DirectMessageDto & { isMine: boolean })[]>(
       `/communications/conversations/${conversationId}/messages`,
     );
@@ -72,4 +93,19 @@ export const communicationsApi = {
       dto,
     );
   },
+
+  // Notification Preferences
+  async getPreferences(schoolId?: string): Promise<NotificationPreferenceDto> {
+    const qs = schoolId ? `?schoolId=${schoolId}` : '';
+    return apiClient.get<NotificationPreferenceDto>(`/communications/preferences${qs}`);
+  },
+
+  async updatePreferences(
+    dto: UpdateNotificationPreferenceRequest,
+    schoolId?: string,
+  ): Promise<NotificationPreferenceDto> {
+    const qs = schoolId ? `?schoolId=${schoolId}` : '';
+    return apiClient.put<NotificationPreferenceDto>(`/communications/preferences${qs}`, dto);
+  },
 };
+

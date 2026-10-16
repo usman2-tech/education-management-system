@@ -25,4 +25,5 @@
 | **MOD-024** | AI Student Tutor & Parent Assistant | Concept Guide, Socratic Tutor, Practice Quizzes, Revision Planner, Child Academic & Fee Summaries, Parent Q&A | Students, Parents | **Task 024 (Awaiting Manual Test)** |
 | **MOD-027** | Transport Management | Fleet, Drivers, Routes, Ordered Stops, Capacity Allocations, Real-Time GPS Tracking, Driver Portal, Parent/Student Bus Tracking | School Admin, Drivers, Parents, Students | **Task 027 (Awaiting Manual Test)** |
 | **MOD-028** | Library Management | Book Cataloging, Barcode/Accession Tracking, Circulation Desk (Issue/Return/Renew), Reservations Queue, Overdue Fines & Waivers, Student/Teacher/Parent Portals | School Admin, Teachers, Students, Parents | **Task 028 (Awaiting Manual Test)** |
+| **MOD-030** | Direct Messaging & Automated Notifications | In-App Direct Messaging, Verified Recipient Scoping, Automated Absence Alerts on Finalization, Attendance Correction Alerts, Announcements with Preview, Notification Preferences | School Admin, Teachers, Parents, Students, Platform Admin | **Task 030 (Awaiting Manual Test)** |
 

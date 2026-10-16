@@ -6,6 +6,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Param,
   Body,
@@ -21,7 +22,9 @@ import { AuthUser, UserRole } from '@ems/contracts';
 import {
   BroadcastAnnouncementDto,
   CreateConversationDto,
+  PreviewAnnouncementDto,
   SendMessageDto,
+  UpdateNotificationPreferenceDto,
 } from './dto/communications.dto';
 
 @Controller('communications')
@@ -57,6 +60,19 @@ export class CommunicationsController {
     return this.communicationsService.markAllAsRead(user as any);
   }
 
+  // ============================================================================
+  // ANNOUNCEMENTS
+  // ============================================================================
+
+  @Post('announcements/preview')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
+  previewAnnouncement(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: PreviewAnnouncementDto,
+  ) {
+    return this.communicationsService.previewAnnouncement(user as any, dto);
+  }
+
   @Post('announcements')
   @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
   broadcastAnnouncement(
@@ -70,9 +86,27 @@ export class CommunicationsController {
   // CONVERSATIONS & MESSAGING
   // ============================================================================
 
+  @Get('unread-count')
+  getUnreadCount(@CurrentUser() user: AuthUser) {
+    return this.communicationsService.getUnreadCount(user as any);
+  }
+
+  @Get('recipients')
+  getAvailableRecipients(@CurrentUser() user: AuthUser) {
+    return this.communicationsService.getAvailableRecipients(user as any);
+  }
+
   @Get('conversations')
-  getConversations(@CurrentUser() user: AuthUser) {
-    return this.communicationsService.getConversations(user as any);
+  getConversations(
+    @CurrentUser() user: AuthUser,
+    @Query('type') type?: 'inbox' | 'sent' | 'unread' | 'all',
+    @Query('search') search?: string,
+  ) {
+    return this.communicationsService.getConversations(
+      user as any,
+      type || 'all',
+      search,
+    );
   }
 
   @Post('conversations')
@@ -99,4 +133,34 @@ export class CommunicationsController {
   ) {
     return this.communicationsService.sendMessage(user as any, id, dto);
   }
+
+  // ============================================================================
+  // NOTIFICATION PREFERENCES
+  // ============================================================================
+
+  @Get('preferences')
+  getNotificationPreferences(
+    @CurrentUser() user: AuthUser,
+    @Query('schoolId') schoolId?: string,
+  ) {
+    return this.communicationsService.getNotificationPreferences(
+      user as any,
+      schoolId,
+    );
+  }
+
+  @Put('preferences')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN)
+  updateNotificationPreferences(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateNotificationPreferenceDto,
+    @Query('schoolId') schoolId?: string,
+  ) {
+    return this.communicationsService.updateNotificationPreferences(
+      user as any,
+      dto,
+      schoolId,
+    );
+  }
 }
+

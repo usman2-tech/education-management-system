@@ -13,7 +13,8 @@
  */
 
 import * as React from 'react';
-import { Menu, Search, Bell, User, Shield, LogOut } from 'lucide-react';
+import Link from 'next/link';
+import { Menu, Search, Bell, User, Shield, LogOut, MessageSquare } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserRole } from '@ems/contracts';
 import { useAuth } from '@/hooks/use-auth';
@@ -76,18 +77,29 @@ export function Header({ currentRole, onOpenMobileNav }: HeaderProps) {
         {/* Theme Switcher */}
         <ThemeToggle />
 
-        {/* Notifications Icon */}
-        <button
-          type="button"
+        {/* Direct Messages Quick Link */}
+        <Link
+          href="/messages"
+          className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="View direct messages"
+          title="Direct Messages"
+        >
+          <MessageSquare className="h-4 w-4" />
+        </Link>
+
+        {/* Notifications Icon Link */}
+        <Link
+          href="/notifications"
           className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label="View system notifications"
+          title="Notifications & Alerts"
         >
           <Bell className="h-4 w-4" />
           <span className="absolute right-1.5 top-1.5 flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
           </span>
-        </button>
+        </Link>
 
         {/* User Profile Avatar / Summary */}
         <div className="flex items-center gap-2.5 border-l border-border pl-2.5 sm:pl-3">

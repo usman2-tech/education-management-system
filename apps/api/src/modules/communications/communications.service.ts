@@ -1,10 +1,10 @@
 /**
- * MODULE: Communications & Messaging - Service
+ * MODULE: Communications & Messaging - Service (TASK 030)
  *
  * PURPOSE:
- * Provides in-app notification center, read/unread tracking, school broadcast announcements,
- * and secure direct messaging threads with strict institutional tenant isolation and verified
- * parent-child permission controls.
+ * Provides in-app notification center, read/unread tracking, automated absence alerts,
+ * school & class broadcast announcements with preview, and secure direct messaging
+ * threads with strict institutional tenant isolation and role-based communication barriers.
  *
  * DEPENDENCIES:
  * PrismaService, UserRole, NotificationType
@@ -12,6 +12,7 @@
  * SECURITY:
  * Strict school isolation: prevents cross-school communications.
  * Respects verified parent-child linkages: parents can message teachers of linked children.
+ * Teachers can only message students and guardians of their assigned classes.
  * Students can only message assigned faculty and administrators.
  */
 
@@ -26,9 +27,12 @@ import { UserRole, NotificationType } from '@prisma/client';
 import {
   CreateNotificationDto,
   BroadcastAnnouncementDto,
+  PreviewAnnouncementDto,
   CreateConversationDto,
   SendMessageDto,
+  UpdateNotificationPreferenceDto,
 } from './dto/communications.dto';
+import { AuthUser } from '@ems/contracts';
 
 @Injectable()
 export class CommunicationsService {
@@ -42,7 +46,7 @@ export class CommunicationsService {
    * Get user notifications with unread count.
    */
   async getNotifications(
-    currentUser: { id: string },
+    currentUser: AuthUser,
     unreadOnly: boolean = false,
   ) {
     const where: any = { userId: currentUser.id };
@@ -68,7 +72,7 @@ export class CommunicationsService {
   /**
    * Mark single notification as read.
    */
-  async markAsRead(currentUser: { id: string }, notificationId: string) {
+  async markAsRead(currentUser: AuthUser, notificationId: string) {
     const notif = await this.prisma.notification.findUnique({
       where: { id: notificationId },
     });
@@ -88,7 +92,7 @@ export class CommunicationsService {
   /**
    * Mark all user notifications as read.
    */
-  async markAllAsRead(currentUser: { id: string }) {
+  async markAllAsRead(currentUser: AuthUser) {
     await this.prisma.notification.updateMany({
       where: { userId: currentUser.id, read: false },
       data: { read: true },
@@ -108,24 +112,58 @@ export class CommunicationsService {
         message: dto.message,
         type: dto.type || NotificationType.INFO,
         link: dto.link || null,
+        metadata: dto.metadata ? (dto.metadata as any) : undefined,
         read: false,
       },
     });
     return this.formatNotification(notif);
   }
 
+  // ============================================================================
+  // ANNOUNCEMENTS & PREVIEW
+  // ============================================================================
+
   /**
-   * Broadcast announcement to school members (School Admin or Platform Admin).
+   * Preview recipient count and sample list before sending announcement.
+   */
+  async previewAnnouncement(currentUser: AuthUser, dto: PreviewAnnouncementDto) {
+    const schoolId = currentUser.schoolId;
+    if (!schoolId && currentUser.role !== UserRole.PLATFORM_ADMIN) {
+      throw new ForbiddenException('Administrator must belong to a school tenant');
+    }
+
+    const recipientIds = await this.resolveAnnouncementRecipients(currentUser, dto);
+    const sampleUsers = await this.prisma.user.findMany({
+      where: { id: { in: recipientIds.slice(0, 5) } },
+      select: { id: true, firstName: true, lastName: true, role: true, email: true },
+    });
+
+    return {
+      recipientCount: recipientIds.length,
+      targetRole: dto.targetRole || 'ALL',
+      classSectionId: dto.classSectionId,
+      sampleRecipients: sampleUsers.map((u) => ({
+        id: u.id,
+        name: `${u.firstName} ${u.lastName}`,
+        role: u.role,
+        email: u.email,
+      })),
+    };
+  }
+
+  /**
+   * Broadcast announcement to school members with class or role targeting.
    */
   async broadcastAnnouncement(
-    currentUser: { id: string; role: UserRole; schoolId: string | null },
+    currentUser: AuthUser,
     dto: BroadcastAnnouncementDto,
   ) {
     if (
       currentUser.role !== UserRole.PLATFORM_ADMIN &&
-      currentUser.role !== UserRole.SCHOOL_ADMIN
+      currentUser.role !== UserRole.SCHOOL_ADMIN &&
+      currentUser.role !== UserRole.TEACHER
     ) {
-      throw new ForbiddenException('Only Administrators can broadcast school announcements');
+      throw new ForbiddenException('Only Administrators and Teachers can broadcast announcements');
     }
 
     const schoolId = currentUser.schoolId;
@@ -133,22 +171,15 @@ export class CommunicationsService {
       throw new ForbiddenException('Administrator must belong to a school tenant');
     }
 
-    const userWhere: any = {};
-    if (schoolId) userWhere.schoolId = schoolId;
-    if (dto.targetRole) userWhere.role = dto.targetRole;
+    const recipientIds = await this.resolveAnnouncementRecipients(currentUser, dto);
 
-    const targetUsers = await this.prisma.user.findMany({
-      where: userWhere,
-      select: { id: true },
-    });
-
-    if (targetUsers.length === 0) {
+    if (recipientIds.length === 0) {
       return { count: 0, message: 'No recipients matched the broadcast criteria' };
     }
 
     await this.prisma.notification.createMany({
-      data: targetUsers.map((u) => ({
-        userId: u.id,
+      data: recipientIds.map((userId) => ({
+        userId,
         schoolId,
         title: dto.title,
         message: dto.message,
@@ -164,19 +195,88 @@ export class CommunicationsService {
         entityType: 'Notification',
         entityId: schoolId || 'global',
         actorId: currentUser.id,
+        actorEmail: currentUser.email,
         schoolId,
         details: {
           title: dto.title,
-          recipientsCount: targetUsers.length,
+          recipientsCount: recipientIds.length,
           targetRole: dto.targetRole || 'ALL',
+          classSectionId: dto.classSectionId || null,
         },
       },
     });
 
     return {
-      count: targetUsers.length,
-      message: `Announcement broadcast successfully to ${targetUsers.length} users`,
+      count: recipientIds.length,
+      message: `Announcement broadcast successfully to ${recipientIds.length} users`,
     };
+  }
+
+  private async resolveAnnouncementRecipients(
+    currentUser: AuthUser,
+    filter: { targetRole?: UserRole; classSectionId?: string },
+  ): Promise<string[]> {
+    const schoolId = currentUser.schoolId;
+
+    // If teacher, must target one of their assigned class sections
+    if (currentUser.role === UserRole.TEACHER) {
+      if (!filter.classSectionId) {
+        throw new BadRequestException('Teachers must specify an assigned classSectionId for announcements');
+      }
+
+      const assigned = await this.prisma.teacherSubjectAssignment.findFirst({
+        where: { teacherId: currentUser.id, sectionId: filter.classSectionId },
+      });
+      if (!assigned) {
+        throw new ForbiddenException('Teachers can only broadcast to classes they are assigned to');
+      }
+
+      // Target students in section
+      const enrollments = await this.prisma.classEnrollment.findMany({
+        where: { sectionId: filter.classSectionId, status: 'ACTIVE' },
+        select: { studentId: true },
+      });
+      const studentIds = enrollments.map((e) => e.studentId);
+
+      if (filter.targetRole === UserRole.PARENT) {
+        const guardians = await this.prisma.studentGuardianRelationship.findMany({
+          where: { studentId: { in: studentIds }, verificationStatus: 'VERIFIED' },
+          select: { guardianId: true },
+        });
+        return Array.from(new Set(guardians.map((g) => g.guardianId)));
+      }
+
+      return Array.from(new Set(studentIds));
+    }
+
+    // Admin / Platform Admin logic
+    if (filter.classSectionId) {
+      const enrollments = await this.prisma.classEnrollment.findMany({
+        where: { sectionId: filter.classSectionId, status: 'ACTIVE' },
+        select: { studentId: true },
+      });
+      const studentIds = enrollments.map((e) => e.studentId);
+
+      if (filter.targetRole === UserRole.PARENT) {
+        const guardians = await this.prisma.studentGuardianRelationship.findMany({
+          where: { studentId: { in: studentIds }, verificationStatus: 'VERIFIED' },
+          select: { guardianId: true },
+        });
+        return Array.from(new Set(guardians.map((g) => g.guardianId)));
+      }
+
+      return Array.from(new Set(studentIds));
+    }
+
+    const where: any = {};
+    if (schoolId) where.schoolId = schoolId;
+    if (filter.targetRole) where.role = filter.targetRole;
+
+    const users = await this.prisma.user.findMany({
+      where,
+      select: { id: true },
+    });
+    return users.map((u) => u.id);
   }
 
   // ============================================================================
@@ -184,10 +284,232 @@ export class CommunicationsService {
   // ============================================================================
 
   /**
-   * Get all conversation threads for current user.
+   * Get authorized recipient contacts for composing a message.
+   */
+  async getAvailableRecipients(currentUser: AuthUser) {
+    const schoolId = currentUser.schoolId;
+
+    if (currentUser.role === UserRole.PLATFORM_ADMIN) {
+      // Platform Admin can message any school admin
+      const admins = await this.prisma.user.findMany({
+        where: { role: UserRole.SCHOOL_ADMIN, isActive: true },
+        include: { school: { select: { name: true } } },
+      });
+      return admins.map((u) => ({
+        id: u.id,
+        name: `${u.firstName} ${u.lastName}`,
+        role: u.role,
+        email: u.email,
+        context: u.school ? `School Admin - ${u.school.name}` : 'School Admin',
+      }));
+    }
+
+    if (!schoolId) {
+      throw new ForbiddenException('User is not associated with an institutional school tenant');
+    }
+
+    if (currentUser.role === UserRole.SCHOOL_ADMIN) {
+      // School Admin can message any active user in their school
+      const users = await this.prisma.user.findMany({
+        where: { schoolId, isActive: true, id: { not: currentUser.id } },
+        orderBy: [{ role: 'asc' }, { firstName: 'asc' }],
+        take: 150,
+      });
+      return users.map((u) => ({
+        id: u.id,
+        name: `${u.firstName} ${u.lastName}`,
+        role: u.role,
+        email: u.email,
+        context: `${u.role.replace('_', ' ')}`,
+      }));
+    }
+
+    if (currentUser.role === UserRole.TEACHER) {
+      // Teacher can message:
+      // 1. School Admins in their school
+      // 2. Students enrolled in their assigned sections
+      // 3. Verified Guardians of those students
+      const admins = await this.prisma.user.findMany({
+        where: { schoolId, role: UserRole.SCHOOL_ADMIN, isActive: true },
+      });
+
+      const assignments = await this.prisma.teacherSubjectAssignment.findMany({
+        where: { teacherId: currentUser.id },
+        select: { sectionId: true, section: { select: { name: true, schoolClass: { select: { name: true } } } } },
+      });
+      const sectionIds = Array.from(new Set(assignments.map((a) => a.sectionId)));
+
+      const enrollments = await this.prisma.classEnrollment.findMany({
+        where: { sectionId: { in: sectionIds }, status: 'ACTIVE' },
+        include: {
+          student: true,
+          section: { select: { name: true, schoolClass: { select: { name: true } } } },
+        },
+      });
+
+      const studentIds = Array.from(new Set(enrollments.map((e) => e.studentId)));
+
+      const guardians = await this.prisma.studentGuardianRelationship.findMany({
+        where: { studentId: { in: studentIds }, verificationStatus: 'VERIFIED' },
+        include: {
+          guardian: true,
+          student: { select: { firstName: true, lastName: true } },
+        },
+      });
+
+      const results: any[] = [];
+      const seenIds = new Set<string>();
+
+      for (const a of admins) {
+        results.push({
+          id: a.id,
+          name: `${a.firstName} ${a.lastName}`,
+          role: a.role,
+          email: a.email,
+          context: 'School Administration',
+        });
+        seenIds.add(a.id);
+      }
+
+      for (const e of enrollments) {
+        if (!seenIds.has(e.student.id)) {
+          results.push({
+            id: e.student.id,
+            name: `${e.student.firstName} ${e.student.lastName}`,
+            role: e.student.role,
+            email: e.student.email,
+            context: `Student - ${e.section.schoolClass.name} (${e.section.name})`,
+          });
+          seenIds.add(e.student.id);
+        }
+      }
+
+      for (const g of guardians) {
+        if (!seenIds.has(g.guardian.id)) {
+          results.push({
+            id: g.guardian.id,
+            name: `${g.guardian.firstName} ${g.guardian.lastName}`,
+            role: g.guardian.role,
+            email: g.guardian.email,
+            context: `Parent of ${g.student.firstName} ${g.student.lastName}`,
+          });
+          seenIds.add(g.guardian.id);
+        }
+      }
+
+      return results;
+    }
+
+    if (currentUser.role === UserRole.STUDENT) {
+      // Student can message teachers of enrolled classes and school administrators
+      const admins = await this.prisma.user.findMany({
+        where: { schoolId, role: UserRole.SCHOOL_ADMIN, isActive: true },
+      });
+
+      const enrollments = await this.prisma.classEnrollment.findMany({
+        where: { studentId: currentUser.id, status: 'ACTIVE' },
+        select: { sectionId: true },
+      });
+      const sectionIds = enrollments.map((e) => e.sectionId);
+
+      const assignments = await this.prisma.teacherSubjectAssignment.findMany({
+        where: { sectionId: { in: sectionIds } },
+        include: { teacher: true, subject: { select: { name: true } } },
+      });
+
+      const results: any[] = [];
+      const seenIds = new Set<string>();
+
+      for (const a of admins) {
+        results.push({
+          id: a.id,
+          name: `${a.firstName} ${a.lastName}`,
+          role: a.role,
+          email: a.email,
+          context: 'School Administration',
+        });
+        seenIds.add(a.id);
+      }
+
+      for (const asg of assignments) {
+        if (!seenIds.has(asg.teacher.id)) {
+          results.push({
+            id: asg.teacher.id,
+            name: `${asg.teacher.firstName} ${asg.teacher.lastName}`,
+            role: asg.teacher.role,
+            email: asg.teacher.email,
+            context: `Teacher - ${asg.subject.name}`,
+          });
+          seenIds.add(asg.teacher.id);
+        }
+      }
+
+      return results;
+    }
+
+    if (currentUser.role === UserRole.PARENT) {
+      // Parent can message teachers of verified linked children and school administrators
+      const admins = await this.prisma.user.findMany({
+        where: { schoolId, role: UserRole.SCHOOL_ADMIN, isActive: true },
+      });
+
+      const children = await this.prisma.studentGuardianRelationship.findMany({
+        where: { guardianId: currentUser.id, verificationStatus: 'VERIFIED' },
+        select: { studentId: true, student: { select: { firstName: true, lastName: true } } },
+      });
+      const studentIds = children.map((c) => c.studentId);
+
+      const enrollments = await this.prisma.classEnrollment.findMany({
+        where: { studentId: { in: studentIds }, status: 'ACTIVE' },
+        select: { sectionId: true },
+      });
+      const sectionIds = enrollments.map((e) => e.sectionId);
+
+      const assignments = await this.prisma.teacherSubjectAssignment.findMany({
+        where: { sectionId: { in: sectionIds } },
+        include: { teacher: true, subject: { select: { name: true } } },
+      });
+
+      const results: any[] = [];
+      const seenIds = new Set<string>();
+
+      for (const a of admins) {
+        results.push({
+          id: a.id,
+          name: `${a.firstName} ${a.lastName}`,
+          role: a.role,
+          email: a.email,
+          context: 'School Administration',
+        });
+        seenIds.add(a.id);
+      }
+
+      for (const asg of assignments) {
+        if (!seenIds.has(asg.teacher.id)) {
+          results.push({
+            id: asg.teacher.id,
+            name: `${asg.teacher.firstName} ${asg.teacher.lastName}`,
+            role: asg.teacher.role,
+            email: asg.teacher.email,
+            context: `Faculty - ${asg.subject.name}`,
+          });
+          seenIds.add(asg.teacher.id);
+        }
+      }
+
+      return results;
+    }
+
+    return [];
+  }
+
+  /**
+   * Get all conversation threads for current user with optional tab filter and search.
    */
   async getConversations(
-    currentUser: { id: string; role: UserRole; schoolId: string | null },
+    currentUser: AuthUser,
+    type: 'inbox' | 'sent' | 'unread' | 'all' = 'all',
+    search?: string,
   ) {
     const participants = await this.prisma.conversationParticipant.findMany({
       where: { userId: currentUser.id },
@@ -223,19 +545,38 @@ export class CommunicationsService {
         },
       });
 
+      // Filter by tab type
+      if (type === 'unread' && unreadCount === 0) continue;
+      if (type === 'sent' && lastMsg && lastMsg.senderId !== currentUser.id) continue;
+      if (type === 'inbox' && lastMsg && lastMsg.senderId === currentUser.id && unreadCount === 0) continue;
+
+      // Filter by search query
+      if (search) {
+        const q = search.toLowerCase();
+        const matchesSubject = conv.subject?.toLowerCase().includes(q);
+        const matchesContent = lastMsg?.content.toLowerCase().includes(q);
+        const matchesParticipant = conv.participants.some(
+          (cp) =>
+            cp.user.firstName.toLowerCase().includes(q) ||
+            cp.user.lastName.toLowerCase().includes(q) ||
+            cp.user.email.toLowerCase().includes(q),
+        );
+        if (!matchesSubject && !matchesContent && !matchesParticipant) continue;
+      }
+
       results.push({
         id: conv.id,
         schoolId: conv.schoolId,
         subject: conv.subject,
-        lastMessageAt: conv.lastMessageAt ? (typeof conv.lastMessageAt === 'string' ? conv.lastMessageAt : conv.lastMessageAt.toISOString()) : new Date().toISOString(),
-        createdAt: conv.createdAt ? (typeof conv.createdAt === 'string' ? conv.createdAt : conv.createdAt.toISOString()) : new Date().toISOString(),
+        lastMessageAt: conv.lastMessageAt instanceof Date ? conv.lastMessageAt.toISOString() : String(conv.lastMessageAt),
+        createdAt: conv.createdAt instanceof Date ? conv.createdAt.toISOString() : String(conv.createdAt),
         unreadCount,
         participants: conv.participants.map((cp) => ({
           userId: cp.userId,
           name: `${cp.user.firstName} ${cp.user.lastName}`,
           email: cp.user.email,
           role: cp.user.role,
-          lastReadAt: cp.lastReadAt ? (typeof cp.lastReadAt === 'string' ? cp.lastReadAt : cp.lastReadAt.toISOString()) : null,
+          lastReadAt: cp.lastReadAt ? (cp.lastReadAt instanceof Date ? cp.lastReadAt.toISOString() : String(cp.lastReadAt)) : null,
         })),
         lastMessage: lastMsg
           ? {
@@ -245,7 +586,9 @@ export class CommunicationsService {
               senderName: `${lastMsg.sender.firstName} ${lastMsg.sender.lastName}`,
               senderRole: lastMsg.sender.role,
               content: lastMsg.content,
-              createdAt: lastMsg.createdAt ? (typeof lastMsg.createdAt === 'string' ? lastMsg.createdAt : lastMsg.createdAt.toISOString()) : new Date().toISOString(),
+              isRead: lastMsg.isRead,
+              readAt: lastMsg.readAt ? (lastMsg.readAt instanceof Date ? lastMsg.readAt.toISOString() : String(lastMsg.readAt)) : null,
+              createdAt: lastMsg.createdAt instanceof Date ? lastMsg.createdAt.toISOString() : String(lastMsg.createdAt),
             }
           : null,
       });
@@ -255,10 +598,34 @@ export class CommunicationsService {
   }
 
   /**
+   * Fast total unread message counter for navigation badge.
+   */
+  async getUnreadCount(currentUser: AuthUser) {
+    const participants = await this.prisma.conversationParticipant.findMany({
+      where: { userId: currentUser.id },
+      select: { conversationId: true, lastReadAt: true },
+    });
+
+    let total = 0;
+    for (const p of participants) {
+      const count = await this.prisma.directMessage.count({
+        where: {
+          conversationId: p.conversationId,
+          createdAt: p.lastReadAt ? { gt: p.lastReadAt } : undefined,
+          senderId: { not: currentUser.id },
+        },
+      });
+      total += count;
+    }
+
+    return { unreadCount: total };
+  }
+
+  /**
    * Start a new conversation or send to existing conversation.
    */
   async createConversation(
-    currentUser: { id: string; role: UserRole; schoolId: string | null },
+    currentUser: AuthUser,
     dto: CreateConversationDto,
   ) {
     if (currentUser.id === dto.recipientId) {
@@ -291,7 +658,6 @@ export class CommunicationsService {
       if (recipient.role !== UserRole.TEACHER && recipient.role !== UserRole.SCHOOL_ADMIN) {
         throw new ForbiddenException('Parents may only message faculty and administrators');
       }
-      // If messaging a teacher, verify teacher teaches one of parent's verified children
       if (recipient.role === UserRole.TEACHER) {
         const children = await this.prisma.studentGuardianRelationship.findMany({
           where: { guardianId: currentUser.id, verificationStatus: 'VERIFIED' },
@@ -313,6 +679,39 @@ export class CommunicationsService {
           throw new ForbiddenException(
             'Parents may only message teachers assigned to their verified children',
           );
+        }
+      }
+    }
+
+    if (currentUser.role === UserRole.TEACHER) {
+      if (recipient.role === UserRole.STUDENT) {
+        const teacherSections = await this.prisma.teacherSubjectAssignment.findMany({
+          where: { teacherId: currentUser.id },
+          select: { sectionId: true },
+        });
+        const sectionIds = teacherSections.map((s) => s.sectionId);
+        const enrolled = await this.prisma.classEnrollment.findFirst({
+          where: { studentId: recipient.id, sectionId: { in: sectionIds }, status: 'ACTIVE' },
+        });
+        if (!enrolled) {
+          throw new ForbiddenException('Teachers can only message students enrolled in their assigned classes');
+        }
+      } else if (recipient.role === UserRole.PARENT) {
+        const teacherSections = await this.prisma.teacherSubjectAssignment.findMany({
+          where: { teacherId: currentUser.id },
+          select: { sectionId: true },
+        });
+        const sectionIds = teacherSections.map((s) => s.sectionId);
+        const children = await this.prisma.studentGuardianRelationship.findMany({
+          where: { guardianId: recipient.id, verificationStatus: 'VERIFIED' },
+          select: { studentId: true },
+        });
+        const studentIds = children.map((c) => c.studentId);
+        const enrolled = await this.prisma.classEnrollment.findFirst({
+          where: { studentId: { in: studentIds }, sectionId: { in: sectionIds }, status: 'ACTIVE' },
+        });
+        if (!enrolled) {
+          throw new ForbiddenException('Teachers can only message guardians of students in their assigned classes');
         }
       }
     }
@@ -404,7 +803,7 @@ export class CommunicationsService {
    * Get messages in conversation thread and mark user read.
    */
   async getConversationMessages(
-    currentUser: { id: string },
+    currentUser: AuthUser,
     conversationId: string,
   ) {
     const participant = await this.prisma.conversationParticipant.findUnique({
@@ -419,10 +818,20 @@ export class CommunicationsService {
       throw new ForbiddenException('User is not a participant in this conversation');
     }
 
-    // Mark read
+    // Mark participant read timestamp
     await this.prisma.conversationParticipant.update({
       where: { id: participant.id },
       data: { lastReadAt: new Date() },
+    });
+
+    // Mark messages as read
+    await this.prisma.directMessage.updateMany({
+      where: {
+        conversationId,
+        senderId: { not: currentUser.id },
+        isRead: false,
+      },
+      data: { isRead: true, readAt: new Date() },
     });
 
     const messages = await this.prisma.directMessage.findMany({
@@ -438,6 +847,8 @@ export class CommunicationsService {
       senderName: `${m.sender.firstName} ${m.sender.lastName}`,
       senderRole: m.sender.role,
       content: m.content,
+      isRead: m.isRead,
+      readAt: m.readAt ? m.readAt.toISOString() : null,
       createdAt: m.createdAt.toISOString(),
       isMine: m.senderId === currentUser.id,
     }));
@@ -447,7 +858,7 @@ export class CommunicationsService {
    * Send a message to an existing conversation.
    */
   async sendMessage(
-    currentUser: { id: string },
+    currentUser: AuthUser,
     conversationId: string,
     dto: SendMessageDto,
   ) {
@@ -508,9 +919,97 @@ export class CommunicationsService {
       senderName: `${msg.sender.firstName} ${msg.sender.lastName}`,
       senderRole: msg.sender.role,
       content: msg.content,
+      isRead: false,
+      readAt: null,
       createdAt: msg.createdAt.toISOString(),
       isMine: true,
     };
+  }
+
+  // ============================================================================
+  // NOTIFICATION PREFERENCES
+  // ============================================================================
+
+  /**
+   * Retrieve notification preferences for an institutional school tenant.
+   */
+  async getNotificationPreferences(currentUser: AuthUser, explicitSchoolId?: string) {
+    const schoolId = explicitSchoolId || currentUser.schoolId;
+    if (!schoolId) {
+      throw new BadRequestException('Institutional school context is required');
+    }
+
+    if (currentUser.role !== UserRole.PLATFORM_ADMIN && currentUser.schoolId !== schoolId) {
+      throw new ForbiddenException('Cannot access notification preferences of another school');
+    }
+
+    let pref = await this.prisma.notificationPreference.findUnique({
+      where: { schoolId },
+    });
+
+    if (!pref) {
+      pref = await this.prisma.notificationPreference.create({
+        data: {
+          schoolId,
+          absenceAlertsEnabled: true,
+          attendanceCorrectionAlertsEnabled: true,
+          homeworkAlertsEnabled: true,
+          feeAlertsEnabled: true,
+          transportAlertsEnabled: true,
+          libraryAlertsEnabled: true,
+        },
+      });
+    }
+
+    return pref;
+  }
+
+  /**
+   * Update notification preferences (School Administrator or Platform Admin).
+   */
+  async updateNotificationPreferences(
+    currentUser: AuthUser,
+    dto: UpdateNotificationPreferenceDto,
+    explicitSchoolId?: string,
+  ) {
+    if (
+      currentUser.role !== UserRole.PLATFORM_ADMIN &&
+      currentUser.role !== UserRole.SCHOOL_ADMIN
+    ) {
+      throw new ForbiddenException('Only Administrators can modify school notification preferences');
+    }
+
+    const schoolId = explicitSchoolId || currentUser.schoolId;
+    if (!schoolId) {
+      throw new BadRequestException('Institutional school context is required');
+    }
+
+    if (currentUser.role !== UserRole.PLATFORM_ADMIN && currentUser.schoolId !== schoolId) {
+      throw new ForbiddenException('Cannot modify notification preferences of another school');
+    }
+
+    const updated = await this.prisma.notificationPreference.upsert({
+      where: { schoolId },
+      update: {
+        absenceAlertsEnabled: dto.absenceAlertsEnabled,
+        attendanceCorrectionAlertsEnabled: dto.attendanceCorrectionAlertsEnabled,
+        homeworkAlertsEnabled: dto.homeworkAlertsEnabled,
+        feeAlertsEnabled: dto.feeAlertsEnabled,
+        transportAlertsEnabled: dto.transportAlertsEnabled,
+        libraryAlertsEnabled: dto.libraryAlertsEnabled,
+      },
+      create: {
+        schoolId,
+        absenceAlertsEnabled: dto.absenceAlertsEnabled ?? true,
+        attendanceCorrectionAlertsEnabled: dto.attendanceCorrectionAlertsEnabled ?? true,
+        homeworkAlertsEnabled: dto.homeworkAlertsEnabled ?? true,
+        feeAlertsEnabled: dto.feeAlertsEnabled ?? true,
+        transportAlertsEnabled: dto.transportAlertsEnabled ?? true,
+        libraryAlertsEnabled: dto.libraryAlertsEnabled ?? true,
+      },
+    });
+
+    return updated;
   }
 
   private formatNotification(n: any) {
@@ -523,7 +1022,8 @@ export class CommunicationsService {
       type: n.type,
       read: n.read,
       link: n.link,
-      createdAt: n.createdAt ? (typeof n.createdAt === 'string' ? n.createdAt : n.createdAt.toISOString()) : new Date().toISOString(),
+      metadata: n.metadata,
+      createdAt: n.createdAt instanceof Date ? n.createdAt.toISOString() : String(n.createdAt),
     };
   }
 }

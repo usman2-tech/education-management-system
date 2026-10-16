@@ -237,6 +237,9 @@ model School {
   libraryFines                LibraryFine[]
   libraryPolicies             LibraryPolicy[]
 
+  // Notifications & Messaging Preferences (TASK 030)
+  notificationPreference      NotificationPreference?
+
   @@map("schools")
 }
 
@@ -1189,7 +1192,7 @@ model CodeRedemption {
 }
 
 // ------------------------------------------------------------------------------
-// Notifications & Messaging Models (TASK 015)
+// Notifications & Messaging Models (TASK 015 & TASK 030)
 // ------------------------------------------------------------------------------
 model Notification {
   id        String           @id @default(uuid())
@@ -1202,6 +1205,7 @@ model Notification {
   type      NotificationType @default(INFO)
   read      Boolean          @default(false)
   link      String?
+  metadata  Json?
   createdAt DateTime         @default(now())
 
   @@index([userId, read])
@@ -1246,11 +1250,30 @@ model DirectMessage {
   senderId       String
   sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   content        String       @db.Text
+  isRead         Boolean      @default(false)
+  readAt         DateTime?
   createdAt      DateTime     @default(now())
 
   @@index([conversationId])
   @@index([senderId])
   @@map("direct_messages")
+}
+
+model NotificationPreference {
+  id                                String   @id @default(uuid())
+  schoolId                          String   @unique
+  school                            School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  absenceAlertsEnabled              Boolean  @default(true)
+  attendanceCorrectionAlertsEnabled Boolean  @default(true)
+  homeworkAlertsEnabled             Boolean  @default(true)
+  feeAlertsEnabled                  Boolean  @default(true)
+  transportAlertsEnabled            Boolean  @default(true)
+  libraryAlertsEnabled              Boolean  @default(true)
+  createdAt                         DateTime @default(now())
+  updatedAt                         DateTime @updatedAt
+
+  @@index([schoolId])
+  @@map("notification_preferences")
 }
 
 // ==============================================================================
