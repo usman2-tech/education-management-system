@@ -16,6 +16,7 @@
  */
 
 import React, { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { aiApi } from '@/lib/ai-api';
 import {
@@ -47,7 +48,8 @@ import {
 } from 'lucide-react';
 
 export default function AIAssistantPage() {
-  const { user, effectiveRole } = useAuth();
+  const router = useRouter();
+  const { user, effectiveRole, isLoading: authLoading, isAuthenticated } = useAuth();
 
   // State
   const [conversations, setConversations] = useState<AIConversationDto[]>([]);
@@ -73,8 +75,19 @@ export default function AIAssistantPage() {
     scrollToBottom();
   }, [messages, isSending]);
 
+  // Redirect Parent/Guardian users to the dedicated AI Parent Assistant
+  useEffect(() => {
+    if (!authLoading && (effectiveRole === UserRole.PARENT || user?.role === UserRole.PARENT)) {
+      router.replace('/parent/assistant');
+    }
+  }, [authLoading, effectiveRole, user, router]);
+
   // Initial load: conversations, prompts, usage
   useEffect(() => {
+    if (effectiveRole === UserRole.PARENT || user?.role === UserRole.PARENT) {
+      return;
+    }
+
     async function init() {
       setIsLoading(true);
       setError(null);
@@ -107,7 +120,7 @@ export default function AIAssistantPage() {
     }
 
     init();
-  }, [effectiveRole]);
+  }, [effectiveRole, user?.role]);
 
   // Load a specific conversation's history
   const loadConversation = async (id: string) => {
@@ -221,6 +234,15 @@ export default function AIAssistantPage() {
         return { label: 'Academic Scope', icon: Bot, color: 'text-primary bg-primary/10 border-primary/20' };
     }
   };
+
+  if (!authLoading && (effectiveRole === UserRole.PARENT || user?.role === UserRole.PARENT)) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground">Redirecting to AI Parent Assistant...</p>
+      </div>
+    );
+  }
 
   const roleBadge = getRoleBadge();
   const RoleIcon = roleBadge.icon;
