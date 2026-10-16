@@ -28,6 +28,8 @@ import { CommunicationsModule } from './modules/communications/communications.mo
 import { DashboardsModule } from './modules/dashboards/dashboards.module';
 import { FeesModule } from './modules/fees/fees.module';
 import { AiModule } from './modules/ai/ai.module';
+import { TransportModule } from './modules/transport/transport.module';
+import { LibraryModule } from './modules/library/library.module';
 
 @Module({
   imports: [
@@ -53,6 +55,8 @@ import { AiModule } from './modules/ai/ai.module';
     DashboardsModule,
     FeesModule,
     AiModule,
+    TransportModule,
+    LibraryModule,
   ],
 })
 export class AppModule {}

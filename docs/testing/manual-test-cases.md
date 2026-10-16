@@ -1123,3 +1123,138 @@ This document guides the user through manually verifying the architecture, front
    - Querying child records for an unlinked student ID returns `HTTP 403 Forbidden`.
 3. **Multi-School Isolation**:
    - Queries across school boundaries return `HTTP 403` or `404`.
+
+---
+
+## Test Scenario AI: Transport Management with Real-Time GPS Tracking (TASK 027)
+- **URLs**:
+  - Admin Fleet Oversight: `http://localhost:3000/transport`
+  - Driver GPS Portal: `http://localhost:3000/transport/driver`
+  - Parent Bus Tracking: `http://localhost:3000/parent/transport`
+  - Student Route View: `http://localhost:3000/student/transport`
+- **Users**:
+  - School Admin: `admin@stjude.ems.local` / `Password123!`
+  - Driver / Staff: `teacher@stjude.ems.local` / `Password123!`
+  - Parent: `parent@stjude.ems.local` / `Password123!`
+  - Student: `student@stjude.ems.local` / `Password123!`
+
+### Part 1: Admin Fleet Management (`/transport`)
+1. **Login & Navigation**:
+   - Log in as School Admin (`admin@stjude.ems.local`).
+   - Click **Transport** in the left navigation sidebar.
+   - Verify summary KPI cards: Total Vehicles (8+), Active Drivers (8+), Total Routes (8+), Live Active Trips (2).
+2. **Vehicle Registry**:
+   - In the **Vehicles** tab, review the fleet list (e.g., ST-BUS-101, ST-BUS-102, ST-MINI-201).
+   - Click **Add Vehicle**. Enter registration `BUS-EXP-99`, type `BUS`, seating capacity `45`, insurance `INS-999`. Save.
+   - Verify new vehicle appears in the list and can be edited.
+3. **Driver Assignment**:
+   - Switch to the **Drivers** tab.
+   - Verify licensed drivers list with assigned vehicle badges, phone numbers, and license expiry warnings.
+4. **Route Planning & Stop Sequence**:
+   - Switch to the **Routes & Stops** tab.
+   - Select a route (e.g., *"North District Morning Pickup"*).
+   - Verify ordered stops table displaying stop sequence (`#1`, `#2`, `#3`), stop names, scheduled pickup/dropoff times, and geocoordinates.
+5. **Student Allocation & Capacity Enforcement**:
+   - Switch to the **Student Allocations** tab.
+   - Review assigned students with their boarding stops and assigned vehicles.
+   - Verify that adding students beyond vehicle seating capacity is rejected with an institutional capacity warning.
+6. **Live Fleet Map & Active Trips**:
+   - Switch to the **Live Fleet Map** tab.
+   - Verify active trips in progress with live vehicle location cards, current speed, heading, and simulated GPS markers (`[SIMULATED]` badge).
+
+### Part 2: Driver GPS Ingestion Portal (`/transport/driver`)
+1. **Login & Navigation**:
+   - Navigate to `http://localhost:3000/transport/driver`.
+2. **Start & End Trip**:
+   - Select an assigned route and vehicle.
+   - Click **Start Trip**. Verify trip status updates to `IN_PROGRESS`.
+3. **Simulated Telemetry & Real-Time Broadcast**:
+   - Click **Transmit GPS Ping** or enable **Auto-Simulation**.
+   - Verify latitude and longitude update on the telemetry HUD with `isSimulated: true`.
+4. **Student Attendance Logging**:
+   - In the attendance section, check in a student as `BOARDED`.
+   - Verify status updates in real-time.
+
+### Part 3: Parent Live Bus Tracking (`/parent/transport`)
+1. **Login & Navigation**:
+   - Log in as Parent (`parent@stjude.ems.local`).
+   - Click **Transport & Bus** in the left navigation sidebar.
+2. **Linked Child Route Scoping**:
+   - Verify route and vehicle details for linked child (*Alex Johnson*).
+   - Verify stop name, scheduled pickup time, and assigned driver contact info.
+3. **Live Bus Location & ETA**:
+   - Verify live bus telemetry card displays current location, speed, distance to stop, and simulated coordinates.
+   - Verify parent CANNOT see or access unlinked buses or students from other schools.
+
+### Part 4: Student Transport Portal (`/student/transport`)
+1. **Login & Navigation**:
+   - Log in as Student (`student@stjude.ems.local`).
+   - Click **My Transport** in the left navigation sidebar.
+   - Verify personal route card, assigned vehicle number, pickup stop, and scheduled arrival time.
+
+---
+
+## Test Scenario AJ: Library Management & Circulation Control (TASK 028)
+- **URLs**:
+  - Admin Library Management: `http://localhost:3000/library`
+  - Student Library Portal: `http://localhost:3000/student/library`
+  - Teacher Library Portal: `http://localhost:3000/teacher/library`
+  - Parent Library Portal: `http://localhost:3000/parent/library`
+- **Users**:
+  - School Admin: `admin@stjude.ems.local` / `Password123!`
+  - Teacher: `teacher@stjude.ems.local` / `Password123!`
+  - Student: `student@stjude.ems.local` / `Password123!`
+  - Parent: `parent@stjude.ems.local` / `Password123!`
+
+### Part 1: Admin Library Management (`/library`)
+1. **Login & Circulation Desk**:
+   - Log in as School Admin (`admin@stjude.ems.local`).
+   - Click **Library** in the left navigation sidebar.
+   - Verify KPI cards: Total Titles (8+), Total Physical Copies (16+), Active Loans, Overdue Loans, Fines Collected.
+2. **Book Cataloging**:
+   - In the **Catalog** tab, search by title, ISBN, or genre.
+   - Click **Add Book**. Enter title *"Modern Middle Eastern History"*, author *"Prof. N. Al-Rashid"*, ISBN, category `History`. Save.
+   - Verify title appears with `0 Copies Available`.
+3. **Physical Copies & Barcodes**:
+   - Click **Add Copy** for the new book.
+   - Enter Accession Number `ACC-HIST-001`, Barcode `9780001`, Shelf `History Stack 2-A`, Condition `NEW`. Save.
+   - Verify book title now shows `1 Copy Available`.
+4. **Issue Book (Loan Creation)**:
+   - Switch to the **Circulation Desk** tab.
+   - Select copy `ACC-HIST-001` and select student borrower (*Alex Johnson*).
+   - Click **Issue Book**.
+   - Verify copy status transitions to `ISSUED` and available copies decrements to 0.
+5. **Return Book & Fine Assessment**:
+   - Find the issued loan in the active loans table.
+   - Click **Return Book**. Select return condition `GOOD`.
+   - Verify loan status transitions to `RETURNED`, return timestamp is logged, and copy status reverts to `AVAILABLE`.
+6. **Overdue Fines & Discretionary Waiver**:
+   - Switch to the **Fines & Penalties** tab.
+   - Review overdue fines ledger showing overdue days and penalty amounts.
+   - Click **Waive Fine** on a fine record. Enter reason *"First-time institutional grace waiver"*.
+   - Verify fine status transitions to `WAIVED` with recorded audit justification.
+7. **Borrowing Policies**:
+   - Switch to the **Circulation Policies** tab.
+   - Verify student policy (max 3 books, 14 days loan period, 1 renewal) and teacher policy (max 8 books, 30 days loan period, 3 renewals).
+
+### Part 2: Student Library Self-Service (`/student/library`)
+1. **Catalog Search & Reservations**:
+   - Log in as Student (`student@stjude.ems.local`).
+   - Click **Library Portal** in the left sidebar.
+   - Browse catalog titles. Click **Reserve Book** on a title with copies checked out.
+   - Verify reservation confirms with assigned queue position.
+2. **Active Loans & Due Dates**:
+   - In the **My Borrowed Books** tab, review active loans, due date countdowns, and renewal options.
+
+### Part 3: Teacher Library Workspace (`/teacher/library`)
+1. **Faculty Loan Quota & History**:
+   - Log in as Teacher (`teacher@stjude.ems.local`).
+   - Click **Library Workspace** in the left sidebar.
+   - Verify teacher loan policy limit (8 books, 30 days), active academic loans, and reading resource list.
+
+### Part 4: Parent Library Oversight (`/parent/library`)
+1. **Linked Child Borrowing Oversight**:
+   - Log in as Parent (`parent@stjude.ems.local`).
+   - Click **Library Records** in the left sidebar.
+   - Verify active books checked out by linked child (*Alex Johnson*), due dates, and zero outstanding fines.
+   - Verify parent CANNOT access library records of unlinked students.

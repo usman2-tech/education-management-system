@@ -169,3 +169,72 @@
 - **NestJS API Build**: `npx tsc --noEmit` -> **PASSED (0 errors)**
 - **Next.js Web Typecheck**: `npx tsc --noEmit` -> **PASSED (0 errors)**
 - **Python Compilation**: `py_compile (workflows + routes)` -> **PASSED (0 errors)**
+
+---
+
+## TASK 027 & TASK 028 — Transport & Library Management Test Results
+
+### 1. Unit Test Suites (NestJS `TransportService` & `LibraryService`)
+- **Files**:
+  - `apps/api/src/modules/transport/transport.service.spec.ts`
+  - `apps/api/src/modules/library/library.service.spec.ts`
+- **Command**: `npm run test -- --testPathPattern="transport|library"`
+- **Result**: **9 PASSED / 0 FAILED** (100% Pass)
+  - `√ should list vehicles scoped to school`
+  - `√ should reject vehicle allocation if capacity is exceeded`
+  - `√ should allow parent to view transport only for their verified child`
+  - `√ should reject parent accessing transport for an unlinked student`
+  - `√ should catalog a book with copies`
+  - `√ should issue book copy and decrement availableCopies`
+  - `√ should return book copy and increment availableCopies`
+  - `√ should allow parent to view library loans for their verified child`
+  - `√ should reject parent accessing library for an unlinked student`
+
+### 2. End-to-End Live Verification Suite
+- **Script**: `scratch/verify-task-027-028.js`
+- **Command**: `node scratch/verify-task-027-028.js`
+- **Result**: **40 PASSED / 0 FAILED** (100% Pass)
+  - `T1`: Transport Dashboard returns live stats (totalVehicles, totalDrivers, activeTrips) -> **PASS**
+  - `T2`: Vehicle Fleet returns seeded institutional vehicles (>= 8 items) -> **PASS**
+  - `T3`: Admin can create new institutional vehicle record -> **PASS**
+  - `T4`: Transport Drivers list returns seeded drivers (>= 8 items) -> **PASS**
+  - `T5`: Routes list includes ordered stops with pickup/dropoff times & coordinates -> **PASS**
+  - `T6`: Student transport allocations retrieved (>= 8 allocated students) -> **PASS**
+  - `T7`: Live trips endpoint returns active trips with vehicle locations -> **PASS**
+  - `T8`: Driver/GPS ingestion records real-time location with isSimulated=true -> **PASS**
+  - `T8b`: Latest vehicle live location retrieves the updated coordinates -> **PASS**
+  - `T9`: Transport attendance records student boarding event -> **PASS**
+  - `T10a`: Parent can view transport allocation & route for their verified child -> **PASS**
+  - `T10b`: Parent accessing unlinked student transport returns 403 Forbidden -> **PASS**
+  - `T11`: Student can access their own transport route and vehicle assignment -> **PASS**
+  - `T12a`: Fleet maintenance log returns recorded service records -> **PASS**
+  - `T12b`: Fleet operating expenses returns recorded fuel/service expenses -> **PASS**
+  - `T13`: Student forbidden from creating transport vehicles (RBAC Defense) -> **PASS**
+  - `L1`: Library Reports endpoint returns institutional KPIs (totalTitles, totalCopies, activeLoans) -> **PASS**
+  - `L2`: Library Books Catalog returns seeded institutional titles (>= 8 titles) -> **PASS**
+  - `L3`: Admin can catalog a new book title -> **PASS**
+  - `L4`: Admin can register physical book copy with unique accession number -> **PASS**
+  - `L5`: Library Circulation Policies retrieved for STUDENT and TEACHER -> **PASS**
+  - `L6a`: Circulation Desk can issue physical copy to student borrower -> **PASS**
+  - `L6b`: Physical copy status transitions to ISSUED upon issuance -> **PASS**
+  - `L6c`: Circulation Desk can return book and complete loan -> **PASS**
+  - `L6d`: Physical copy status restored to AVAILABLE upon return -> **PASS**
+  - `L7`: Student can query their personal loans and library history -> **PASS**
+  - `L8`: Teacher can query their personal loans and library history -> **PASS**
+  - `L9a`: Library fines ledger retrieves overdue penalty records -> **PASS**
+  - `L9b`: Admin can waive outstanding library fine with audited reason -> **PASS**
+  - `L10`: Student can reserve a library title -> **PASS**
+  - `L11a`: Parent can view library loans & fines for verified child -> **PASS**
+  - `L11b`: Parent accessing unlinked student library returns 403 Forbidden -> **PASS**
+  - `L12`: Student forbidden from cataloging library books (RBAC Defense) -> **PASS**
+  - `R1`: Platform Admin dashboard returns 200 OK -> **PASS**
+  - `R2`: School Admin dashboard returns 200 OK -> **PASS**
+  - `R3`: Teacher dashboard returns 200 OK -> **PASS**
+  - `R4`: Student dashboard returns 200 OK -> **PASS**
+  - `R5`: Parent dashboard returns 200 OK -> **PASS**
+  - `R6`: Fees dashboard returns 200 OK -> **PASS**
+
+### 3. Static Type Analysis & Builds
+- **Contracts Build**: `npm run build --workspace=packages/contracts` -> **PASSED (0 errors)**
+- **NestJS API Build**: `npx tsc --noEmit` -> **PASSED (0 errors)**
+- **Next.js Web Typecheck**: `npx tsc --noEmit` -> **PASSED (0 errors)**

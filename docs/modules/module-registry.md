@@ -23,4 +23,6 @@
 | **MOD-022** | Google Gemini AI Academic Assistant | Role-Aware Chat, Scoped EMS Data Tools, Conversation History | All Roles | **Task 022 (Awaiting Manual Test)** |
 | **MOD-023** | AI Teacher Copilot | Lesson Plans, Homework, Quizzes, Grading Suggestions, Insights, Teaching Materials | Teachers, School Admin | **Task 023 (Awaiting Manual Test)** |
 | **MOD-024** | AI Student Tutor & Parent Assistant | Concept Guide, Socratic Tutor, Practice Quizzes, Revision Planner, Child Academic & Fee Summaries, Parent Q&A | Students, Parents | **Task 024 (Awaiting Manual Test)** |
+| **MOD-027** | Transport Management | Fleet, Drivers, Routes, Ordered Stops, Capacity Allocations, Real-Time GPS Tracking, Driver Portal, Parent/Student Bus Tracking | School Admin, Drivers, Parents, Students | **Task 027 (Awaiting Manual Test)** |
+| **MOD-028** | Library Management | Book Cataloging, Barcode/Accession Tracking, Circulation Desk (Issue/Return/Renew), Reservations Queue, Overdue Fines & Waivers, Student/Teacher/Parent Portals | School Admin, Teachers, Students, Parents | **Task 028 (Awaiting Manual Test)** |
 

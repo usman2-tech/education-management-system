@@ -2408,4 +2408,588 @@ export interface ParentAskQuestionDto {
   conversationId?: string;
 }
 
+// ==============================================================================
+// TASK 027: TRANSPORT MANAGEMENT CONTRACTS & DTOS
+// ==============================================================================
+
+export type VehicleType = 'BUS' | 'VAN' | 'MINIBUS' | 'SUV' | 'OTHER';
+export type VehicleMaintenanceStatus = 'GOOD' | 'NEEDS_SERVICE' | 'UNDER_MAINTENANCE';
+export type DriverStatus = 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'SUSPENDED';
+export type RouteDirection = 'PICKUP' | 'DROPOFF' | 'ROUND_TRIP';
+export type TransportTripStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type TransportAttendanceStatus = 'BOARDED' | 'DROPPED_OFF' | 'ABSENT';
+export type VehicleExpenseType = 'FUEL' | 'MAINTENANCE' | 'INSURANCE' | 'TOLL' | 'OTHER';
+
+export interface VehicleDto {
+  id: string;
+  schoolId: string;
+  registrationNumber: string;
+  vehicleCode: string;
+  vehicleType: VehicleType;
+  seatingCapacity: number;
+  insuranceNumber?: string | null;
+  insuranceExpiry?: string | null;
+  registrationExpiry?: string | null;
+  maintenanceStatus: VehicleMaintenanceStatus;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  assignedDriver?: {
+    id: string;
+    name: string;
+    phone: string;
+  } | null;
+  allocatedStudentCount?: number;
+}
+
+export interface CreateVehicleDto {
+  registrationNumber: string;
+  vehicleCode: string;
+  vehicleType?: VehicleType;
+  seatingCapacity: number;
+  insuranceNumber?: string;
+  insuranceExpiry?: string;
+  registrationExpiry?: string;
+  maintenanceStatus?: VehicleMaintenanceStatus;
+  isActive?: boolean;
+}
+
+export interface UpdateVehicleDto extends Partial<CreateVehicleDto> {}
+
+export interface DriverDto {
+  id: string;
+  schoolId: string;
+  userId?: string | null;
+  name: string;
+  phone: string;
+  licenseNumber: string;
+  licenseExpiry?: string | null;
+  status: DriverStatus;
+  assignedVehicleId?: string | null;
+  assignedVehicle?: {
+    id: string;
+    registrationNumber: string;
+    vehicleCode: string;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDriverDto {
+  name: string;
+  phone: string;
+  licenseNumber: string;
+  licenseExpiry?: string;
+  status?: DriverStatus;
+  assignedVehicleId?: string;
+  userId?: string;
+}
+
+export interface UpdateDriverDto extends Partial<CreateDriverDto> {}
+
+export interface RouteStopDto {
+  id: string;
+  routeId: string;
+  stopName: string;
+  stopOrder: number;
+  latitude: number;
+  longitude: number;
+  scheduledTime?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateStopDto {
+  stopName: string;
+  stopOrder: number;
+  latitude: number;
+  longitude: number;
+  scheduledTime?: string;
+}
+
+export interface TransportRouteDto {
+  id: string;
+  schoolId: string;
+  name: string;
+  code: string;
+  direction: RouteDirection;
+  assignedVehicleId?: string | null;
+  assignedDriverId?: string | null;
+  assignedVehicle?: VehicleDto | null;
+  assignedDriver?: DriverDto | null;
+  isActive: boolean;
+  stops: RouteStopDto[];
+  allocatedStudentCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateRouteDto {
+  name: string;
+  code: string;
+  direction?: RouteDirection;
+  assignedVehicleId?: string;
+  assignedDriverId?: string;
+  isActive?: boolean;
+  stops?: CreateStopDto[];
+}
+
+export interface UpdateRouteDto extends Partial<CreateRouteDto> {}
+
+export interface StudentTransportAllocationDto {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    admissionNumber?: string | null;
+    gradeLevel?: string | null;
+    sectionName?: string | null;
+  };
+  routeId: string;
+  route: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  pickupStopId?: string | null;
+  pickupStop?: RouteStopDto | null;
+  dropoffStopId?: string | null;
+  dropoffStop?: RouteStopDto | null;
+  vehicleId?: string | null;
+  vehicle?: {
+    id: string;
+    registrationNumber: string;
+    vehicleCode: string;
+    seatingCapacity: number;
+  } | null;
+  startDate: string;
+  endDate?: string | null;
+  monthlyFee: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAllocationDto {
+  studentId: string;
+  routeId: string;
+  pickupStopId?: string;
+  dropoffStopId?: string;
+  vehicleId?: string;
+  startDate?: string;
+  endDate?: string;
+  monthlyFee?: number;
+}
+
+export interface UpdateAllocationDto extends Partial<CreateAllocationDto> {
+  status?: string;
+}
+
+export interface TransportTripDto {
+  id: string;
+  schoolId: string;
+  routeId: string;
+  route: {
+    id: string;
+    name: string;
+    code: string;
+    stops: RouteStopDto[];
+  };
+  vehicleId: string;
+  vehicle: {
+    id: string;
+    registrationNumber: string;
+    vehicleCode: string;
+  };
+  driverId?: string | null;
+  driver?: {
+    id: string;
+    name: string;
+    phone: string;
+  } | null;
+  tripType: RouteDirection;
+  status: TransportTripStatus;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  latestLocation?: VehicleLocationDto | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StartTripDto {
+  routeId: string;
+  vehicleId: string;
+  tripType: RouteDirection;
+}
+
+export interface VehicleLocationDto {
+  id: string;
+  tripId: string;
+  vehicleId: string;
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+  speed?: number | null;
+  heading?: number | null;
+  isSimulated: boolean;
+  timestamp: string;
+}
+
+export interface GpsUpdateDto {
+  tripId: string;
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  speed?: number;
+  heading?: number;
+  timestamp?: string;
+  isSimulated?: boolean;
+}
+
+export interface TransportAttendanceDto {
+  id: string;
+  tripId: string;
+  studentId: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+  vehicleId: string;
+  status: TransportAttendanceStatus;
+  recordedAt: string;
+  recordedById?: string | null;
+  notes?: string | null;
+}
+
+export interface RecordTransportAttendanceDto {
+  tripId: string;
+  studentId: string;
+  status: TransportAttendanceStatus;
+  notes?: string;
+}
+
+export interface VehicleMaintenanceDto {
+  id: string;
+  schoolId: string;
+  vehicleId: string;
+  vehicle: {
+    registrationNumber: string;
+    vehicleCode: string;
+  };
+  maintenanceType: string;
+  description: string;
+  cost: number;
+  serviceDate: string;
+  nextServiceDue?: string | null;
+  serviceProvider?: string | null;
+  createdAt: string;
+}
+
+export interface CreateMaintenanceDto {
+  vehicleId: string;
+  maintenanceType: string;
+  description: string;
+  cost?: number;
+  serviceDate?: string;
+  nextServiceDue?: string;
+  serviceProvider?: string;
+}
+
+export interface VehicleExpenseDto {
+  id: string;
+  schoolId: string;
+  vehicleId: string;
+  vehicle: {
+    registrationNumber: string;
+    vehicleCode: string;
+  };
+  expenseType: VehicleExpenseType;
+  amount: number;
+  date: string;
+  receiptNumber?: string | null;
+  description?: string | null;
+  createdAt: string;
+}
+
+export interface CreateExpenseDto {
+  vehicleId: string;
+  expenseType?: VehicleExpenseType;
+  amount: number;
+  date?: string;
+  receiptNumber?: string;
+  description?: string;
+}
+
+export interface TransportDashboardSummaryDto {
+  totalVehicles: number;
+  activeVehicles: number;
+  totalDrivers: number;
+  activeRoutes: number;
+  assignedStudents: number;
+  activeTrips: number;
+  attendanceToday: {
+    boarded: number;
+    droppedOff: number;
+    absent: number;
+  };
+  maintenanceDueCount: number;
+  recentTrips: TransportTripDto[];
+}
+
+export interface ParentChildTransportDto {
+  studentId: string;
+  studentName: string;
+  allocation?: StudentTransportAllocationDto | null;
+  activeTrip?: TransportTripDto | null;
+  latestLocation?: VehicleLocationDto | null;
+  todayAttendance?: TransportAttendanceDto[];
+}
+
+// ==============================================================================
+// TASK 028: LIBRARY MANAGEMENT CONTRACTS & DTOS
+// ==============================================================================
+
+export type BookCondition = 'NEW' | 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR' | 'DAMAGED';
+export type BookCopyStatus = 'AVAILABLE' | 'ISSUED' | 'RESERVED' | 'LOST' | 'DAMAGED' | 'IN_MAINTENANCE';
+export type LoanStatus = 'ISSUED' | 'RETURNED' | 'OVERDUE' | 'LOST';
+export type ReservationStatus = 'PENDING' | 'FULFILLED' | 'CANCELLED' | 'EXPIRED';
+export type LibraryFineStatus = 'UNPAID' | 'PAID' | 'WAIVED' | 'PARTIAL';
+
+export interface LibraryBookDto {
+  id: string;
+  schoolId: string;
+  title: string;
+  isbn?: string | null;
+  author: string;
+  publisher?: string | null;
+  category: string;
+  subject?: string | null;
+  language: string;
+  edition?: string | null;
+  publicationYear?: number | null;
+  description?: string | null;
+  coverImage?: string | null;
+  totalCopies: number;
+  availableCopies: number;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  copies?: BookCopyDto[];
+}
+
+export interface CreateBookDto {
+  title: string;
+  isbn?: string;
+  author: string;
+  publisher?: string;
+  category?: string;
+  subject?: string;
+  language?: string;
+  edition?: string;
+  publicationYear?: number;
+  description?: string;
+  coverImage?: string;
+}
+
+export interface UpdateBookDto extends Partial<CreateBookDto> {
+  isArchived?: boolean;
+}
+
+export interface BookCopyDto {
+  id: string;
+  schoolId: string;
+  bookId: string;
+  accessionNumber: string;
+  barcode?: string | null;
+  shelfLocation?: string | null;
+  acquisitionDate: string;
+  condition: BookCondition;
+  status: BookCopyStatus;
+  createdAt: string;
+  updatedAt: string;
+  book?: {
+    id: string;
+    title: string;
+    author: string;
+    isbn?: string | null;
+  };
+  currentLoan?: BookLoanDto | null;
+}
+
+export interface CreateBookCopyDto {
+  bookId: string;
+  accessionNumber: string;
+  barcode?: string;
+  shelfLocation?: string;
+  acquisitionDate?: string;
+  condition?: BookCondition;
+}
+
+export interface UpdateBookCopyDto {
+  shelfLocation?: string;
+  condition?: BookCondition;
+  status?: BookCopyStatus;
+}
+
+export interface BookLoanDto {
+  id: string;
+  schoolId: string;
+  bookId: string;
+  book: {
+    id: string;
+    title: string;
+    author: string;
+    isbn?: string | null;
+  };
+  copyId: string;
+  copy: {
+    id: string;
+    accessionNumber: string;
+    barcode?: string | null;
+    shelfLocation?: string | null;
+  };
+  borrowerType: 'STUDENT' | 'TEACHER';
+  borrowerId: string;
+  borrower: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+  };
+  issueDate: string;
+  dueDate: string;
+  returnDate?: string | null;
+  renewCount: number;
+  status: LoanStatus;
+  returnCondition?: BookCondition | null;
+  issuedById?: string | null;
+  returnedById?: string | null;
+  notes?: string | null;
+  fine?: LibraryFineDto | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IssueBookDto {
+  bookId?: string;
+  copyId: string;
+  borrowerId: string;
+  borrowerType?: 'STUDENT' | 'TEACHER';
+  dueDate?: string;
+  notes?: string;
+}
+
+export interface ReturnBookDto {
+  loanId: string;
+  returnCondition?: BookCondition;
+  notes?: string;
+}
+
+export interface RenewLoanDto {
+  loanId: string;
+  newDueDate?: string;
+}
+
+export interface BookReservationDto {
+  id: string;
+  schoolId: string;
+  bookId: string;
+  book: {
+    id: string;
+    title: string;
+    author: string;
+  };
+  borrowerType: 'STUDENT' | 'TEACHER';
+  borrowerId: string;
+  borrower: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  reservationDate: string;
+  expiryDate?: string | null;
+  queuePosition: number;
+  status: ReservationStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateReservationDto {
+  bookId: string;
+}
+
+export interface LibraryFineDto {
+  id: string;
+  schoolId: string;
+  loanId: string;
+  borrowerType: 'STUDENT' | 'TEACHER';
+  borrowerId: string;
+  borrower?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  amount: number;
+  waivedAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  overdueDays: number;
+  status: LibraryFineStatus;
+  waivedReason?: string | null;
+  feeInvoiceId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WaiveFineDto {
+  fineId: string;
+  waiveAmount?: number;
+  reason: string;
+}
+
+export interface LibraryPolicyDto {
+  id: string;
+  schoolId: string;
+  borrowerType: 'STUDENT' | 'TEACHER';
+  maxBooks: number;
+  loanPeriodDays: number;
+  renewalLimit: number;
+  finePerDay: number;
+  gracePeriodDays: number;
+  maxFineAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdatePolicyDto {
+  maxBooks?: number;
+  loanPeriodDays?: number;
+  renewalLimit?: number;
+  finePerDay?: number;
+  gracePeriodDays?: number;
+  maxFineAmount?: number;
+}
+
+export interface LibraryReportsDto {
+  totalTitles: number;
+  totalCopies: number;
+  availableCopies: number;
+  issuedCopies: number;
+  overdueLoans: number;
+  lostOrDamagedCopies: number;
+  activeReservations: number;
+  totalFinesAccrued: number;
+  outstandingFines: number;
+  recentLoans: BookLoanDto[];
+}
+
+
 

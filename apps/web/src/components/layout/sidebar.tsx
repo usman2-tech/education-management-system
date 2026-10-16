@@ -46,6 +46,8 @@ import {
   Shield,
   Receipt,
   Banknote,
+  Bus,
+  BookMarked,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -83,6 +85,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Bell,
   Receipt,
   Banknote,
+  Bus,
+  BookMarked,
 };
 
 export function Sidebar({

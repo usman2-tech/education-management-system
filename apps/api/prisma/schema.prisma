@@ -220,6 +220,23 @@ model School {
   studentPracticeQuizzes StudentPracticeQuiz[]
   studentRevisionPlans   StudentRevisionPlan[]
 
+  // Transport (TASK 027)
+  vehicles                    Vehicle[]
+  drivers                     Driver[]
+  transportRoutes             TransportRoute[]
+  transportAllocations        StudentTransportAllocation[]
+  transportTrips              TransportTrip[]
+  vehicleMaintenances         VehicleMaintenance[]
+  vehicleExpenses             VehicleExpense[]
+
+  // Library (TASK 028)
+  libraryBooks                LibraryBook[]
+  bookCopies                  BookCopy[]
+  bookLoans                   BookLoan[]
+  bookReservations            BookReservation[]
+  libraryFines                LibraryFine[]
+  libraryPolicies             LibraryPolicy[]
+
   @@map("schools")
 }
 
@@ -326,6 +343,19 @@ model User {
   // AI Student Tutor & Parent Assistant (TASK 024)
   studentPracticeQuizzes      StudentPracticeQuiz[]   @relation("StudentPracticeQuizzes")
   studentRevisionPlans        StudentRevisionPlan[]   @relation("StudentRevisionPlans")
+
+  // Transport (TASK 027)
+  driverProfile               Driver?                       @relation("DriverUser")
+  studentTransportAllocations StudentTransportAllocation[] @relation("TransportStudent")
+  transportAttendanceRecords  TransportAttendance[]        @relation("TransportAttendanceStudent")
+  markedTransportAttendances  TransportAttendance[]        @relation("TransportAttendanceMarker")
+
+  // Library (TASK 028)
+  borrowedBookLoans           BookLoan[]                    @relation("BorrowerUser")
+  issuedBookLoans             BookLoan[]                    @relation("LoanIssuer")
+  returnedBookLoans           BookLoan[]                    @relation("LoanReturner")
+  bookReservations            BookReservation[]             @relation("ReservationUser")
+  libraryFines                LibraryFine[]                 @relation("FineStudent")
 
   @@index([schoolId])
   @@index([email])
@@ -1591,6 +1621,496 @@ model StudentRevisionPlan {
   @@index([status])
   @@map("student_revision_plans")
 }
+
+// ------------------------------------------------------------------------------
+// TRANSPORT MANAGEMENT ENUMS & MODELS (TASK 027)
+// ------------------------------------------------------------------------------
+
+enum VehicleType {
+  BUS
+  VAN
+  MINIBUS
+  SUV
+  OTHER
+}
+
+enum VehicleMaintenanceStatus {
+  GOOD
+  NEEDS_SERVICE
+  UNDER_MAINTENANCE
+}
+
+enum DriverStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  SUSPENDED
+}
+
+enum RouteDirection {
+  PICKUP
+  DROPOFF
+  ROUND_TRIP
+}
+
+enum TransportTripStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TransportAttendanceStatus {
+  BOARDED
+  DROPPED_OFF
+  ABSENT
+}
+
+enum VehicleExpenseType {
+  FUEL
+  MAINTENANCE
+  INSURANCE
+  TOLL
+  OTHER
+}
+
+model Vehicle {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  registrationNumber String
+  vehicleCode        String
+  vehicleType        VehicleType                @default(BUS)
+  seatingCapacity    Int                        @default(30)
+  insuranceNumber    String?
+  insuranceExpiry    DateTime?
+  registrationExpiry DateTime?
+  maintenanceStatus  VehicleMaintenanceStatus   @default(GOOD)
+  isActive           Boolean                    @default(true)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  drivers            Driver[]
+  routes             TransportRoute[]
+  trips              TransportTrip[]
+  allocations        StudentTransportAllocation[]
+  locations          VehicleLocation[]
+  attendances        TransportAttendance[]
+  maintenances       VehicleMaintenance[]
+  expenses           VehicleExpense[]
+
+  @@unique([schoolId, registrationNumber])
+  @@index([schoolId])
+  @@index([isActive])
+  @@map("vehicles")
+}
+
+model Driver {
+  id                 String         @id @default(uuid())
+  schoolId           String
+  school             School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  userId             String?        @unique
+  user               User?          @relation("DriverUser", fields: [userId], references: [id], onDelete: SetNull)
+  name               String
+  phone              String
+  licenseNumber      String
+  licenseExpiry      DateTime?
+  status             DriverStatus   @default(ACTIVE)
+  assignedVehicleId  String?
+  assignedVehicle    Vehicle?       @relation(fields: [assignedVehicleId], references: [id], onDelete: SetNull)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  routes             TransportRoute[]
+  trips              TransportTrip[]
+
+  @@index([schoolId])
+  @@index([status])
+  @@map("drivers")
+}
+
+model TransportRoute {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name               String
+  code               String
+  direction          RouteDirection             @default(ROUND_TRIP)
+  assignedVehicleId  String?
+  assignedVehicle    Vehicle?                   @relation(fields: [assignedVehicleId], references: [id], onDelete: SetNull)
+  assignedDriverId   String?
+  assignedDriver     Driver?                    @relation(fields: [assignedDriverId], references: [id], onDelete: SetNull)
+  isActive           Boolean                    @default(true)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  stops              RouteStop[]
+  allocations        StudentTransportAllocation[]
+  trips              TransportTrip[]
+
+  @@unique([schoolId, code])
+  @@index([schoolId])
+  @@map("transport_routes")
+}
+
+model RouteStop {
+  id                 String                     @id @default(uuid())
+  routeId            String
+  route              TransportRoute             @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  stopName           String
+  stopOrder          Int                        @default(1)
+  latitude           Float
+  longitude          Float
+  scheduledTime      String?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  pickupAllocations  StudentTransportAllocation[] @relation("PickupStop")
+  dropoffAllocations StudentTransportAllocation[] @relation("DropoffStop")
+
+  @@index([routeId])
+  @@map("route_stops")
+}
+
+model StudentTransportAllocation {
+  id                 String         @id @default(uuid())
+  schoolId           String
+  school             School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId          String
+  student            User           @relation("TransportStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  routeId            String
+  route              TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  pickupStopId       String?
+  pickupStop         RouteStop?     @relation("PickupStop", fields: [pickupStopId], references: [id], onDelete: SetNull)
+  dropoffStopId      String?
+  dropoffStop        RouteStop?     @relation("DropoffStop", fields: [dropoffStopId], references: [id], onDelete: SetNull)
+  vehicleId          String?
+  vehicle            Vehicle?       @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  startDate          DateTime       @default(now())
+  endDate            DateTime?
+  monthlyFee         Float          @default(0)
+  status             String         @default("ACTIVE") // ACTIVE, INACTIVE, CANCELLED
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([routeId])
+  @@map("student_transport_allocations")
+}
+
+model TransportTrip {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  routeId            String
+  route              TransportRoute             @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  vehicleId          String
+  vehicle            Vehicle                    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driverId           String?
+  driver             Driver?                    @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  tripType           RouteDirection             @default(PICKUP)
+  status             TransportTripStatus        @default(SCHEDULED)
+  startedAt          DateTime?
+  endedAt            DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  locations          VehicleLocation[]
+  attendances        TransportAttendance[]
+
+  @@index([schoolId])
+  @@index([routeId])
+  @@index([vehicleId])
+  @@index([status])
+  @@map("transport_trips")
+}
+
+model VehicleLocation {
+  id                 String                     @id @default(uuid())
+  tripId             String
+  trip               TransportTrip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  vehicleId          String
+  vehicle            Vehicle                    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  latitude           Float
+  longitude          Float
+  accuracy           Float?
+  speed              Float?
+  heading            Float?
+  isSimulated        Boolean                    @default(false)
+  timestamp          DateTime                   @default(now())
+
+  @@index([tripId])
+  @@index([vehicleId])
+  @@index([timestamp])
+  @@map("vehicle_locations")
+}
+
+model TransportAttendance {
+  id                 String                     @id @default(uuid())
+  tripId             String
+  trip               TransportTrip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  studentId          String
+  student            User                       @relation("TransportAttendanceStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  vehicleId          String
+  vehicle            Vehicle                    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  status             TransportAttendanceStatus  @default(BOARDED)
+  recordedAt         DateTime                   @default(now())
+  recordedById       String?
+  recordedBy         User?                      @relation("TransportAttendanceMarker", fields: [recordedById], references: [id], onDelete: SetNull)
+  notes              String?
+  createdAt          DateTime                   @default(now())
+
+  @@unique([tripId, studentId, status])
+  @@index([tripId])
+  @@index([studentId])
+  @@map("transport_attendances")
+}
+
+model VehicleMaintenance {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  vehicleId          String
+  vehicle            Vehicle                    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  maintenanceType    String
+  description        String                     @db.Text
+  cost               Float                      @default(0)
+  serviceDate        DateTime                   @default(now())
+  nextServiceDue     DateTime?
+  serviceProvider    String?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@index([schoolId])
+  @@index([vehicleId])
+  @@map("vehicle_maintenances")
+}
+
+model VehicleExpense {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  vehicleId          String
+  vehicle            Vehicle                    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  expenseType        VehicleExpenseType         @default(FUEL)
+  amount             Float                      @default(0)
+  date               DateTime                   @default(now())
+  receiptNumber      String?
+  description        String?                    @db.Text
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@index([schoolId])
+  @@index([vehicleId])
+  @@map("vehicle_expenses")
+}
+
+// ------------------------------------------------------------------------------
+// LIBRARY MANAGEMENT ENUMS & MODELS (TASK 028)
+// ------------------------------------------------------------------------------
+
+enum BookCondition {
+  NEW
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  DAMAGED
+}
+
+enum BookCopyStatus {
+  AVAILABLE
+  ISSUED
+  RESERVED
+  LOST
+  DAMAGED
+  IN_MAINTENANCE
+}
+
+enum LoanStatus {
+  ISSUED
+  RETURNED
+  OVERDUE
+  LOST
+}
+
+enum ReservationStatus {
+  PENDING
+  FULFILLED
+  CANCELLED
+  EXPIRED
+}
+
+enum LibraryFineStatus {
+  UNPAID
+  PAID
+  WAIVED
+  PARTIAL
+}
+
+model LibraryBook {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  title              String
+  isbn               String?
+  author             String
+  publisher          String?
+  category           String                     @default("General")
+  subject            String?
+  language           String                     @default("English")
+  edition            String?
+  publicationYear    Int?
+  description        String?                    @db.Text
+  coverImage         String?
+  totalCopies        Int                        @default(1)
+  availableCopies    Int                        @default(1)
+  isArchived         Boolean                    @default(false)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  copies             BookCopy[]
+  loans              BookLoan[]
+  reservations       BookReservation[]
+
+  @@index([schoolId])
+  @@index([title])
+  @@index([author])
+  @@index([isbn])
+  @@index([category])
+  @@map("library_books")
+}
+
+model BookCopy {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  bookId             String
+  book               LibraryBook                @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  accessionNumber    String
+  barcode            String?
+  shelfLocation      String?
+  acquisitionDate    DateTime                   @default(now())
+  condition          BookCondition              @default(GOOD)
+  status             BookCopyStatus             @default(AVAILABLE)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  loans              BookLoan[]
+
+  @@unique([schoolId, accessionNumber])
+  @@index([schoolId])
+  @@index([bookId])
+  @@index([status])
+  @@map("book_copies")
+}
+
+model BookLoan {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  bookId             String
+  book               LibraryBook                @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  copyId             String
+  copy               BookCopy                   @relation(fields: [copyId], references: [id], onDelete: Cascade)
+  borrowerType       String                     @default("STUDENT") // STUDENT, TEACHER
+  borrowerId         String
+  borrower           User                       @relation("BorrowerUser", fields: [borrowerId], references: [id], onDelete: Cascade)
+  issueDate          DateTime                   @default(now())
+  dueDate            DateTime
+  returnDate         DateTime?
+  renewCount         Int                        @default(0)
+  status             LoanStatus                 @default(ISSUED)
+  returnCondition    BookCondition?
+  issuedById         String?
+  issuedBy           User?                      @relation("LoanIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+  returnedById       String?
+  returnedBy         User?                      @relation("LoanReturner", fields: [returnedById], references: [id], onDelete: SetNull)
+  notes              String?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  fines              LibraryFine[]
+
+  @@index([schoolId])
+  @@index([bookId])
+  @@index([copyId])
+  @@index([borrowerId])
+  @@index([status])
+  @@map("book_loans")
+}
+
+model BookReservation {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  bookId             String
+  book               LibraryBook                @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  borrowerType       String                     @default("STUDENT") // STUDENT, TEACHER
+  borrowerId         String
+  borrower           User                       @relation("ReservationUser", fields: [borrowerId], references: [id], onDelete: Cascade)
+  reservationDate    DateTime                   @default(now())
+  expiryDate         DateTime?
+  queuePosition      Int                        @default(1)
+  status             ReservationStatus          @default(PENDING)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@index([schoolId])
+  @@index([bookId])
+  @@index([borrowerId])
+  @@index([status])
+  @@map("book_reservations")
+}
+
+model LibraryFine {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  loanId             String
+  loan               BookLoan                   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  borrowerType       String                     @default("STUDENT") // STUDENT, TEACHER
+  borrowerId         String
+  borrower           User                       @relation("FineStudent", fields: [borrowerId], references: [id], onDelete: Cascade)
+  amount             Float                      @default(0)
+  waivedAmount       Float                      @default(0)
+  paidAmount         Float                      @default(0)
+  balanceAmount      Float                      @default(0)
+  overdueDays        Int                        @default(0)
+  status             LibraryFineStatus          @default(UNPAID)
+  waivedReason       String?
+  waivedById         String?
+  feeInvoiceId       String?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@index([schoolId])
+  @@index([loanId])
+  @@index([borrowerId])
+  @@index([status])
+  @@map("library_fines")
+}
+
+model LibraryPolicy {
+  id                 String                     @id @default(uuid())
+  schoolId           String
+  school             School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  borrowerType       String                     @default("STUDENT") // STUDENT, TEACHER
+  maxBooks           Int                        @default(3)
+  loanPeriodDays     Int                        @default(14)
+  renewalLimit       Int                        @default(1)
+  finePerDay         Float                      @default(1.0)
+  gracePeriodDays    Int                        @default(2)
+  maxFineAmount      Float                      @default(50.0)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@unique([schoolId, borrowerType])
+  @@index([schoolId])
+  @@map("library_policies")
+}
+
 
 
 
