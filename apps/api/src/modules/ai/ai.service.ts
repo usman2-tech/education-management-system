@@ -129,8 +129,12 @@ export class AiService {
       },
     });
 
-    if (!conversation || conversation.userId !== userId) {
+    if (!conversation) {
       throw new NotFoundException('Conversation not found.');
+    }
+
+    if (conversation.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to access this conversation.');
     }
 
     return {
@@ -161,8 +165,12 @@ export class AiService {
       where: { id: conversationId },
     });
 
-    if (!conversation || conversation.userId !== userId) {
+    if (!conversation) {
       throw new NotFoundException('Conversation not found.');
+    }
+
+    if (conversation.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to delete this conversation.');
     }
 
     await this.conversationRepo.delete({ where: { id: conversationId } });

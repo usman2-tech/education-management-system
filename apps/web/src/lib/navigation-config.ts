@@ -117,6 +117,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       title: 'Learning Portal',
       items: [
         { title: 'Student Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Classes, deadlines & updates' },
+        { title: 'AI Tutor', href: '/student/tutor', icon: 'Sparkles', badge: 'Gemini', description: 'Concept explanations, practice quizzes & revision plans' },
         { title: 'AI Assistant', href: '/ai-assistant', icon: 'Bot', badge: 'Gemini', description: 'Academic tutor & learning companion' },
         { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Class timetable & room numbers' },
         { title: 'My Courses', href: '/courses', icon: 'GraduationCap', description: 'Course catalog & learning player' },
@@ -137,9 +138,11 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       title: 'Family Portal',
       items: [
         { title: 'Parent Dashboard', href: '/parent/dashboard', icon: 'LayoutDashboard', description: 'Children overview & updates' },
+        { title: 'AI Parent Assistant', href: '/parent/assistant', icon: 'Sparkles', badge: 'Gemini', description: 'Child progress, attendance, homework & tuition guidance' },
         { title: 'AI Assistant', href: '/ai-assistant', icon: 'Bot', badge: 'Gemini', description: 'Family academic advisor & progress helper' },
         { title: 'My Children', href: '/parent/children', icon: 'Users', description: 'Academic records & classes' },
         { title: 'Fees & Invoices', href: '/parent/fees', icon: 'Receipt', description: 'Child tuition, invoices & receipts' },
+
         { title: 'Children Grades', href: '/grades', icon: 'Award', description: 'Verified child gradebook & progress' },
         { title: 'Children Exams', href: '/exams', icon: 'FileCheck', description: 'Verified child exam results' },
         { title: 'Children Courses', href: '/courses', icon: 'GraduationCap', description: 'Course progress & lesson tracking' },

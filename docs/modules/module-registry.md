@@ -22,4 +22,5 @@
 | **MOD-018** | Security Hardening & CI/CD | Docker Production Builds, Audit Trails, Rate Limits | Platform Admin, DevOps | Task 018 |
 | **MOD-022** | Google Gemini AI Academic Assistant | Role-Aware Chat, Scoped EMS Data Tools, Conversation History | All Roles | **Task 022 (Awaiting Manual Test)** |
 | **MOD-023** | AI Teacher Copilot | Lesson Plans, Homework, Quizzes, Grading Suggestions, Insights, Teaching Materials | Teachers, School Admin | **Task 023 (Awaiting Manual Test)** |
+| **MOD-024** | AI Student Tutor & Parent Assistant | Concept Guide, Socratic Tutor, Practice Quizzes, Revision Planner, Child Academic & Fee Summaries, Parent Q&A | Students, Parents | **Task 024 (Awaiting Manual Test)** |
 

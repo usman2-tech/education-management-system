@@ -139,3 +139,192 @@ export const aiCopilotApi = {
     });
   },
 };
+
+export const aiTutorApi = {
+  async getContext(): Promise<{
+    studentId: string;
+    studentName: string;
+    gradeLevel: string;
+    courses: Array<{ id: string; title: string; code: string; subjectId: string; subjectName: string }>;
+    subjects: Array<{ id: string; name: string; code: string }>;
+  }> {
+    return apiClient.request('/ai/tutor/context');
+  },
+
+  async generateConceptExplanation(dto: {
+    subjectId?: string;
+    courseId?: string;
+    topic: string;
+    difficultyLevel?: string;
+    explanationStyle?: string;
+    question?: string;
+  }): Promise<any> {
+    return apiClient.request('/ai/tutor/concept-explanation', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  async socraticTutor(dto: {
+    message: string;
+    courseId?: string;
+    subjectId?: string;
+    conversationId?: string;
+  }): Promise<any> {
+    return apiClient.request('/ai/tutor/socratic', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  async generatePracticeQuiz(dto: {
+    courseId?: string;
+    subjectId?: string;
+    topic: string;
+    difficultyLevel?: string;
+    questionCount?: number;
+    questionType?: string;
+  }): Promise<any> {
+    return apiClient.request('/ai/tutor/practice-quiz', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  async submitPracticeQuiz(dto: {
+    quizId: string;
+    answers: Record<string, any>;
+  }): Promise<any> {
+    return apiClient.request('/ai/tutor/submit-quiz', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  async listPracticeQuizzes(): Promise<any[]> {
+    return apiClient.request('/ai/tutor/practice-quizzes');
+  },
+
+  async getPracticeQuiz(id: string): Promise<any> {
+    return apiClient.request(`/ai/tutor/practice-quiz/${id}`);
+  },
+
+  async generateRevisionPlan(dto: {
+    timeframeDays?: number;
+    focusSubjects?: string[];
+    targetExamDate?: string;
+  }): Promise<any> {
+    return apiClient.request('/ai/tutor/revision-plan', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  async saveRevisionPlan(dto: {
+    title: string;
+    description?: string;
+    courseId?: string;
+    subjectId?: string;
+    planContent: Record<string, any>;
+  }): Promise<any> {
+    return apiClient.request('/ai/tutor/save-revision-plan', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  async listRevisionPlans(): Promise<any[]> {
+    return apiClient.request('/ai/tutor/revision-plans');
+  },
+
+  async getRevisionPlan(id: string): Promise<any> {
+    return apiClient.request(`/ai/tutor/revision-plan/${id}`);
+  },
+
+  async getHomeworkGuidance(dto: {
+    homeworkId: string;
+    questionOrDoubt?: string;
+  }): Promise<any> {
+    return apiClient.request('/ai/tutor/homework-guidance', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  async getLearningProgress(): Promise<{
+    insights: any;
+    metrics: {
+      attendanceRate: number;
+      totalQuizzesAttempted: number;
+      completedQuizzesCount: number;
+      averagePracticeQuizScore: number | null;
+      activeRevisionPlansCount: number;
+      recentGrades: any[];
+    };
+  }> {
+    return apiClient.request('/ai/tutor/learning-progress');
+  },
+};
+
+export const aiParentApi = {
+  async getChildren(): Promise<Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    avatarUrl?: string | null;
+    admissionNumber: string | null;
+    gradeLevel: string;
+    schoolId: string;
+    schoolName: string;
+    className: string;
+    sectionName: string | null;
+    relationshipType: string;
+  }>> {
+    return apiClient.request('/ai/parent/children');
+  },
+
+  async getAcademicSummary(studentId: string): Promise<any> {
+    return apiClient.request(`/ai/parent/academic-summary/${studentId}`);
+  },
+
+  async getAttendanceSummary(studentId: string): Promise<any> {
+    return apiClient.request(`/ai/parent/attendance-summary/${studentId}`);
+  },
+
+  async getHomeworkSummary(studentId: string): Promise<any> {
+    return apiClient.request(`/ai/parent/homework-summary/${studentId}`);
+  },
+
+  async getFeeExplanation(studentId: string): Promise<any> {
+    return apiClient.request(`/ai/parent/fee-explanation/${studentId}`);
+  },
+
+  async getHomeLearningSuggestions(dto: {
+    studentId: string;
+    subjectId?: string;
+    focusArea?: string;
+  }): Promise<any> {
+    return apiClient.request('/ai/parent/home-learning', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  async askQuestion(dto: {
+    studentId: string;
+    question: string;
+    conversationId?: string;
+    topic?: string;
+  }): Promise<any> {
+    return apiClient.request('/ai/parent/ask', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  async getConversations(studentId: string): Promise<any[]> {
+    return apiClient.request(`/ai/parent/conversations/${studentId}`);
+  },
+};
+

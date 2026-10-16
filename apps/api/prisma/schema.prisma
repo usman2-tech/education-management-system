@@ -216,6 +216,10 @@ model School {
   // AI Teacher Copilot (TASK 023)
   copilotDrafts       AICopilotDraft[]
 
+  // AI Student Tutor & Parent Assistant (TASK 024)
+  studentPracticeQuizzes StudentPracticeQuiz[]
+  studentRevisionPlans   StudentRevisionPlan[]
+
   @@map("schools")
 }
 
@@ -318,6 +322,10 @@ model User {
 
   // AI Teacher Copilot (TASK 023)
   copilotDrafts               AICopilotDraft[]       @relation("TeacherCopilotDrafts")
+
+  // AI Student Tutor & Parent Assistant (TASK 024)
+  studentPracticeQuizzes      StudentPracticeQuiz[]   @relation("StudentPracticeQuizzes")
+  studentRevisionPlans        StudentRevisionPlan[]   @relation("StudentRevisionPlans")
 
   @@index([schoolId])
   @@index([email])
@@ -494,6 +502,7 @@ model Subject {
   courses                   Course[]
   exams                     Exam[]
   copilotDrafts             AICopilotDraft[]
+  studentPracticeQuizzes    StudentPracticeQuiz[]
 
   @@unique([schoolId, code])
   @@index([schoolId])
@@ -896,7 +905,8 @@ model Course {
 
   modules      CourseModule[]
   enrollments  CourseEnrollment[]
-  copilotDrafts AICopilotDraft[]
+  copilotDrafts          AICopilotDraft[]
+  studentPracticeQuizzes StudentPracticeQuiz[]
 
   @@unique([schoolId, code])
   @@index([schoolId])
@@ -1430,14 +1440,17 @@ model AIConversation {
   user         User            @relation("UserAIConversations", fields: [userId], references: [id], onDelete: Cascade)
   schoolId     String?
   school       School?         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  title        String          @default("New Conversation")
-  roleContext  UserRole
-  messages     AIMessage[]
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  title            String          @default("New Conversation")
+  roleContext      UserRole
+  studentContextId String?
+  conversationType String?         @default("GENERAL")
+  messages         AIMessage[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   @@index([userId])
   @@index([schoolId])
+  @@index([studentContextId])
   @@map("ai_conversations")
 }
 
@@ -1526,6 +1539,59 @@ model AICopilotDraft {
   @@index([status])
   @@map("ai_copilot_drafts")
 }
+
+// ------------------------------------------------------------------------------
+// AI Student Tutor & Parent Assistant (TASK 024)
+// ------------------------------------------------------------------------------
+
+model StudentPracticeQuiz {
+  id             String    @id @default(uuid())
+  schoolId       String
+  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        User      @relation("StudentPracticeQuizzes", fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId      String?
+  subject        Subject?  @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  courseId       String?
+  course         Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  topic          String
+  difficulty     String    @default("INTERMEDIATE")
+  questionCount  Int       @default(4)
+  questions      Json      // Array of questions, options, correctAnswer, explanation
+  studentAnswers Json?     // Student submitted answers
+  score          Float?    // Formative score (never alters official grades)
+  totalQuestions Int       @default(4)
+  status         String    @default("GENERATED") // GENERATED, COMPLETED
+  feedback       String?   // Formative feedback
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([status])
+  @@map("student_practice_quizzes")
+}
+
+model StudentRevisionPlan {
+  id              String    @id @default(uuid())
+  schoolId        String
+  school          School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User      @relation("StudentRevisionPlans", fields: [studentId], references: [id], onDelete: Cascade)
+  title           String
+  targetDate      DateTime?
+  plan            Json      // goals, revisionPriorities, dailyActivities, practiceRecommendations, examPrep
+  verifiedMetrics Json?     // actual DB grades, attendanceRate, homeworkCompletionRate
+  status          String    @default("ACTIVE") // ACTIVE, COMPLETED, ARCHIVED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([status])
+  @@map("student_revision_plans")
+}
+
 
 
 

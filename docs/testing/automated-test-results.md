@@ -115,3 +115,57 @@
 - **Contracts Build**: `npm run build --workspace=packages/contracts` -> **PASSED (0 errors)**
 - **NestJS API Build**: `npx tsc -p tsconfig.build.json` -> **PASSED (0 errors)**
 - **Next.js Web Typecheck**: `npx tsc --noEmit` -> **PASSED (0 errors)**
+
+---
+
+## TASK-024: AI Student Tutor & AI Parent/Guardian Assistant
+
+### 1. Automated Unit Tests (Jest)
+- **Suite**: `apps/api/src/modules/ai/ai-tutor-parent.service.spec.ts`
+- **Result**: **16 PASSED / 0 FAILED** (100% Pass)
+  - `√ 1. Student can retrieve their enrolled course and subject context`
+  - `√ 2. Concept explanation generates structured breakdown without errors`
+  - `√ 3. Practice quiz creation saves record in GENERATED status`
+  - `√ 4. Practice quiz submission calculates formative score and marks COMPLETED`
+  - `√ 5. Duplicate practice quiz submission is strictly rejected`
+  - `√ 6. Student cannot access or submit another student practice quiz`
+  - `√ 7. Personalized revision plan generation uses verified performance data`
+  - `√ 8. Homework guidance provides hints without revealing answers or submitting`
+  - `√ 9. Learning progress summarizes verified attendance and grades`
+  - `√ 10. Parent can retrieve only verified linked children`
+  - `√ 11. Parent access to unlinked child is strictly forbidden`
+  - `√ 12. Academic summary reflects verified student grade records`
+  - `√ 13. Attendance summary reflects verified attendance sessions`
+  - `√ 14. Fee explanation computes authoritative outstanding balance from invoices`
+  - `√ 15. Home learning suggestions provide age-appropriate constructive guidance`
+  - `√ 16. Parent conversational Q&A is strictly scoped to the target child`
+
+### 2. End-to-End Live Verification Suite
+- **Script**: `apps/api/test/verify-task-024.js`
+- **Command**: `node apps/api/test/verify-task-024.js`
+- **Result**: **19 PASSED / 0 FAILED** (100% Pass)
+  - `Test 1`: Student can access AI Tutor context -> **PASS**
+  - `Test 2`: Parent can access AI Parent Assistant and retrieve verified children -> **PASS**
+  - `Test 3`: Teacher cannot access student-private AI Tutor endpoints (Role restriction) -> **PASS**
+  - `Test 4`: Student cannot access Parent Assistant endpoints -> **PASS**
+  - `Test 5`: Parent cannot access an unrelated / unverified child -> **PASS**
+  - `Test 6`: Unauthorized or non-existent quiz access is rejected -> **PASS**
+  - `Test 7`: Tutor generates concept explanation using student academic context -> **PASS**
+  - `Test 8`: Unreleased answer keys are not exposed in generated student quiz -> **PASS**
+  - `Test 9`: Practice quizzes do not modify official grades -> **PASS**
+  - `Test 10`: Quiz answers are validated and formative percentage score returned -> **PASS**
+  - `Test 11`: Duplicate quiz submissions are strictly prevented (400 Bad Request) -> **PASS**
+  - `Test 12`: Revision plans use verified academic and attendance data -> **PASS**
+  - `Test 13`: Parent academic summaries use linked-child records -> **PASS**
+  - `Test 14`: Parent fee queries return authoritative ledger with verified balances -> **PASS**
+  - `Test 15`: Parent conversation Q&A is strictly scoped to selected child ID -> **PASS**
+  - `Test 16`: Conversation history ownership is enforced across users -> **PASS**
+  - `Test 17`: Socratic tutoring and AI fallbacks operate seamlessly -> **PASS**
+  - `Test 18`: Existing AI Assistant and Teacher Copilot continue working -> **PASS**
+  - `Test 19`: All five dashboards continue working with zero regression -> **PASS**
+
+### 3. Static Type Analysis & Builds
+- **Contracts Build**: `npm run build --workspace=packages/contracts` -> **PASSED (0 errors)**
+- **NestJS API Build**: `npx tsc --noEmit` -> **PASSED (0 errors)**
+- **Next.js Web Typecheck**: `npx tsc --noEmit` -> **PASSED (0 errors)**
+- **Python Compilation**: `py_compile (workflows + routes)` -> **PASSED (0 errors)**

@@ -2280,8 +2280,132 @@ export interface ApproveAndPublishDto {
   };
 }
 
+// ------------------------------------------------------------------------------
+// AI Student Tutor & Parent Assistant (TASK 024)
+// ------------------------------------------------------------------------------
 
+export interface StudentPracticeQuizDto {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  subjectId?: string | null;
+  subjectName?: string | null;
+  courseId?: string | null;
+  courseTitle?: string | null;
+  topic: string;
+  difficulty: string;
+  questionCount: number;
+  questions: Array<{
+    questionNumber: number;
+    questionType: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER';
+    questionText: string;
+    options?: string[];
+    correctAnswer: string;
+    explanation: string;
+  }>;
+  studentAnswers?: Record<string, string> | null;
+  score?: number | null;
+  totalQuestions: number;
+  status: 'GENERATED' | 'COMPLETED';
+  feedback?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
+export interface StudentRevisionPlanDto {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  title: string;
+  targetDate?: string | null;
+  plan: {
+    overview: string;
+    targetGoals: string[];
+    revisionPriorities: Array<{
+      subject: string;
+      topic: string;
+      priority: 'HIGH' | 'MEDIUM' | 'LOW';
+      reason: string;
+    }>;
+    dailySchedule: Array<{
+      day: string;
+      focusSubject: string;
+      suggestedMinutes: number;
+      recommendedActivity: string;
+    }>;
+    examPrepTips: string[];
+  };
+  verifiedMetrics?: {
+    averageGrade?: number;
+    attendanceRate?: number;
+    homeworkCompletionRate?: number;
+  } | null;
+  status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+  createdAt: string;
+  updatedAt: string;
+}
 
+export interface GenerateConceptExplanationDto {
+  subjectId?: string;
+  courseId?: string;
+  topic: string;
+  difficultyLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  explanationStyle?: 'INTUITIVE' | 'STEP_BY_STEP' | 'ACADEMIC' | 'VISUAL_ANALOGY';
+  question?: string;
+}
+
+export interface SocraticTutorMessageDto {
+  conversationId?: string;
+  subjectId?: string;
+  courseId?: string;
+  topic?: string;
+  message: string;
+}
+
+export interface GeneratePracticeQuizDto {
+  subjectId?: string;
+  courseId?: string;
+  topic: string;
+  difficulty?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  questionCount?: number;
+  questionType?: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER' | 'MIXED';
+}
+
+export interface SubmitPracticeQuizDto {
+  answers: Record<string, string>;
+}
+
+export interface GenerateRevisionPlanDto {
+  targetDate?: string;
+  focusSubjectIds?: string[];
+  customGoals?: string;
+}
+
+export interface HomeworkGuidanceRequestDto {
+  homeworkId: string;
+  questionOrDoubt: string;
+}
+
+export interface ParentLinkedChildDto {
+  id: string;
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  admissionNumber?: string | null;
+  gradeLevel?: string | null;
+  sectionName?: string | null;
+  relationshipType: string;
+  verificationStatus: string;
+  schoolId: string;
+  schoolName: string;
+}
+
+export interface ParentAskQuestionDto {
+  studentId: string;
+  category: 'ACADEMIC_PROGRESS' | 'ATTENDANCE' | 'HOMEWORK' | 'FEES' | 'HOME_LEARNING' | 'GENERAL';
+  question: string;
+  conversationId?: string;
+}
 
 

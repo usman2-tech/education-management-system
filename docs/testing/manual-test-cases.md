@@ -1045,3 +1045,81 @@ This document guides the user through manually verifying the architecture, front
 9. **Security & Role Enforcement**:
    - Verify Student and Parent access is blocked (HTTP 403).
    - Verify cross-school access is forbidden.
+
+---
+
+## Test Scenario AH: AI Student Tutor & AI Parent/Guardian Assistant (TASK 024)
+- **URLs**:
+  - Student Tutor: `http://localhost:3000/student/tutor`
+  - Parent Assistant: `http://localhost:3000/parent/assistant`
+- **Users**:
+  - Student: `student@stjude.ems.local` / `Password123!`
+  - Parent: `parent@stjude.ems.local` / `Password123!`
+- **Objective**: Verify personalized student tutoring, practice quizzes, revision planner, homework guidance, verified child linkage, academic summaries, fee explanations, and child-scoped Q&A.
+
+### Part 1: AI Student Tutor (`/student/tutor`)
+1. **Login & Navigation**:
+   - Log in as Student (`student@stjude.ems.local` / `Password123!`).
+   - Click **AI Tutor** in the sidebar to navigate to `http://localhost:3000/student/tutor`.
+   - Verify the page header displays **AI Student Tutor** and enrolled subject context tags.
+2. **Feature 1 — Interactive Concept Guide**:
+   - Select a subject or enter a custom topic (e.g., *"Photosynthesis & Light Reactions"*).
+   - Select difficulty and explanation style. Click **Generate Concept Guide**.
+   - Verify structured sections: Key Concept Summary, Step-by-Step Breakdown, Real-World Analogy, and Quick Check Question.
+3. **Feature 2 — Socratic Tutor**:
+   - Click the **Socratic Tutor** tab.
+   - Ask a question (e.g., *"How do I find the hypotenuse of a right-angled triangle?"*).
+   - Verify the AI guides the student using questions and scaffolding without just blurting out the answer.
+4. **Feature 3 — Practice Quizzes & Formative Evaluation**:
+   - Click the **Practice Quizzes** tab.
+   - Enter topic *"Chemical Equilibrium"*, select 4 questions, Multiple Choice. Click **Generate Quiz**.
+   - Verify answer keys are NOT displayed on the question cards.
+   - Select answers and click **Submit Practice Quiz**.
+   - Verify formative score percentage is displayed along with detailed answer explanations.
+   - Verify official student grades in the gradebook have NOT been modified.
+   - Verify submitting again is prevented.
+5. **Feature 4 — Revision Planner**:
+   - Click the **Revision Planner** tab.
+   - Configure a 7-day revision window and click **Generate Revision Plan**.
+   - Verify daily study schedule with allocated subjects, focus topics, and break reminders.
+6. **Feature 5 — Homework Guidance**:
+   - Click the **Homework Guidance** tab.
+   - Select an active assignment. Click **Get Homework Scaffolding**.
+   - Verify the AI returns hints and conceptual analogies without writing the assignment or submitting it.
+7. **Feature 6 — Learning Progress Summary**:
+   - Click the **Learning Progress** tab.
+   - Verify summary of verified attendance rate, grade averages, completed practice quizzes, and suggested focus areas.
+
+### Part 2: AI Parent Assistant (`/parent/assistant`)
+1. **Login & Navigation**:
+   - Log in as Parent (`parent@stjude.ems.local` / `Password123!`).
+   - Click **AI Parent Assistant** in the sidebar to navigate to `http://localhost:3000/parent/assistant`.
+   - Verify the verified child selector displays linked child (*"Alex Johnson"*).
+2. **Feature 1 — Child Selector & Isolation**:
+   - Verify only verified children linked via `StudentGuardianRelationship` appear.
+   - Verify changing selected child resets state and active conversation.
+3. **Feature 2 — Academic Progress Overview**:
+   - In the **Academic Progress** tab, view grades and subject summaries.
+   - Verify grades reflect actual database records.
+4. **Feature 3 — Attendance Analysis**:
+   - In the **Attendance** tab, view attendance rate, present/absent days, and trends.
+5. **Feature 4 — Homework Tasks**:
+   - In the **Homework** tab, review upcoming assignments, instructions, and due dates.
+6. **Feature 5 — Tuition & Fees Explanation**:
+   - In the **Tuition & Fees** tab, view the authoritative read-only ledger.
+   - Verify total billed, total paid, and outstanding balance match official invoices.
+   - Verify there is no ability to alter balances or waive fees.
+7. **Feature 6 — Home Learning Tips**:
+   - In the **Home Learning Tips** tab, view age-appropriate study encouragement and strategies.
+8. **Feature 7 — Child-Scoped Q&A**:
+   - In the **Ask Assistant** tab, ask *"How is Alex performing in Science?"*.
+   - Verify the response is grounded specifically in Alex's academic records.
+
+### Part 3: Security & RBAC Enforcement
+1. **Role Access Control**:
+   - Attempting to access `/api/v1/ai/tutor/*` as Teacher or Parent returns `HTTP 403 Forbidden`.
+   - Attempting to access `/api/v1/ai/parent/*` as Student or Teacher returns `HTTP 403 Forbidden`.
+2. **Guardian Linkage Enforcement**:
+   - Querying child records for an unlinked student ID returns `HTTP 403 Forbidden`.
+3. **Multi-School Isolation**:
+   - Queries across school boundaries return `HTTP 403` or `404`.
