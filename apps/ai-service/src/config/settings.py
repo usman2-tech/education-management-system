@@ -11,7 +11,7 @@ Requires internal shared secrets to authorize incoming orchestrations from the m
 
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 class Settings(BaseSettings):
@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     gemini_request_timeout: int = Field(default=30, alias="GEMINI_REQUEST_TIMEOUT")
     gemini_max_retries: int = Field(default=3, alias="GEMINI_MAX_RETRIES")
     ai_mock_fallback: bool = Field(default=True, alias="AI_MOCK_FALLBACK")
+
+    @model_validator(mode="after")
+    def validate_production_security(self):
+        if self.environment == "production":
+            if self.internal_secret == "dev_internal_secret_key_change_in_production":
+                raise ValueError(
+                    "[CRITICAL] INTERNAL_SERVICE_SECRET must be changed from development default in production mode."
+                )
+        return self
 
     model_config = SettingsConfigDict(env_file=(".env", "../../.env"), extra="ignore")
 

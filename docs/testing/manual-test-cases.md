@@ -1453,4 +1453,88 @@ This document guides the user through manually verifying the institutional docum
    - Ask: `What is the procedure if my child is absent due to illness?`.
    - Verify the Parent Assistant cites the official absence reporting procedures and displays verified child metrics.
 
+---
+
+## TASK 020: Production Deployment Preparation & Readiness Test Suites
+
+### Test Suite 1: Production Frontend Build & Health Route Verification
+1. Run `npm run build:web`.
+2. Verify all 62 static and dynamic routes generate cleanly with zero TypeScript errors.
+3. Start the production frontend server: `npm run start --workspace=apps/web`.
+4. Send a probe request: `curl http://localhost:3000/api/health`.
+5. Verify response returns HTTP 200 with JSON:
+   `{"status":"ok","service":"ems-frontend","uptimeSeconds":...}`.
+
+---
+
+### Test Suite 2: Production Backend API Build & Component Health Checks
+1. Run `npm run build:api`.
+2. Start the API server: `npm run start --workspace=apps/api`.
+3. Send a GET request to `/api/v1/health`:
+   ```bash
+   curl -s http://localhost:4000/api/v1/health | jq .
+   ```
+4. Verify response:
+   - `status`: `ok` (or `degraded` if AI service is offline)
+   - `services.database.status`: `up`
+   - `services.redis.status`: `up`
+   - `uptimeSeconds` increments accurately.
+
+---
+
+### Test Suite 3: Deterministic Database Migration Protocol
+1. Check migration status against the database:
+   ```bash
+   npm run prisma:status
+   ```
+2. Verify output confirms:
+   - 1 migration found (`20261017000000_init_ems_production`)
+   - `Database schema is up to date!`
+3. Verify that `npm run prisma:deploy` completes with exit code 0 without resetting or modifying existing data.
+
+---
+
+### Test Suite 4: Fail-Safe Secret Validation in Production Mode
+1. Attempt to start the backend with `NODE_ENV=production` while `JWT_SECRET` is unset or set to the development fallback.
+2. Verify the application refuses to boot and logs a fatal error:
+   `[CRITICAL CONFIGURATION ERROR] Missing or insecure production environment variables`.
+3. Provide a valid 32+ character `JWT_SECRET` and `JWT_REFRESH_SECRET`.
+4. Verify the application starts normally.
+
+---
+
+### Test Suite 5: Swagger Production Guard Verification
+1. Start the API with `NODE_ENV=production` and `SWAGGER_ENABLED=false` (default).
+2. Attempt to navigate to `http://localhost:4000/api/docs`.
+3. Verify the endpoint returns HTTP 404 Not Found, preventing unintended exposure of internal API definitions.
+4. Set `SWAGGER_ENABLED=true` and restart. Verify Swagger docs are restored when explicitly authorized.
+
+---
+
+### Test Suite 6: Automated Database Backup & Non-Destructive Restore
+1. Run the backup automation:
+   ```bash
+   ./infrastructure/scripts/backup-db.sh ./backups/test
+   # or on Windows:
+   ./infrastructure/scripts/backup-db.ps1 -BackupDir ./backups/test
+   ```
+2. Verify a compressed `.dump` file is created with size > 0.
+3. Test the restore script in dry/interactive mode:
+   ```bash
+   ./infrastructure/scripts/restore-db.sh ./backups/test/<backup_file>.dump
+   ```
+4. Verify the script prompts for user confirmation before executing any modification.
+
+---
+
+### Test Suite 7: Docker Compose Production Orchestration Verification
+1. Inspect `docker-compose.prod.yml`.
+2. Verify all five services are defined (`postgres`, `redis`, `api`, `ai-service`, `web`, `nginx`).
+3. Verify persistent volumes are declared:
+   - `ems_prod_postgres_data`
+   - `ems_prod_redis_data`
+   - `ems_prod_uploads_data`
+   - `ems_prod_ssl_certs`
+4. Verify `ems-backend-net` is flagged `internal: true` to prevent direct public exposure of database and cache ports.
+
 

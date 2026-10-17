@@ -52,8 +52,8 @@ app = FastAPI(
     version=settings.app_version,
     description="Provider-independent AI Microservice for Educational Management System",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.environment != "production" else None,
+    redoc_url="/redoc" if settings.environment != "production" else None,
 )
 
 # CORS setup - allowing main API communication

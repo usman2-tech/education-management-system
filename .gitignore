@@ -66,5 +66,8 @@ infrastructure/redis/*.pdb
 infrastructure/redis/dump.rdb
 dump.rdb
 *.rdb
+# Uploaded documents and student photos (persistent volume in production)
+apps/api/uploads/*
+!apps/api/uploads/**/.gitkeep
 scratch/
 
