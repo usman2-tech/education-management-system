@@ -18,6 +18,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AppLogger } from './common/logger/app.logger';
+import { json, urlencoded } from 'express';
 import { config } from './config/env.config';
 
 async function bootstrap() {
@@ -27,6 +28,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger,
   });
+
+  // Enable generous payload limits for photo uploads
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // Enable graceful termination hooks for Docker / Kubernetes
   app.enableShutdownHooks();
@@ -75,7 +80,7 @@ async function bootstrap() {
       .setDescription(
         'Enterprise multi-tenant educational management platform REST API documentation.',
       )
-      .setVersion('0.1.0')
+      .setVersion('1.0.0')
       .addBearerAuth(
         {
           type: 'http',
@@ -87,7 +92,21 @@ async function bootstrap() {
         },
         'JWT-Auth',
       )
-      .addTag('System', 'Health, observability, and diagnostics')
+      .addTag('System Health', 'Health, observability, and diagnostics')
+      .addTag('Authentication', 'Authentication, refresh tokens, and multi-school sessions')
+      .addTag('School Management', 'School tenant provisioning and institutional lifecycle')
+      .addTag('Teacher Management', 'Faculty assignments, qualifications, and directory')
+      .addTag('Parent & Guardian Management', 'Guardian linkages, relationships, and verification')
+      .addTag('Classes & Academic Structure', 'Curriculum, grade levels, sections, and timetables')
+      .addTag('Attendance', 'Attendance registers, records, reports, and NFC simulation')
+      .addTag('Grades & Academic Performance', 'Academic assessments, grading scales, and report cards')
+      .addTag('Homework', 'Curriculum tasks, submissions, late detection, and grading')
+      .addTag('Courses', 'Course catalog, modules, lessons, and progress tracking')
+      .addTag('Exams', 'Examinations, question bank, test taking, and evaluation')
+      .addTag('Subscriptions', 'Institutional plans, entitlements, and school licensing')
+      .addTag('Subscription Codes', 'Bulk code generation and atomic student redemption')
+      .addTag('Communications', 'Notification center, announcements, and direct messaging')
+      .addTag('Dashboards', 'Role-authorized institutional analytics with real DB metrics')
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);

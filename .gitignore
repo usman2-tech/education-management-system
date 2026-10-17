@@ -18,9 +18,10 @@ apps/api/build/
 
 # Package builds
 packages/*/dist/
+*.tsbuildinfo
 
 # Python / AI Service
-apps/ai-service/.venv/
+apps/ai-service/.venv*/
 apps/ai-service/venv/
 apps/ai-service/__pycache__/
 *.py[cod]
@@ -55,3 +56,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 *.log
+
+# Local Infrastructure Data & Binaries
+infrastructure/postgres/data/
+infrastructure/postgres/*.log
+infrastructure/redis/*.exe
+infrastructure/redis/*.dll
+infrastructure/redis/*.pdb
+infrastructure/redis/dump.rdb
+dump.rdb
+*.rdb
+# Uploaded documents and student photos (persistent volume in production)
+apps/api/uploads/*
+!apps/api/uploads/**/.gitkeep
+scratch/
+

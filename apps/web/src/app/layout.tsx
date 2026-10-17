@@ -9,6 +9,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from '@/context/auth-context';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 
 export const metadata: Metadata = {
@@ -39,7 +40,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <DashboardShell>{children}</DashboardShell>
+          <AuthProvider>
+            <DashboardShell>{children}</DashboardShell>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -112,3 +112,1429 @@ This document guides the user through manually verifying the architecture, front
 ## Negative / Error Scenarios Tested
 - **Invalid API Route**: Requesting `http://localhost:4000/api/v1/non-existent` returns standardized 404 envelope (`{ "success": false, "statusCode": 404, "message": "Cannot GET ...", "timestamp": ... }`).
 - **Offline Backend Simulation**: If the backend is stopped, the frontend's `SystemStatusBadge` displays "Offline / Disconnected" with a retry button instead of crashing.
+
+---
+
+# Manual Testing Guide — TASK 002: Authentication & Multi-School RBAC
+
+## Test Scenario 6: Institutional Login & 1-Click Fast-Fill
+- **URL**: `http://localhost:3000/login`
+- **Objective**: Verify database-backed authentication and test credentials across all 5 roles.
+- **Steps**:
+  1. Open `http://localhost:3000/login` in your web browser.
+  2. Notice the institutional portal header ("St. Jude Institutional Academy &bull; Academic Portal") and the database status indicator ("PostgreSQL 18 Connected").
+  3. Locate the **Development Fast-Access Matrix** on the right side with 5 test accounts:
+     - **Platform Admin**: `platform.admin@ems.local`
+     - **School Admin**: `admin@stjude.ems.local`
+     - **Teacher**: `teacher@stjude.ems.local`
+     - **Student**: `student@stjude.ems.local`
+     - **Parent**: `parent@stjude.ems.local`
+  4. Click **Fill Form** on the **School Admin** card.
+     - Verify the email `admin@stjude.ems.local` and `Password123!` are populated into the login form.
+  5. Click **Sign In to Institutional Portal**.
+- **Expected Result**: Successfully signs in, stores JWT tokens in localStorage, and redirects to the dashboard `http://localhost:3000/`.
+
+---
+
+## Test Scenario 7: Header Profile Context & School Isolation
+- **URL**: `http://localhost:3000/`
+- **Objective**: Verify that the top header displays the authenticated user's actual profile and institutional scope.
+- **Steps**:
+  1. After signing in as School Admin, inspect the top application header:
+     - **School Name**: "St. Jude Institutional Academy"
+     - **User Name**: "Eleanor Pemberton" with verified shield badge
+     - **Role Badge**: "Principal / Registrar"
+  2. Click the **Logout Button** (door icon) in the far right of the header.
+- **Expected Result**: Active session is invalidated on server, localStorage tokens are cleared, and browser immediately redirects back to `http://localhost:3000/login`.
+
+---
+
+## Test Scenario 8: 1-Click Fast In for Other Roles
+- **URL**: `http://localhost:3000/login`
+- **Steps**:
+  1. Click the **1-Click In** button on the **Platform Admin** card.
+  2. Verify immediate authentication and redirect to `http://localhost:3000/`.
+  3. Header displays "Alexander Vance" with school "Global Platform Scope" and role "System Administrator".
+  4. Click logout and repeat for **Teacher** (`Marcus Holloway`), **Student** (`Liam Chen`), or **Parent** (`Sarah Chen`).
+- **Expected Result**: Each institutional role logs in seamlessly with correct permissions and institutional identity.
+
+---
+
+## Test Scenario 9: Route Protection & Unauthenticated Redirect
+- **URL**: `http://localhost:3000/`
+- **Steps**:
+  1. While logged out, try typing `http://localhost:3000/` directly into your browser address bar.
+- **Expected Result**: ProtectedRoute detects no session and immediately redirects to `http://localhost:3000/login`.
+
+---
+
+## Test Scenario 10: Backend OpenAPI Auth Endpoints
+- **URL**: `http://localhost:4000/api/docs`
+- **Steps**:
+  1. Open `http://localhost:4000/api/docs`.
+  2. Notice the new **Authentication & Access Control** section containing:
+     - `POST /api/v1/auth/login`
+     - `POST /api/v1/auth/refresh`
+     - `POST /api/v1/auth/logout`
+     - `GET /api/v1/auth/me`
+     - `GET /api/v1/auth/tenant-context`
+  3. Click the **Authorize** button at the top to enter a Bearer token and test protected routes directly.
+- **Expected Result**: All endpoints are documented with DTO schemas and HTTP response codes.
+
+---
+
+# Manual Testing Guide — TASK 003: Multi-School Management
+
+## Test Scenario 11: View Institutional Schools Directory (Platform Admin)
+- **URL**: `http://localhost:3000/schools`
+- **Steps**:
+  1. Log in as **Platform Admin** (`platform.admin@ems.local` / `Password123!`).
+  2. Click **Schools Directory** in the left sidebar or navigate to `http://localhost:3000/schools`.
+  3. Verify the schools list displays existing institutions with:
+     - Real database counts for administrators, teachers, and students.
+     - Accurate status badge (e.g. Active).
+     - Search bar and status filter dropdown.
+- **Expected Result**: All registered schools render with complete metadata and action controls.
+
+---
+
+## Test Scenario 12: Create New Institutional School
+- **URL**: `http://localhost:3000/schools/new`
+- **Steps**:
+  1. While logged in as Platform Admin, click **Register New School**.
+  2. Enter:
+     - **Name**: `Cambridge Classical Academy`
+     - Click **Auto-generate from Name** to generate code `cambridge-classical`
+     - **Email**: `admissions@cambridge.ems.local`
+     - **City**: `Boston`, **State**: `MA`, **Country**: `USA`
+  3. Click **Confirm Registration**.
+- **Expected Result**: School is created in PostgreSQL and user is redirected to `/schools/[id]` displaying the newly registered institution.
+
+---
+
+## Test Scenario 13: School Admin Tenant Scoping & Restrictions
+- **URL**: `http://localhost:3000/schools`
+- **Steps**:
+  1. Log out and log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to `http://localhost:3000/schools`.
+  3. Verify:
+     - Only **St. Jude Institutional Academy** is displayed in the list.
+     - The **Register New School** button is hidden.
+     - Deactivation toggle buttons are unavailable.
+  4. Try manually navigating to `http://localhost:3000/schools/new`.
+  5. Verify the route guard rejects access with **Access Restricted (Role [SCHOOL_ADMIN] not authorized)**.
+- **Expected Result**: Strict tenant isolation and RBAC restrictions enforced on both UI and API.
+
+---
+
+## Test Scenario 14: Deactivate and Reactivate School Tenant
+- **URL**: `http://localhost:3000/schools`
+- **Steps**:
+  1. Log back in as **Platform Admin**.
+  2. On any school in the list, click the power button or open school details and click **Deactivate School**.
+  3. Confirm the action in the confirmation modal.
+  4. Verify the status changes to **Deactivated / Inactive** with rose status badge.
+  5. Click **Reactivate School** and confirm.
+- **Expected Result**: School status toggles safely between ACTIVE and INACTIVE; records are preserved and audit events are logged.
+
+---
+
+## Test Scenario 15: Teacher Directory Oversight & Real Database Data
+- **URL**: `http://localhost:3000/teachers`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. In the navigation sidebar, click **Teachers & Faculty** (or open `http://localhost:3000/teachers`).
+  3. Verify the directory displays the seed teacher **Marcus Holloway**:
+     - Email: `teacher@stjude.ems.local`
+     - Employee Code: `TCH-1001`
+     - Specialization: `Advanced Calculus & Analytical Geometry`
+     - Qualification: `M.Sc. in Applied Mathematics`
+     - Status: `Active Faculty`
+  4. Test search input: type `Marcus` or `Calculus` and verify filtering works.
+  5. Test status filter: select `Active Faculty Only` or `All Employment Statuses`.
+- **Expected Result**: Directory displays authentic database records without simulated or placeholder values.
+
+---
+
+## Test Scenario 16: Onboard a New Faculty Member
+- **URL**: `http://localhost:3000/teachers/new`
+- **Steps**:
+  1. While logged in as School Admin or Platform Admin, click **Onboard New Teacher**.
+  2. Enter:
+     - **First Name**: `Sophia`
+     - **Last Name**: `Rodriguez`
+     - **Email**: `sophia.rodriguez@stjude.ems.local`
+     - Click **Generate** next to Employee Code to auto-fill (e.g. `TCH-4812`).
+     - **Phone**: `+1-555-019-8833`
+     - **Highest Qualification**: `Ph.D. in Molecular Biology`
+     - **Specialization**: `AP Biology & Genetic Sciences`
+     - **Bio**: `Former laboratory researcher and secondary department head with 10 years experience.`
+  3. Click **Confirm Onboarding**.
+- **Expected Result**: Teacher is created in PostgreSQL and user is redirected to `/teachers/[id]` showing the detailed faculty profile.
+
+---
+
+## Test Scenario 17: Edit Faculty Profile & Verify RBAC Guard on Employee Code
+- **URL**: `http://localhost:3000/teachers/[id]/edit`
+- **Steps**:
+  1. From Sophia Rodriguez's profile page, click **Edit Profile**.
+  2. Notice the administrator can update phone, qualification, and employee code.
+  3. Change the phone number to `+1-555-019-9944` and click **Save Profile Changes**.
+  4. Verify the updated phone displays on the profile.
+  5. Log out and log in as **Teacher** (`teacher@stjude.ems.local` / `Password123!`).
+  6. Navigate to `http://localhost:3000/teachers/8e42396c-4a37-47c7-b222-f7e5e26f3c7b/edit`.
+  7. Notice the **Employee Identifier Code** field is disabled and marked with a lock icon: **"Locked for Educator Role"**.
+- **Expected Result**: Teachers cannot modify their own employee code or elevate permissions; administrators retain full management rights.
+
+---
+
+## Test Scenario 18: Secondary Campus Affiliation / Multi-School Membership
+- **URL**: `http://localhost:3000/teachers/[id]`
+- **Steps**:
+  1. Log in as **Platform Admin** (`platform.admin@ems.local` / `Password123!`).
+  2. Open Marcus Holloway's profile at `http://localhost:3000/teachers/8e42396c-4a37-47c7-b222-f7e5e26f3c7b`.
+  3. Click **Assign Campus**.
+  4. Select a secondary campus (e.g. `Apex STEM Academy` or another school tenant).
+  5. Enter a campus-scoped employee code (e.g. `TCH-APX-01`) and click **Assign Faculty**.
+- **Expected Result**: Teacher profile now reflects multiple campus memberships under **Institutional Campus Memberships**.
+
+---
+
+## Test Scenario 19: Deactivate and Reactivate Teacher Account
+- **URL**: `http://localhost:3000/teachers`
+- **Steps**:
+  1. While logged in as School Admin, locate Sophia Rodriguez or click the power icon on her profile.
+  2. In the confirmation modal, click **Confirm Deactivation**.
+  3. Verify the status badge switches to **Deactivated User** (rose badge).
+  4. Attempting to log in with that teacher's credentials fails or shows deactivated state.
+  5. Click **Reactivate Access** and confirm.
+- **Expected Result**: Teacher operational status toggles safely; records and associations are strictly preserved.
+
+---
+
+## Test Scenario 20: Teacher Self-Service Profile & Role Isolation
+- **URL**: `http://localhost:3000/my-profile`
+- **Steps**:
+  1. Log in as **Teacher** (`teacher@stjude.ems.local` / `Password123!`).
+  2. In the navigation sidebar, click **My Faculty Profile** (or open `http://localhost:3000/my-profile`).
+  3. Verify Marcus Holloway's credentials, specialization, degree, and active campus appointments render accurately.
+  4. Try navigating directly to `http://localhost:3000/teachers/new`.
+  5. Verify the route guard restricts access with **Access Restricted (Role [TEACHER] not authorized)**.
+  6. Log in as **Student** (`student@stjude.ems.local`) and navigate to `http://localhost:3000/teachers`.
+  7. Verify the student is blocked with **Access Restricted**.
+- **Expected Result**: Teachers have dedicated self-service access; non-administrative roles cannot access faculty management tools.
+
+---
+
+# Manual Testing Guide — Combined TASK 006 & TASK 007: Parents & Academic Structures
+
+## Test Scenario A: Parent Creation & Student Linking
+- **URL**: `http://localhost:3000/parents/new`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to **Parent Directory** (`/parents`) and click **Onboard Parent**.
+  3. Enter:
+     - **First Name**: `David`
+     - **Last Name**: `Chen`
+     - **Email**: `david.chen@stjude.ems.local`
+     - **Phone**: `+1-555-019-5566`
+     - **Occupation**: `Research Scientist`
+     - **Address**: `742 Evergreen Terrace, Springfield`
+  4. Submit form. Redirects to `/parents/[id]`.
+  5. On the parent profile page, click **Link Student Ward**.
+  6. Select student `Liam Chen`, choose Relationship `FATHER`, check `Primary Contact`.
+  7. Click **Confirm Student Link**.
+- **Expected Result**: Relationship is created in PostgreSQL with status `PENDING`.
+
+---
+
+## Test Scenario B: Relationship Verification & Revocation
+- **URL**: `http://localhost:3000/parents/[id]`
+- **Steps**:
+  1. On David Chen's profile page, locate the linked student card for `Liam Chen`.
+  2. Notice the yellow badge: `PENDING VERIFICATION`.
+  3. Click the **Verify** button.
+  4. Confirm verification in modal. Status updates immediately to `VERIFIED` with green badge.
+  5. Click **Revoke Relationship** and confirm.
+  6. Status changes to `REVOKED` with red badge.
+  7. Click **Re-Verify** to restore the verified status.
+- **Expected Result**: Guardian relationship status transitions correctly between PENDING, VERIFIED, and REVOKED, and logs an institutional audit entry.
+
+---
+
+## Test Scenario C: Parent Dashboard & Multi-Child Switching
+- **URL**: `http://localhost:3000/parent/dashboard`
+- **Steps**:
+  1. Log in as **Parent** (`parent@stjude.ems.local` / `Password123!`).
+  2. Navigate to `http://localhost:3000/parent/dashboard`.
+  3. Observe the **Selected Child** switcher at the top:
+     - Displays two verified wards: **Liam Chen** and **Sophia Chen**.
+  4. While **Liam Chen** is selected:
+     - Shows Class: `Grade 10 — Section A`
+     - Room: `Room 101`
+     - Timetable: Shows 7 weekly classes (Advanced Mathematics, AP Physics).
+  5. Switch active child to **Sophia Chen**:
+     - Shows Class: `Grade 11 — Section B`
+     - Room: `Room 102`
+     - Timetable updates instantly to Sophia's enrolled section schedule.
+- **Expected Result**: Smooth, zero-refresh switching between multiple children with distinct academic enrollments and schedules.
+
+---
+
+## Test Scenario D: Revoked Relationship Immediate Access Denial
+- **URL**: `http://localhost:3000/parent/dashboard`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to `http://localhost:3000/parents`. Open **Sarah Chen**'s profile.
+  3. In the linked students list, click **Revoke** on `Sophia Chen`.
+  4. Log out and log back in as **Parent** (`parent@stjude.ems.local` / `Password123!`).
+  5. Navigate to `http://localhost:3000/parent/dashboard`.
+  6. Check the child switcher: `Sophia Chen` is completely removed from the list.
+  7. Attempting to access Sophia's ID directly returns a 403 / access restricted response.
+- **Expected Result**: Revoked guardian links immediately remove access to student records and timetables.
+
+---
+
+## Test Scenario E: Academic Year, Class & Section Creation
+- **URL**: `http://localhost:3000/academic-years` & `http://localhost:3000/classes`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Open `/academic-years`:
+     - Verify active session `2026-2027` with green `Active Session` badge.
+     - Click **Create Academic Session**, enter name `2027-2028`, start date `2027-09-01`, end date `2028-06-30`, submit.
+  3. Open `/classes`:
+     - Click **Create Class**, enter Name: `Grade 12`, Code: `G12`. Submit.
+  4. Open `/classes/[id]` for Grade 12:
+     - Click **Add Section**, enter Name: `Section A`, Room: `Room 201`, Capacity: `30`.
+- **Expected Result**: Academic year, class, and section entities are created and isolated by school.
+
+---
+
+## Test Scenario F: Faculty Assignment & Student Class Enrollment
+- **URL**: `http://localhost:3000/classes/[id]`
+- **Steps**:
+  1. As School Admin, open `Grade 10` details at `/classes/[id]`.
+  2. Switch to **Faculty Assignments** tab:
+     - Verify `Marcus Holloway` is assigned to `Advanced Mathematics` and `AP Physics`.
+  3. Switch to **Enrolled Students** tab:
+     - Verify `Liam Chen` is enrolled with Roll # `1001`.
+     - Click **Enroll Student**, select another student from dropdown, enter Roll # `1002`, submit.
+- **Expected Result**: Students are enrolled and faculty members are assigned to specific sections with atomic database transactions.
+
+---
+
+## Test Scenario G: Weekly Timetable Creation
+- **URL**: `http://localhost:3000/timetable`
+- **Steps**:
+  1. As School Admin, navigate to `/timetable`.
+  2. Filter by `Grade 10 - Section A`.
+  3. View the 5-day schedule grid (Monday through Friday).
+  4. Click **+ Add Period**:
+     - Day: `WEDNESDAY`
+     - Subject: `World Literature`
+     - Teacher: `Marcus Holloway`
+     - Start Time: `14:00`
+     - End Time: `14:50`
+     - Room: `Room 101`
+  5. Click **Create Schedule Entry**.
+- **Expected Result**: Period card appears on Wednesday at 14:00 in Section A's timetable grid.
+
+---
+
+## Test Scenario H: Scheduling Conflict Prevention Engine
+- **URL**: `http://localhost:3000/timetable`
+- **Steps**:
+  1. While viewing `/timetable`, click **+ Add Period**.
+  2. **Test Teacher Overlap**:
+     - Attempt to schedule `Marcus Holloway` on `MONDAY` from `08:30` to `09:20` in `Section B`.
+     - (Note: Marcus is already teaching Advanced Mathematics in Section A at this exact time).
+     - Click **Create Schedule Entry**.
+     - Verify error toast/alert: **"Scheduling conflict: Teacher is already scheduled for another class during this time period."**
+  3. **Test Section Overlap**:
+     - Attempt to schedule a second subject for `Section A` on `MONDAY` from `08:30` to `09:20`.
+     - Verify error: **"Scheduling conflict: This section already has a class scheduled during this time period."**
+  4. **Test Room Overlap**:
+     - Attempt to schedule `Section B` in `Room 101` on `MONDAY` from `08:30` to `09:20`.
+     - Verify error: **"Scheduling conflict: Room 101 is already booked during this time period."**
+- **Expected Result**: The engine strictly enforces all 3 scheduling collision constraints and rejects conflicting entries.
+
+---
+
+## Test Scenario I: Teacher's Dedicated Timetable View
+- **URL**: `http://localhost:3000/timetable`
+- **Steps**:
+  1. Log in as **Teacher** (`teacher@stjude.ems.local` / `Password123!`).
+  2. Navigate to `http://localhost:3000/timetable`.
+  3. Verify the view defaults to Marcus Holloway's assigned teaching schedule across all classes.
+  4. Notice the **+ Add Period** and schedule edit/delete controls are hidden.
+- **Expected Result**: Teachers have a clear read-only view of their weekly commitments across all sections.
+
+---
+
+## Test Scenario J: Student's Dedicated Timetable View
+- **URL**: `http://localhost:3000/timetable`
+- **Steps**:
+  1. Log in as **Student** (`student@stjude.ems.local` / `Password123!`).
+  2. Navigate to `http://localhost:3000/timetable`.
+  3. Verify the schedule shows only Liam Chen's enrolled Section A classes:
+     - Monday 08:30: Advanced Mathematics
+     - Monday 09:30: AP Physics
+     - Tuesday 08:30: Advanced Mathematics
+     - etc.
+  4. Administrative controls are hidden.
+- **Expected Result**: Student sees their personalized timetable according to section enrollment.
+
+---
+
+## Test Scenario K: Parent-Visible Child Timetable
+- **URL**: `http://localhost:3000/parent/dashboard`
+- **Steps**:
+  1. Log in as **Parent** (`parent@stjude.ems.local` / `Password123!`).
+  2. Open `/parent/dashboard`.
+  3. Under **Weekly Academic Schedule**:
+     - Period cards display subject, assigned teacher, and room.
+     - Switch from Liam to Sophia; schedule dynamically updates to Sophia's Section B courses.
+- **Expected Result**: Verified parents have live access to their children's real schedules without leaking unlinked students.
+
+---
+
+## Test Scenario L: Cross-School Tenant Access Denial
+- **URL**: `http://localhost:3000/parents` & `http://localhost:3000/classes`
+- **Steps**:
+  1. Log in as **School Admin (School B)** (`admin@apex.ems.local` / `Password123!`).
+  2. Navigate to `/parents`.
+     - Verify St. Jude parents (Sarah Chen, David Chen) are NOT visible.
+  3. Navigate to `/classes`.
+     - Verify St. Jude classes (Grade 10, Grade 11) are NOT visible.
+  4. Try requesting a St. Jude class ID directly via API or URL.
+     - Receives 404 / 403 School Isolation error.
+- **Expected Result**: School isolation strictly maintained across all parent, academic, and timetable data.
+
+---
+
+## Test Scenario M: Mobile Responsiveness & Theme Testing
+- **URL**: `http://localhost:3000/parent/dashboard` & `http://localhost:3000/timetable`
+- **Steps**:
+  1. Toggle system theme from Light to Dark mode using the theme switcher.
+  2. Verify:
+     - Schedule grid contrast and readability.
+     - Cards, tables, badges, and modals have clean dark palette styling.
+  3. Open Developer Tools and toggle Mobile Device Emulation (e.g. iPhone 14 or Pixel 7, 390px width):
+     - Child switcher buttons wrap cleanly.
+     - Timetable switches to day tabs or horizontal scroll without horizontal page breakage.
+- **Expected Result**: Flawless responsive layout and dark/light contrast across desktop and mobile viewports.
+
+---
+
+# Manual Testing Guide — TASK 008: Institutional Attendance Management & NFC Simulation
+
+## Test Scenario A: School Admin Creates Attendance Session
+- **URL**: `http://localhost:3000/attendance/sessions/new`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to **Attendance** in the sidebar or go to `http://localhost:3000/attendance`.
+  3. Click **Start Attendance Register** (`/attendance/sessions/new`).
+  4. Select Class Section: `Grade 10 — Section A`.
+  5. Select Attendance Date: Today's date (`2026-10-13`).
+  6. Select Session Type: `Daily Full Register`.
+  7. Click **Create Attendance Register**.
+- **Expected Result**: Session is created in PostgreSQL with status `DRAFT` and redirects directly to `/attendance/sessions/[id]`.
+
+---
+
+## Test Scenario B: Assigned Teacher Marks Attendance
+- **URL**: `http://localhost:3000/attendance/sessions/[id]`
+- **Steps**:
+  1. Log in as **Assigned Teacher** Marcus Holloway (`teacher@stjude.ems.local` / `Password123!`).
+  2. Open the attendance register created for Grade 10 Section A.
+  3. Verify the enrolled roster shows students (e.g. Liam Chen).
+  4. Click the quick button **Mark All Present** to rapidly set everyone to `PRESENT`.
+  5. For Liam Chen, switch status to `LATE` and enter remark: `"Arrived 10 minutes late due to transit delay."`.
+  6. Click **Save Attendance Register**.
+- **Expected Result**: Success banner appears: `"Attendance register saved successfully"`.
+
+---
+
+## Test Scenario C: Teacher Finalizes Register
+- **URL**: `http://localhost:3000/attendance/sessions/[id]`
+- **Steps**:
+  1. On the saved register page, click **Finalize & Lock Register**.
+  2. A confirmation modal appears warning that finalizing locks ordinary modifications.
+  3. Click **Confirm Finalization**.
+- **Expected Result**: Status badge changes from amber `DRAFT` to emerald `FINALIZED`. Inputs are locked in read-only mode for the teacher.
+
+---
+
+## Test Scenario D: Persistence After Page Refresh
+- **URL**: `http://localhost:3000/attendance/sessions/[id]`
+- **Steps**:
+  1. Hard refresh the page (`Ctrl + F5`).
+  2. Verify:
+     - Register status remains `FINALIZED`.
+     - Liam Chen's status is still `LATE`.
+     - Remark text remains `"Arrived 10 minutes late due to transit delay."`.
+- **Expected Result**: Live data is fully persisted in PostgreSQL and reloads without loss.
+
+---
+
+## Test Scenario E: Unassigned Teacher Denied Access
+- **URL**: `http://localhost:3000/attendance/sessions/[id]`
+- **Steps**:
+  1. Log in as **Unassigned Teacher** Sophia Rodriguez (`teacher@apex.ems.local` or an unassigned faculty account).
+  2. Attempt to open or mark the Grade 10 Section A register.
+- **Expected Result**: Route or API blocks with `403 Forbidden` ("You are not assigned to instruct or manage this class section").
+
+---
+
+## Test Scenario F: Student Sees Own Attendance
+- **URL**: `http://localhost:3000/attendance`
+- **Steps**:
+  1. Log in as **Student** Liam Chen (`student@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/attendance`.
+  3. Observe the student portal:
+     - Attendance rate gauge (e.g. `100%` presence).
+     - Breakdown cards: Days Present, Days Absent, Late / Excused.
+     - Chronological attendance records table displaying session date, class, status badge (`LATE`), and teacher remarks.
+  4. Notice that editing/marking buttons are completely absent.
+- **Expected Result**: Student has clean, read-only visibility into their own attendance history.
+
+---
+
+## Test Scenario G: Parent Sees Linked Child Attendance
+- **URL**: `http://localhost:3000/attendance`
+- **Steps**:
+  1. Log in as **Parent** Sarah Chen (`parent@stjude.ems.local` / `Password123!`).
+  2. Open `/attendance`.
+  3. The page displays the **Select Ward** switcher with verified children: **Liam Chen** and **Sophia Chen**.
+  4. With Liam Chen selected, observe his attendance percentage, presence counts, and recent sessions.
+  5. Click on **Sophia Chen**; metrics and history immediately update to Sophia's personal attendance records.
+- **Expected Result**: Verified parent can seamlessly monitor attendance for each of their linked children.
+
+---
+
+## Test Scenario H: Parent Cannot See Unrelated Student
+- **URL**: `http://localhost:3000/attendance/students/[unrelatedStudentId]`
+- **Steps**:
+  1. While logged in as Sarah Chen (`parent@stjude.ems.local`), attempt to navigate to a student history endpoint for an unverified/unlinked student.
+- **Expected Result**: API returns `403 Forbidden` ("Access denied to attendance records for this student").
+
+---
+
+## Test Scenario I: Attendance Reports Show Correct Real Percentages
+- **URL**: `http://localhost:3000/attendance/reports`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Open `/attendance/reports`.
+  3. Select Class Section: `Grade 10 — Section A`.
+  4. Observe the institutional summary:
+     - Total Sessions: Real count from database.
+     - Presence Rate %: Correct calculation `(Present + Late) / Total * 100`.
+     - Status distribution: Exact counts of Present, Absent, Late, Excused.
+  5. Click **Export to CSV**.
+  6. Verify the downloaded `.csv` file contains matching headers and student rows.
+- **Expected Result**: Zero fabrication; metrics, charts, and exports derive strictly from real database records.
+
+---
+
+## Test Scenario J: NFC Simulation Accepts Valid Scan
+- **URL**: `http://localhost:3000/attendance/nfc-simulator`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Open `/attendance/nfc-simulator`.
+  3. In the provision card, provision card token `NFC-STJUDE-1001` for student Liam Chen (or use the pre-seeded active card).
+  4. Select an active attendance session for Grade 10 Section A.
+  5. In the Card Scanner simulation input, enter `NFC-STJUDE-1001`.
+  6. Click **Simulate Card Tap**.
+- **Expected Result**: Green success card appears: `"Scan Accepted: Attendance recorded for Liam Chen (Status: PRESENT)"`.
+
+---
+
+## Test Scenario K: NFC Rejects Duplicate & Invalid Scans
+- **URL**: `http://localhost:3000/attendance/nfc-simulator`
+- **Steps**:
+  1. Immediately tap `NFC-STJUDE-1001` a second time for the same session.
+  2. Observe result banner: Status `DUPLICATE` ("Student attendance is already recorded for this session").
+  3. Enter an unregistered token: `NFC-UNKNOWN-9999` and tap.
+  4. Observe result banner: Status `REJECTED` ("Unknown or unregistered NFC token").
+  5. Review the **Recent NFC Scan Events** table below to see logged audit entries with timestamps.
+- **Expected Result**: Anti-duplicate logic protects registers; unauthorized cards are rejected and audited safely.
+
+---
+
+## Test Scenario L: Cross-School Access Denied
+- **URL**: `http://localhost:3000/attendance`
+- **Steps**:
+  1. Log in as **School Admin (School B)** (`admin@apex.ems.local` / `Password123!`).
+  2. Navigate to `/attendance`.
+  3. Verify that St. Jude sessions and classes are NOT visible in the sessions register or filters.
+  4. Attempt to query a St. Jude session ID directly via `/attendance/sessions/[stJudeSessionId]`.
+- **Expected Result**: Direct access is rejected with `404 / 403` School Tenant Isolation error.
+
+---
+
+## Test Scenario M: Mobile Responsiveness & Theme Testing
+- **URL**: `http://localhost:3000/attendance` & `http://localhost:3000/attendance/nfc-simulator`
+- **Steps**:
+  1. Toggle system theme from Light to Dark mode using the theme switcher.
+  2. Verify:
+     - Register table, radio buttons, and status pill badges maintain clear contrast.
+     - NFC scan terminal has polished dark styling.
+  3. Open Developer Tools and emulate mobile viewport (iPhone 14, 390px width):
+     - Roster displays cards gracefully on narrow screens.
+     - Bulk marking toolbar wraps cleanly without horizontal overflow.
+- **Expected Result**: Flawless responsive layout and dark/light contrast across desktop and mobile viewports.
+
+---
+
+# TASK 009 — GRADES & ACADEMIC PERFORMANCE TEST CASES
+
+## Test Scenario N: Assessment Categories & Weighting Distribution
+- **URL**: `http://localhost:3000/grades/categories`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades/categories`.
+  3. Verify seeded categories:
+     - Quiz (10%)
+     - Assignment (15%)
+     - Midterm Exam (25%)
+     - Final Exam (35%)
+     - Project Work (15%)
+  4. Inspect the cumulative weighting distribution bar at the top (shows 100% Balanced in emerald).
+  5. Click **Add Category**, fill in `Laboratory Practicum`, weight `5%`, and save.
+- **Expected Result**: Category creates smoothly, cumulative percentage recalculates, and weights enforce academic validation.
+
+---
+
+## Test Scenario O: Teacher Assessment Creation & Assignment Authorization
+- **URL**: `http://localhost:3000/grades/assessments/new`
+- **Steps**:
+  1. Log in as **Teacher** (`teacher@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades/assessments/new`.
+  3. Enter:
+     - Title: `Calculus Derivatives Pop Quiz`
+     - Class Section: `Grade 10 — Section A`
+     - Subject: `Advanced Mathematics`
+     - Category: `Quiz (10%)`
+     - Maximum Marks: `50`
+     - Assessment Date: Today's date
+  4. Click **Create & Open Gradebook**.
+- **Expected Result**: Assessment initializes in `DRAFT` status and immediately opens the classroom gradebook with enrolled students pre-populated.
+
+---
+
+## Test Scenario P: Teacher Grade Entry, Live Calculations & Missing Marks Handling
+- **URL**: `http://localhost:3000/grades/assessments/[id]/gradebook`
+- **Steps**:
+  1. In the Gradebook table, view the roster of enrolled students.
+  2. Enter marks:
+     - Student 1 (Liam Chen): `45` (Observe live calculation: `90%`, Grade `A+`)
+     - Student 2 (Sophia Chen): `38` (Observe live calculation: `76%`, Grade `B+`)
+     - Student 3 (Noah Patel): `0` (Observe zero score handled: `0%`, Grade `F`)
+     - Student 4 (Olivia Kim): Leave input empty (Observe displayed as `Missing`, excluded from earned/possible class averages).
+  3. Enter feedback: `Exemplary calculus application` for Liam.
+  4. Click **Save Draft**.
+  5. Refresh page: verify saved scores and feedback remain identical.
+- **Expected Result**: Bulk grade entry saves atomically via database transaction; zero scores and missing grades are strictly distinguished.
+
+---
+
+## Test Scenario Q: Assessment Publishing & Audited Grade Corrections
+- **URL**: `http://localhost:3000/grades/assessments/[id]/gradebook`
+- **Steps**:
+  1. With draft marks entered, click **Publish Results**.
+  2. Confirm publication in the dialog prompt.
+  3. Observe status pill switches to `PUBLISHED` in emerald.
+  4. Notice warning banner appears: "Audited Workflow: This assessment is already published."
+  5. Correct a grade (e.g. change Liam from `45` to `48`) and click **Save Draft**.
+- **Expected Result**: Assessment transitions to PUBLISHED; subsequent grade corrections generate an immutable `PUBLISHED_GRADES_MODIFIED` audit log.
+
+---
+
+## Test Scenario R: Student Portal Self-Service Results & GPA Standing
+- **URL**: `http://localhost:3000/grades` & `http://localhost:3000/grades/students/[studentId]`
+- **Steps**:
+  1. Log in as **Student** (`student1@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades`.
+  3. Verify:
+     - Liam's Cumulative GPA (e.g., `3.90`) and Overall Weighted Standing (`92%`, `A+`).
+     - Subject badges for Mathematics, Physics, English, CS.
+     - Assessment Performance Trend line chart showing published test history.
+  4. Open `/grades/students/[studentId]` to inspect the full printable report card.
+  5. Verify draft assessments are strictly HIDDEN from student view.
+- **Expected Result**: Student views only their own published grades and GPA without any draft assessment leakage.
+
+---
+
+## Test Scenario S: Student Authorization Barrier (Cannot View Peer Results)
+- **URL**: `http://localhost:3000/grades/students/[peerStudentId]`
+- **Steps**:
+  1. While logged in as Student 1 (`student1@stjude.ems.local`), attempt to navigate directly to Student 2's report card (`student2@stjude.ems.local` ID).
+- **Expected Result**: Access is blocked with an error / 403 Forbidden ("Access restricted").
+
+---
+
+## Test Scenario T: Parent Portal Multi-Child Gradebook & Relationship Verification
+- **URL**: `http://localhost:3000/grades`
+- **Steps**:
+  1. Log in as **Parent** (`parent@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades`.
+  3. Observe the child switcher:
+     - **Liam Chen** (`Grade 10 — Section A`): GPA `3.90`, overall `92%`.
+     - **Sophia Chen** (`Grade 11 — Section B`): GPA `3.50`, overall `84%`.
+  4. Switch between children: verify academic cards, subject breakdowns, and trend charts update dynamically.
+  5. Click **Open Detailed Academic Card** for Liam to see itemized teacher feedback.
+- **Expected Result**: Parent can view verified linked children's published grades seamlessly.
+
+---
+
+## Test Scenario U: School Tenant Isolation Barrier
+- **URL**: `http://localhost:3000/grades/assessments`
+- **Steps**:
+  1. Log in as **School Admin (School B - Apex STEM)** (`admin@apex.ems.local` / `Password123!`).
+  2. Navigate to `/grades/assessments`.
+  3. Verify that only Apex STEM assessments (Chemistry, Astrophysics, Data Structures) are listed.
+  4. St. Jude assessments are completely absent.
+  5. Attempt to access a St. Jude assessment ID directly.
+- **Expected Result**: Direct cross-school access is rejected with `403 Forbidden`.
+
+---
+
+## Test Scenario V: Institutional Class Reports & Real Data Visualizations
+- **URL**: `http://localhost:3000/grades/reports`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades/reports`.
+  3. Select Class Section `Grade 10 — Section A`.
+  4. Verify:
+     - KPI Cards: Class Average %, Cohort Pass Rate %, Highest Score %, Total Graded Students.
+     - **Subject Performance Bar Chart**: Real interactive bars showing Mathematics, Physics, English, CS averages.
+     - **Letter Grade Distribution**: Histogram bins for A+, A, B+, B, C, D, F.
+     - **Student Performance Rankings Table**: Ranked student roster with overall percentages and report card links.
+  5. Click **Export CSV** and verify the downloaded file contains accurate tabular records.
+- **Expected Result**: Class performance analytics calculate genuine aggregates from database records and export cleanly.
+
+---
+
+## Test Scenario W: Grading Scales Configuration
+- **URL**: `http://localhost:3000/grades/scales`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Navigate to `/grades/scales`.
+  3. Verify the tier table:
+     - A+ (90.0% - 100.0%, 4.00 GPA)
+     - A (80.0% - 89.9%, 3.70 GPA)
+     - B+ (70.0% - 79.9%, 3.30 GPA)
+     - B (60.0% - 69.9%, 3.00 GPA)
+     - C (50.0% - 59.9%, 2.00 GPA)
+     - D (40.0% - 49.9%, 1.00 GPA)
+     - F (0.0% - 39.9%, 0.00 GPA)
+  4. Click **Edit Tier** on B+ and adjust min percentage if needed.
+- **Expected Result**: Grading scale tiers update smoothly and govern student letter grade assignments.
+
+---
+
+## Test Scenario X: Idempotent Development Seed Verification
+- **Command**: `npx ts-node prisma/seed.ts`
+- **Steps**:
+  1. In terminal, run `npx ts-node prisma/seed.ts`.
+  2. Run the command a second time.
+  3. Inspect PostgreSQL counts: verify no duplicate schools, teachers, students, parents, assessments, or grades were created.
+- **Expected Result**: Seed script completes with exit code 0 repeatedly, preserving stable identifiers and zero duplicates.
+
+---
+
+## Test Scenario Y: School Administrator Fee Management & Dashboard (TASK 021)
+- **URL**: `http://localhost:3000/fees`
+- **Steps**:
+  1. Log in as **School Admin** (`admin@stjude.ems.local` / `Password123!`).
+  2. Verify **Fee Management** appears in the sidebar with Receipt icon.
+  3. Click **Fee Management** and open `/fees`.
+  4. Verify KPI Cards populate with authentic database statistics:
+     - Total Invoiced
+     - Total Collected
+     - Total Outstanding
+     - Total Overdue
+     - Collection Rate %
+     - Students with Outstanding Fees count
+  5. Inspect Visualizations:
+     - Monthly Billed vs Collected cashflow chart
+     - Payment Method Distribution (Cash, Bank Transfer, Cheque, Other)
+     - Outstanding Fees by Class breakdown
+  6. Switch tabs: **Invoices**, **Payments & Receipts**, **Fee Structures**, **Student Assignments**, **Discounts & Concessions**.
+- **Expected Result**: Real dashboard metrics render from PostgreSQL without placeholder data; tab navigation is smooth and reactive.
+
+---
+
+## Test Scenario Z: Fee Structure Creation & Student Assignment (TASK 021)
+- **URL**: `http://localhost:3000/fees`
+- **Steps**:
+  1. As School Admin, switch to **Fee Structures** tab.
+  2. Click **+ Create Fee Structure**:
+     - Category: `Tuition Fee`
+     - Name: `Grade 10 Annual Academic Tuition 2026-2027`
+     - Grade Level: `Grade 10`
+     - Amount: `3500`
+     - Billing Frequency: `Annually`
+     - Due Date Window: `30` days
+  3. Submit and verify structure appears in the ledger table.
+  4. Switch to **Student Assignments** tab. Click **+ Assign Fee to Student**:
+     - Select Student: `Liam Chen`
+     - Fee Structure: Select the created structure
+     - Check: `Generate Student Invoice Immediately`
+  5. Submit assignment.
+  6. Switch to **Invoices** tab: verify new invoice `#INV-2026-...` generated with total amount `$3,500` and status `UNPAID`.
+- **Expected Result**: Fee structure persists to school scope and issues a tracked invoice to the enrolled student.
+
+---
+
+## Test Scenario AA: Manual Payment Collection & Numbered Receipt Generation (TASK 021)
+- **URL**: `http://localhost:3000/fees`
+- **Steps**:
+  1. On the **Invoices** tab, locate an unpaid invoice with a positive balance.
+  2. Click **Record Payment**:
+     - Payment Method: `CASH`
+     - Amount: Enter a partial payment (e.g., `$100.00`)
+     - Notes: `In-person cashier reception desk`
+  3. Submit payment.
+  4. Verify:
+     - Invoice status updates to `PARTIALLY_PAID`.
+     - Invoice remaining balance decreases by exactly `$100.00`.
+     - Official numbered receipt is generated (e.g., `REC-2026-00009`).
+  5. Click **Receipt** button:
+     - Verify modal opens with Samahat Taibah Group branding, school name, student details, amount received, and cashier identity.
+     - Click **Print / Save PDF** to trigger browser print preview.
+- **Expected Result**: Payment records atomically in a database transaction, updates invoice balance, and produces an official numbered voucher.
+
+---
+
+## Test Scenario AB: Overpayment Protection & Concurrent Guard (TASK 021)
+- **URL**: `http://localhost:3000/fees`
+- **Steps**:
+  1. On an invoice with balance `$200.00`, click **Record Payment**.
+  2. Enter payment amount: `$300.00`.
+  3. Submit payment.
+  4. Verify error banner: `Payment amount ($300) exceeds outstanding invoice balance ($200)`.
+  5. The payment is rejected; invoice balance remains unchanged.
+- **Expected Result**: Backend and frontend prevent overpayment unless a dedicated credit workflow exists.
+
+---
+
+## Test Scenario AC: Teacher Confidential Financial Access Denial (TASK 021)
+- **URL**: `http://localhost:3000/fees` & `http://localhost:3000/students`
+- **Steps**:
+  1. Log in as **Teacher** (`teacher@stjude.ems.local` / `Password123!`).
+  2. Verify **Fee Management** is completely absent from the educator sidebar.
+  3. Attempt navigating directly to `http://localhost:3000/fees`:
+     - Access is blocked / redirected.
+  4. Open `http://localhost:3000/students` and view any student's profile modal.
+  5. Click the **Fees & Finances** tab:
+     - Error banner displays: `Access Restricted: Educators and faculty members do not possess permissions to view confidential student financial records.`
+- **Expected Result**: Institutional confidentiality is strictly maintained; teachers cannot inspect student balances or invoices.
+
+---
+
+## Test Scenario AD: Parent / Guardian Fee Portal & Child Switcher (TASK 021)
+- **URL**: `http://localhost:3000/parent/fees`
+- **Steps**:
+  1. Log in as **Parent** (`parent@stjude.ems.local` / `Password123!`).
+  2. Verify **Fees & Payments** appears in the sidebar.
+  3. Click **Fees & Payments** and open `/parent/fees`.
+  4. Child Switcher: Click between `Liam Chen` and `Sophia Chen`:
+     - Student header updates with the selected child's name, admission number, and class.
+     - KPI cards show genuine Billed, Paid, Outstanding, and Overdue balances for that specific child.
+  5. Invoices table: Click **View / Print** on an invoice to open the official fee statement.
+  6. Receipts table: Click **Official Receipt** on any payment to inspect or print the receipt voucher.
+  7. Verify parents have NO buttons to create invoices, record payments, or edit structures.
+- **Expected Result**: Parents have transparent, strictly read-only access to their verified children's financial profiles.
+
+---
+
+## Test Scenario AE: Student Self-Service Fee Portal (TASK 021)
+- **URL**: `http://localhost:3000/my-fees`
+- **Steps**:
+  1. Log in as **Student** (`student@stjude.ems.local` / `Password123!`).
+  2. Verify **My Fees** appears in the student sidebar.
+  3. Click **My Fees** to open `/my-fees`.
+  4. Verify student info banner shows personal student details (Liam Chen).
+  5. Verify student can view own issued invoices, payment receipts, and assigned structures.
+  6. Attempting to tamper with parameters or view other students' records returns 403 Forbidden.
+- **Expected Result**: Student has personal read-only visibility into their tuition and payment status.
+
+---
+
+## Test Scenario AF: Role-Aware AI Academic Assistant (TASK 022)
+- **URL**: `http://localhost:3000/ai-assistant`
+- **Steps**:
+  1. **Sidebar Navigation**:
+     - Log in as any of the 5 roles (Platform Admin, School Admin, Teacher, Student, Parent).
+     - Verify **AI Assistant** appears in the navigation sidebar with the `Gemini` badge and Bot icon.
+  2. **Page Loading**:
+     - Click **AI Assistant** to open `/ai-assistant`.
+     - Observe the two-panel responsive workspace:
+       - Left panel: Conversation History drawer with search, timestamp groupings, and **New Chat** button.
+       - Right panel: Active chat window with current role badge, suggested prompt chips, message stream, and input box.
+  3. **Role-Aware Suggested Prompts**:
+     - For **Student**: Verify prompts ask about personal attendance, grades, homework, and timetable.
+     - For **Teacher**: Verify prompts ask about assigned classes, lesson starters, and teaching explanations.
+     - For **School Admin**: Verify prompts ask about school enrollment, attendance trends, and academic performance.
+     - For **Parent**: Verify prompts ask about linked children's progress.
+     - For **Platform Admin**: Verify prompts ask about multi-school metrics.
+  4. **Live Chat Interaction**:
+     - Click one of the suggested prompt chips or type a question (e.g. `"What is my attendance rate?"`).
+     - Click the send button or press `Enter`.
+     - Verify the user message bubble appears immediately.
+     - Verify typing/loading indicator pulses while processing.
+     - Verify the Assistant response appears with markdown formatting, tool execution badges (e.g. `get_attendance_summary`), token usage tracking, and source citations.
+  5. **Conversation Persistence & Lifecycle**:
+     - Send a follow-up message to continue the conversation.
+     - Click **New Chat** to start a fresh thread.
+     - Click an earlier conversation in the left history drawer to load past messages.
+     - Refresh the page (`F5`) and verify previous conversations and messages remain intact.
+  6. **Security & Boundary Isolation Verification**:
+     - Verify Teacher cannot access student financial records via AI questions.
+     - Verify Student cannot inquire about other students' private marks.
+     - Verify Parent can only access linked children.
+     - Verify unauthorized conversation access returns 404 Not Found.
+- **Expected Result**: Secure, responsive, role-aware academic assistance grounded in verified institutional data.
+
+---
+
+## Test Scenario AG: AI Teacher Copilot (TASK 023)
+- **URL**: http://localhost:3000/teacher/copilot
+- **User**: Teacher (teacher@stjude.ems.local / Password123!)
+- **Objective**: Verify end-to-end pedagogical assistance across the 6 copilot tools, drafts repository, and human approval publishing workflows.
+
+### Steps:
+1. **Sidebar Navigation**:
+   - Log in as Teacher (teacher@stjude.ems.local / Password123!).
+   - Locate **AI Teacher Copilot** in the left sidebar with Sparkles icon and Gemini badge.
+   - Click it to navigate to http://localhost:3000/teacher/copilot.
+
+2. **Feature 1 — AI Lesson Plan Generator**:
+   - In the Lesson Planner tab, select assigned Class, Subject, and Course.
+   - Enter Topic and Objectives, then click Generate Lesson Plan with Gemini.
+   - Review structured output, edit sections, and save as draft.
+
+3. **Feature 2 — AI Homework Generator & Publishing**:
+   - In the Homework tab, configure topic, question count, and difficulty.
+   - Click Generate Homework with Gemini. Preview generated problems and suggested answers.
+   - Click Approve & Publish to Class. Verify it appears in the Homework module.
+
+4. **Feature 3 — AI Quiz & Exam Generator**:
+   - In the Quiz & Exam tab, configure topic, question count, and total marks.
+   - Generate exam with Gemini. Confirm question marks sum up to total.
+   - Verify answer keys remain hidden from student queries. Save draft.
+
+5. **Feature 4 — AI Grading Assistant (Human-in-the-Loop)**:
+   - In the Grading Assistant tab, select an eligible pending submission.
+   - Generate AI Feedback & Score Suggestion.
+   - Verify student grade is NOT modified automatically.
+   - Confirm teacher reviewed score and apply grade.
+
+6. **Feature 5 — AI Student Performance Insights**:
+   - In the Performance Insights tab, analyze class performance.
+   - Verify metrics (average grade, attendance, homework completion) derive from verified database records.
+
+7. **Feature 6 — AI Teaching Materials Generator**:
+   - In Teaching Materials tab, select material type (Study Guide, Worksheet, Flashcards).
+   - Generate and test copying content or printing.
+
+8. **Drafts Repository & Lifecycle**:
+   - In Saved Drafts tab, verify drafts persist after page refresh, filter by type, and edit inline.
+
+9. **Security & Role Enforcement**:
+   - Verify Student and Parent access is blocked (HTTP 403).
+   - Verify cross-school access is forbidden.
+
+---
+
+## Test Scenario AH: AI Student Tutor & AI Parent/Guardian Assistant (TASK 024)
+- **URLs**:
+  - Student Tutor: `http://localhost:3000/student/tutor`
+  - Parent Assistant: `http://localhost:3000/parent/assistant`
+- **Users**:
+  - Student: `student@stjude.ems.local` / `Password123!`
+  - Parent: `parent@stjude.ems.local` / `Password123!`
+- **Objective**: Verify personalized student tutoring, practice quizzes, revision planner, homework guidance, verified child linkage, academic summaries, fee explanations, and child-scoped Q&A.
+
+### Part 1: AI Student Tutor (`/student/tutor`)
+1. **Login & Navigation**:
+   - Log in as Student (`student@stjude.ems.local` / `Password123!`).
+   - Click **AI Tutor** in the sidebar to navigate to `http://localhost:3000/student/tutor`.
+   - Verify the page header displays **AI Student Tutor** and enrolled subject context tags.
+2. **Feature 1 — Interactive Concept Guide**:
+   - Select a subject or enter a custom topic (e.g., *"Photosynthesis & Light Reactions"*).
+   - Select difficulty and explanation style. Click **Generate Concept Guide**.
+   - Verify structured sections: Key Concept Summary, Step-by-Step Breakdown, Real-World Analogy, and Quick Check Question.
+3. **Feature 2 — Socratic Tutor**:
+   - Click the **Socratic Tutor** tab.
+   - Ask a question (e.g., *"How do I find the hypotenuse of a right-angled triangle?"*).
+   - Verify the AI guides the student using questions and scaffolding without just blurting out the answer.
+4. **Feature 3 — Practice Quizzes & Formative Evaluation**:
+   - Click the **Practice Quizzes** tab.
+   - Enter topic *"Chemical Equilibrium"*, select 4 questions, Multiple Choice. Click **Generate Quiz**.
+   - Verify answer keys are NOT displayed on the question cards.
+   - Select answers and click **Submit Practice Quiz**.
+   - Verify formative score percentage is displayed along with detailed answer explanations.
+   - Verify official student grades in the gradebook have NOT been modified.
+   - Verify submitting again is prevented.
+5. **Feature 4 — Revision Planner**:
+   - Click the **Revision Planner** tab.
+   - Configure a 7-day revision window and click **Generate Revision Plan**.
+   - Verify daily study schedule with allocated subjects, focus topics, and break reminders.
+6. **Feature 5 — Homework Guidance**:
+   - Click the **Homework Guidance** tab.
+   - Select an active assignment. Click **Get Homework Scaffolding**.
+   - Verify the AI returns hints and conceptual analogies without writing the assignment or submitting it.
+7. **Feature 6 — Learning Progress Summary**:
+   - Click the **Learning Progress** tab.
+   - Verify summary of verified attendance rate, grade averages, completed practice quizzes, and suggested focus areas.
+
+### Part 2: AI Parent Assistant (`/parent/assistant`)
+1. **Login & Navigation**:
+   - Log in as Parent (`parent@stjude.ems.local` / `Password123!`).
+   - Click **AI Parent Assistant** in the sidebar to navigate to `http://localhost:3000/parent/assistant`.
+   - Verify the verified child selector displays linked child (*"Alex Johnson"*).
+2. **Feature 1 — Child Selector & Isolation**:
+   - Verify only verified children linked via `StudentGuardianRelationship` appear.
+   - Verify changing selected child resets state and active conversation.
+3. **Feature 2 — Academic Progress Overview**:
+   - In the **Academic Progress** tab, view grades and subject summaries.
+   - Verify grades reflect actual database records.
+4. **Feature 3 — Attendance Analysis**:
+   - In the **Attendance** tab, view attendance rate, present/absent days, and trends.
+5. **Feature 4 — Homework Tasks**:
+   - In the **Homework** tab, review upcoming assignments, instructions, and due dates.
+6. **Feature 5 — Tuition & Fees Explanation**:
+   - In the **Tuition & Fees** tab, view the authoritative read-only ledger.
+   - Verify total billed, total paid, and outstanding balance match official invoices.
+   - Verify there is no ability to alter balances or waive fees.
+7. **Feature 6 — Home Learning Tips**:
+   - In the **Home Learning Tips** tab, view age-appropriate study encouragement and strategies.
+8. **Feature 7 — Child-Scoped Q&A**:
+   - In the **Ask Assistant** tab, ask *"How is Alex performing in Science?"*.
+   - Verify the response is grounded specifically in Alex's academic records.
+
+### Part 3: Security & RBAC Enforcement
+1. **Role Access Control**:
+   - Attempting to access `/api/v1/ai/tutor/*` as Teacher or Parent returns `HTTP 403 Forbidden`.
+   - Attempting to access `/api/v1/ai/parent/*` as Student or Teacher returns `HTTP 403 Forbidden`.
+2. **Guardian Linkage Enforcement**:
+   - Querying child records for an unlinked student ID returns `HTTP 403 Forbidden`.
+3. **Multi-School Isolation**:
+   - Queries across school boundaries return `HTTP 403` or `404`.
+
+---
+
+## Test Scenario AI: Transport Management with Real-Time GPS Tracking (TASK 027)
+- **URLs**:
+  - Admin Fleet Oversight: `http://localhost:3000/transport`
+  - Driver GPS Portal: `http://localhost:3000/transport/driver`
+  - Parent Bus Tracking: `http://localhost:3000/parent/transport`
+  - Student Route View: `http://localhost:3000/student/transport`
+- **Users**:
+  - School Admin: `admin@stjude.ems.local` / `Password123!`
+  - Driver / Staff: `teacher@stjude.ems.local` / `Password123!`
+  - Parent: `parent@stjude.ems.local` / `Password123!`
+  - Student: `student@stjude.ems.local` / `Password123!`
+
+### Part 1: Admin Fleet Management (`/transport`)
+1. **Login & Navigation**:
+   - Log in as School Admin (`admin@stjude.ems.local`).
+   - Click **Transport** in the left navigation sidebar.
+   - Verify summary KPI cards: Total Vehicles (8+), Active Drivers (8+), Total Routes (8+), Live Active Trips (2).
+2. **Vehicle Registry**:
+   - In the **Vehicles** tab, review the fleet list (e.g., ST-BUS-101, ST-BUS-102, ST-MINI-201).
+   - Click **Add Vehicle**. Enter registration `BUS-EXP-99`, type `BUS`, seating capacity `45`, insurance `INS-999`. Save.
+   - Verify new vehicle appears in the list and can be edited.
+3. **Driver Assignment**:
+   - Switch to the **Drivers** tab.
+   - Verify licensed drivers list with assigned vehicle badges, phone numbers, and license expiry warnings.
+4. **Route Planning & Stop Sequence**:
+   - Switch to the **Routes & Stops** tab.
+   - Select a route (e.g., *"North District Morning Pickup"*).
+   - Verify ordered stops table displaying stop sequence (`#1`, `#2`, `#3`), stop names, scheduled pickup/dropoff times, and geocoordinates.
+5. **Student Allocation & Capacity Enforcement**:
+   - Switch to the **Student Allocations** tab.
+   - Review assigned students with their boarding stops and assigned vehicles.
+   - Verify that adding students beyond vehicle seating capacity is rejected with an institutional capacity warning.
+6. **Live Fleet Map & Active Trips**:
+   - Switch to the **Live Fleet Map** tab.
+   - Verify active trips in progress with live vehicle location cards, current speed, heading, and simulated GPS markers (`[SIMULATED]` badge).
+
+### Part 2: Driver GPS Ingestion Portal (`/transport/driver`)
+1. **Login & Navigation**:
+   - Navigate to `http://localhost:3000/transport/driver`.
+2. **Start & End Trip**:
+   - Select an assigned route and vehicle.
+   - Click **Start Trip**. Verify trip status updates to `IN_PROGRESS`.
+3. **Simulated Telemetry & Real-Time Broadcast**:
+   - Click **Transmit GPS Ping** or enable **Auto-Simulation**.
+   - Verify latitude and longitude update on the telemetry HUD with `isSimulated: true`.
+4. **Student Attendance Logging**:
+   - In the attendance section, check in a student as `BOARDED`.
+   - Verify status updates in real-time.
+
+### Part 3: Parent Live Bus Tracking (`/parent/transport`)
+1. **Login & Navigation**:
+   - Log in as Parent (`parent@stjude.ems.local`).
+   - Click **Transport & Bus** in the left navigation sidebar.
+2. **Linked Child Route Scoping**:
+   - Verify route and vehicle details for linked child (*Alex Johnson*).
+   - Verify stop name, scheduled pickup time, and assigned driver contact info.
+3. **Live Bus Location & ETA**:
+   - Verify live bus telemetry card displays current location, speed, distance to stop, and simulated coordinates.
+   - Verify parent CANNOT see or access unlinked buses or students from other schools.
+
+### Part 4: Student Transport Portal (`/student/transport`)
+1. **Login & Navigation**:
+   - Log in as Student (`student@stjude.ems.local`).
+   - Click **My Transport** in the left navigation sidebar.
+   - Verify personal route card, assigned vehicle number, pickup stop, and scheduled arrival time.
+
+---
+
+## Test Scenario AJ: Library Management & Circulation Control (TASK 028)
+- **URLs**:
+  - Admin Library Management: `http://localhost:3000/library`
+  - Student Library Portal: `http://localhost:3000/student/library`
+  - Teacher Library Portal: `http://localhost:3000/teacher/library`
+  - Parent Library Portal: `http://localhost:3000/parent/library`
+- **Users**:
+  - School Admin: `admin@stjude.ems.local` / `Password123!`
+  - Teacher: `teacher@stjude.ems.local` / `Password123!`
+  - Student: `student@stjude.ems.local` / `Password123!`
+  - Parent: `parent@stjude.ems.local` / `Password123!`
+
+### Part 1: Admin Library Management (`/library`)
+1. **Login & Circulation Desk**:
+   - Log in as School Admin (`admin@stjude.ems.local`).
+   - Click **Library** in the left navigation sidebar.
+   - Verify KPI cards: Total Titles (8+), Total Physical Copies (16+), Active Loans, Overdue Loans, Fines Collected.
+2. **Book Cataloging**:
+   - In the **Catalog** tab, search by title, ISBN, or genre.
+   - Click **Add Book**. Enter title *"Modern Middle Eastern History"*, author *"Prof. N. Al-Rashid"*, ISBN, category `History`. Save.
+   - Verify title appears with `0 Copies Available`.
+3. **Physical Copies & Barcodes**:
+   - Click **Add Copy** for the new book.
+   - Enter Accession Number `ACC-HIST-001`, Barcode `9780001`, Shelf `History Stack 2-A`, Condition `NEW`. Save.
+   - Verify book title now shows `1 Copy Available`.
+4. **Issue Book (Loan Creation)**:
+   - Switch to the **Circulation Desk** tab.
+   - Select copy `ACC-HIST-001` and select student borrower (*Alex Johnson*).
+   - Click **Issue Book**.
+   - Verify copy status transitions to `ISSUED` and available copies decrements to 0.
+5. **Return Book & Fine Assessment**:
+   - Find the issued loan in the active loans table.
+   - Click **Return Book**. Select return condition `GOOD`.
+   - Verify loan status transitions to `RETURNED`, return timestamp is logged, and copy status reverts to `AVAILABLE`.
+6. **Overdue Fines & Discretionary Waiver**:
+   - Switch to the **Fines & Penalties** tab.
+   - Review overdue fines ledger showing overdue days and penalty amounts.
+   - Click **Waive Fine** on a fine record. Enter reason *"First-time institutional grace waiver"*.
+   - Verify fine status transitions to `WAIVED` with recorded audit justification.
+7. **Borrowing Policies**:
+   - Switch to the **Circulation Policies** tab.
+   - Verify student policy (max 3 books, 14 days loan period, 1 renewal) and teacher policy (max 8 books, 30 days loan period, 3 renewals).
+
+### Part 2: Student Library Self-Service (`/student/library`)
+1. **Catalog Search & Reservations**:
+   - Log in as Student (`student@stjude.ems.local`).
+   - Click **Library Portal** in the left sidebar.
+   - Browse catalog titles. Click **Reserve Book** on a title with copies checked out.
+   - Verify reservation confirms with assigned queue position.
+2. **Active Loans & Due Dates**:
+   - In the **My Borrowed Books** tab, review active loans, due date countdowns, and renewal options.
+
+### Part 3: Teacher Library Workspace (`/teacher/library`)
+1. **Faculty Loan Quota & History**:
+   - Log in as Teacher (`teacher@stjude.ems.local`).
+   - Click **Library Workspace** in the left sidebar.
+   - Verify teacher loan policy limit (8 books, 30 days), active academic loans, and reading resource list.
+
+### Part 4: Parent Library Oversight (`/parent/library`)
+1. **Linked Child Borrowing Oversight**:
+   - Log in as Parent (`parent@stjude.ems.local`).
+   - Click **Library Records** in the left sidebar.
+   - Verify active books checked out by linked child (*Alex Johnson*), due dates, and zero outstanding fines.
+   - Verify parent CANNOT access library records of unlinked students.
+
+---
+
+## TASK 030: Direct Messaging, Announcements & Automated Student Absence Notifications
+
+### Verification Pre-requisites
+- **Services Running**:
+  - PostgreSQL 18: `localhost:5433`
+  - NestJS API: `http://localhost:4000/api/v1`
+  - Next.js Web: `http://localhost:3000`
+- **Routes Tested**:
+  - Direct Messaging: `http://localhost:3000/messages`
+  - Notifications Center: `http://localhost:3000/notifications`
+  - Daily Attendance Register: `http://localhost:3000/attendance`
+- **Demo Users (Password: `Password123!`)**:
+  - School Admin: `admin@stjude.ems.local`
+  - Teacher: `teacher@stjude.ems.local`
+  - Student: `student@stjude.ems.local`
+  - Parent: `parent@stjude.ems.local`
+  - Platform Admin: `platform.admin@ems.local`
+
+### Test Suite 1: Automated Student Absence Alert Workflow
+1. Log in as Teacher (`teacher@stjude.ems.local`).
+2. Navigate to `/attendance` and open an active class register session.
+3. Mark a student absent.
+4. Finalize the register session.
+5. Log out and log in as the verified linked Parent (`parent@stjude.ems.local`).
+6. Notice the unread badge on the top navigation bar and `/messages` / `/notifications`.
+7. Navigate to `/notifications`. Verify the "Student Absence Alert" appears with student name, date, and school context.
+8. Click "Mark Read" and confirm the unread counter decrements.
+9. Log in as an unrelated parent and confirm they cannot see this alert.
+
+### Test Suite 2: Attendance Correction Workflow
+1. Log in as School Admin (`admin@stjude.ems.local`).
+2. Navigate to `/attendance` and open the finalized session.
+3. Update the student's status from `ABSENT` to `EXCUSED` with reason "Medical note verified". Save.
+4. Log in as the verified linked Parent (`parent@stjude.ems.local`).
+5. Open `/notifications` and confirm an "Attendance Record Corrected" notification is received indicating the status was corrected from `ABSENT` to `EXCUSED`.
+
+### Test Suite 3: Direct Messaging & Thread Conversation
+1. Log in as School Admin (`admin@stjude.ems.local`).
+2. Navigate to `/messages`.
+3. Click "Compose Message". Select a parent contact. Enter subject and message body. Click Send.
+4. Log out and log in as Parent (`parent@stjude.ems.local`).
+5. Open `/messages`. Notice the conversation thread appears in the Inbox with unread indicator.
+6. Open the conversation. Reply to the administrator.
+7. Log out and log in as School Admin. Confirm the reply appears in the conversation thread with delivery timestamp.
+
+### Test Suite 4: Announcements & Audience Preview
+1. Log in as School Admin (`admin@stjude.ems.local`).
+2. Navigate to `/messages` and click "Announcements".
+3. Select target audience: "Parents & Guardians Only".
+4. Confirm recipient preview displays the exact number of eligible recipients and sample names.
+5. Enter announcement title and content. Click "Broadcast Now".
+6. Log in as Parent and confirm the announcement appears in `/notifications`.
+7. Log in as Student and confirm the parent-targeted announcement is NOT delivered to students.
+
+### Test Suite 5: Notification Preferences (Admin Control)
+1. Log in as School Admin (`admin@stjude.ems.local`).
+2. Navigate to `/messages` and click "Preferences".
+3. Review toggles: Student Absence Alerts (enabled by default), Attendance Correction Alerts, Homework Alerts, Fee Alerts, Transport Alerts, Library Alerts.
+4. Toggle an optional setting and save. Verify the setting persists across page reloads.
+
+---
+
+# Manual Testing Guide — TASK 026: Revised AI Document Intelligence & Administrative Automation
+
+## Overview
+This document guides the user through manually verifying the institutional document repository, grounded policy Q&A, AI summarization, version replacement, administrative notice draft review & broadcast, and executive narrative reporting across all integrated role AI assistants.
+
+### Test Credentials
+- Default password for all seed accounts: `Password123!`
+- Platform Admin: `platform.admin@ems.local`
+- School Admin (St. Jude): `admin@stjude.ems.local`
+- School Admin (Apex Academy): `admin@apex.ems.local`
+- Teacher: `teacher@stjude.ems.local`
+- Student: `student@stjude.ems.local`
+- Parent / Guardian: `parent@stjude.ems.local`
+
+---
+
+### Test Suite 1: Document Library & Management (`/documents`)
+1. Log in as School Admin (`admin@stjude.ems.local`).
+2. Notice the "Document Library" item in the left sidebar navigation under Operations & Records (`/documents`).
+3. Click "Document Library".
+4. Verify the top metric cards display:
+   - Total Institutional Documents (9+)
+   - Indexed Document Sections (25+)
+   - Pending Notice Drafts
+   - Active Policy Versions
+5. Verify the 4 functional tabs are present:
+   - **Institutional Documents**: Filter by category, view cards with badges, metadata, section count, and version indicator.
+   - **Administrative Drafts**: Notice drafts with status badges (`DRAFT`, `PENDING_REVIEW`, `APPROVED`, `PUBLISHED`).
+   - **Grounded Policy Search & Q&A**: Real-time semantic search returning matched sections with citations.
+   - **Executive Narrative Reports**: Real database-driven narrative reports.
+6. Click "Upload Document".
+7. Provide:
+   - Title: `Campus Science Laboratory Safety Protocols`
+   - Category: `SCHOOL_POLICY`
+   - Permitted Roles: School Admin, Teacher, Student
+   - Markdown Content with `# Headers`.
+8. Click "Upload & Index".
+9. Verify document appears in the library with 3 extracted sections and Status `READY`.
+
+---
+
+### Test Suite 2: Document Detail, Sections, Version Increment & Archival
+1. In the Document Library, click "View & Edit" on the uploaded document.
+2. In the Document Preview modal, verify all 3 chunked markdown sections are displayed with section indices and token counts.
+3. Click "AI Summarize". Select summary type `Executive (Short)`. Verify structured summary with key takeaways and citations renders.
+4. Click "Upload New Version".
+5. Enter change summary: `Annual revision updating eyewash safety protocols`.
+6. Provide updated text content. Click "Save Version".
+7. Verify version badge increments from `v1` to `v2` and version history log shows both versions with timestamps and author names.
+8. Click "Archive Document". Confirm prompt. Verify document status transitions to `ARCHIVED` and is hidden from active student searches.
+
+---
+
+### Test Suite 3: Tenant Isolation & Multi-School Security Boundary
+1. Log out and log in as Apex Academy School Admin (`admin@apex.ems.local`).
+2. Navigate to `/documents`.
+3. Verify that St. Jude specific documents and administrative drafts are NOT visible in the Apex document library.
+4. Attempting to directly request a St. Jude document ID returns HTTP 403 Forbidden.
+
+---
+
+### Test Suite 4: Grounded Policy Search & Zero Fabrication
+1. In `/documents`, switch to the **Grounded Policy Search & Q&A** tab.
+2. Enter inquiry: `What is the minimum attendance threshold required to sit for final examinations?`.
+3. Click "Search Policies".
+4. Verify results display:
+   - Citation: `Institutional Student Attendance & Punctuality Policy (v1, Section 1)`
+   - Verified section snippet explaining the 90% attendance requirement.
+   - Relevance score badge (`EXACT` or `HIGH MATCH`).
+5. Now enter an inquiry with zero database evidence: `What is the protocol for extraterrestrial quantum teleportation?`.
+6. Click "Search Policies".
+7. Verify the interface displays a clean zero-evidence message stating no institutional policies were found, confirming zero metric/citation fabrication.
+
+---
+
+### Test Suite 5: Administrative Notice Draft Lifecycle & TASK 030 Broadcast
+1. In `/documents`, switch to the **Administrative Drafts** tab.
+2. Click "Draft New Notice".
+3. Provide:
+   - Subject: `Mandatory Laboratory Safety Orientation Schedule`
+   - Category: `NOTICE`
+   - Target Audience: `ALL` (or `STUDENT`, `PARENT`, `TEACHER`)
+   - Body: `All enrolled science students must attend the safety orientation before starting experiments.`
+4. Click "Generate Draft".
+5. Verify the notice draft appears in the list with `DRAFT` status.
+6. Click "Review Draft". Select decision `APPROVE`.
+7. Verify status updates to `APPROVED` with approved timestamp and approver name.
+8. Click "Broadcast Notice".
+9. Confirm the modal prompt to dispatch through the TASK 030 Institutional Communications Engine.
+10. Verify draft status transitions to `PUBLISHED` with delivery counter.
+11. Log in as Teacher or Parent and navigate to `/notifications` to confirm the broadcast notification was delivered.
+
+---
+
+### Test Suite 6: Executive Narrative Reporting (Real Database Grounding)
+1. In `/documents`, switch to the **Executive Narrative Reports** tab.
+2. Select Report Type: `Attendance & Punctuality Summary`.
+3. Click "Generate Narrative Report".
+4. Verify the report generates:
+   - Reporting interval
+   - Executive narrative summary based on real database attendance records
+   - Verified underlying metrics table (Total Logs, Present, Absent, Late, Attendance Rate %)
+   - Zero fabricated numbers.
+
+---
+
+### Test Suite 7: Role AI Assistants Integration (Zero Fabrication)
+1. **Platform / School Admin AI Assistant (`/ai-assistant`)**:
+   - Navigate to `/ai-assistant`.
+   - Click the quick action chip: "What is our attendance threshold policy for exams?".
+   - Verify the assistant replies with official policy citations (`Institutional Student Attendance & Punctuality Policy`) and renders a clickable document citation badge.
+2. **Teacher AI Copilot (`/teacher/copilot`)**:
+   - Log in as Teacher (`teacher@stjude.ems.local`).
+   - Navigate to `/teacher/copilot`.
+   - Click the 7th tab: **Documents & Notices**.
+   - Use "Search Guidelines": enter `examination grading guidelines`. Verify matched faculty sections appear.
+   - Use "Draft Parent Notice": enter subject and content. Click "Submit Draft for Review". Verify draft is queued for administrative review.
+3. **Student AI Tutor (`/student/tutor`)**:
+   - Log in as Student (`student@stjude.ems.local`).
+   - Navigate to `/student/tutor`.
+   - Click the 7th tab: **School Rules & Handbook**.
+   - Ask: `Can I use my mobile phone during class hours?`.
+   - Verify the AI Tutor responds citing `Student Rights, Conduct & Campus Life Handbook` Section 2.
+4. **Parent AI Assistant (`/parent/assistant`)**:
+   - Log in as Parent (`parent@stjude.ems.local`).
+   - Navigate to `/parent/assistant`.
+   - Click the 7th tab: **School Policies & Rules**.
+   - Ask: `What is the procedure if my child is absent due to illness?`.
+   - Verify the Parent Assistant cites the official absence reporting procedures and displays verified child metrics.
+
+---
+
+## TASK 020: Production Deployment Preparation & Readiness Test Suites
+
+### Test Suite 1: Production Frontend Build & Health Route Verification
+1. Run `npm run build:web`.
+2. Verify all 62 static and dynamic routes generate cleanly with zero TypeScript errors.
+3. Start the production frontend server: `npm run start --workspace=apps/web`.
+4. Send a probe request: `curl http://localhost:3000/api/health`.
+5. Verify response returns HTTP 200 with JSON:
+   `{"status":"ok","service":"ems-frontend","uptimeSeconds":...}`.
+
+---
+
+### Test Suite 2: Production Backend API Build & Component Health Checks
+1. Run `npm run build:api`.
+2. Start the API server: `npm run start --workspace=apps/api`.
+3. Send a GET request to `/api/v1/health`:
+   ```bash
+   curl -s http://localhost:4000/api/v1/health | jq .
+   ```
+4. Verify response:
+   - `status`: `ok` (or `degraded` if AI service is offline)
+   - `services.database.status`: `up`
+   - `services.redis.status`: `up`
+   - `uptimeSeconds` increments accurately.
+
+---
+
+### Test Suite 3: Deterministic Database Migration Protocol
+1. Check migration status against the database:
+   ```bash
+   npm run prisma:status
+   ```
+2. Verify output confirms:
+   - 1 migration found (`20261017000000_init_ems_production`)
+   - `Database schema is up to date!`
+3. Verify that `npm run prisma:deploy` completes with exit code 0 without resetting or modifying existing data.
+
+---
+
+### Test Suite 4: Fail-Safe Secret Validation in Production Mode
+1. Attempt to start the backend with `NODE_ENV=production` while `JWT_SECRET` is unset or set to the development fallback.
+2. Verify the application refuses to boot and logs a fatal error:
+   `[CRITICAL CONFIGURATION ERROR] Missing or insecure production environment variables`.
+3. Provide a valid 32+ character `JWT_SECRET` and `JWT_REFRESH_SECRET`.
+4. Verify the application starts normally.
+
+---
+
+### Test Suite 5: Swagger Production Guard Verification
+1. Start the API with `NODE_ENV=production` and `SWAGGER_ENABLED=false` (default).
+2. Attempt to navigate to `http://localhost:4000/api/docs`.
+3. Verify the endpoint returns HTTP 404 Not Found, preventing unintended exposure of internal API definitions.
+4. Set `SWAGGER_ENABLED=true` and restart. Verify Swagger docs are restored when explicitly authorized.
+
+---
+
+### Test Suite 6: Automated Database Backup & Non-Destructive Restore
+1. Run the backup automation:
+   ```bash
+   ./infrastructure/scripts/backup-db.sh ./backups/test
+   # or on Windows:
+   ./infrastructure/scripts/backup-db.ps1 -BackupDir ./backups/test
+   ```
+2. Verify a compressed `.dump` file is created with size > 0.
+3. Test the restore script in dry/interactive mode:
+   ```bash
+   ./infrastructure/scripts/restore-db.sh ./backups/test/<backup_file>.dump
+   ```
+4. Verify the script prompts for user confirmation before executing any modification.
+
+---
+
+### Test Suite 7: Docker Compose Production Orchestration Verification
+1. Inspect `docker-compose.prod.yml`.
+2. Verify all five services are defined (`postgres`, `redis`, `api`, `ai-service`, `web`, `nginx`).
+3. Verify persistent volumes are declared:
+   - `ems_prod_postgres_data`
+   - `ems_prod_redis_data`
+   - `ems_prod_uploads_data`
+   - `ems_prod_ssl_certs`
+4. Verify `ems-backend-net` is flagged `internal: true` to prevent direct public exposure of database and cache ports.
+
+
