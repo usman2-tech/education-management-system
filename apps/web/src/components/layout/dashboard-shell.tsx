@@ -25,6 +25,18 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(false);
   const [isMobileOpen, setIsMobileOpen] = React.useState<boolean>(false);
 
+  const handleToggleCollapse = React.useCallback(() => {
+    setIsCollapsed((prev) => !prev);
+  }, []);
+
+  const handleCloseMobile = React.useCallback(() => {
+    setIsMobileOpen(false);
+  }, []);
+
+  const handleOpenMobile = React.useCallback(() => {
+    setIsMobileOpen(true);
+  }, []);
+
   // Standalone authentication and activation pages bypass shell scaffolding
   const isAuthPage =
     pathname === '/login' ||
@@ -43,16 +55,16 @@ export function DashboardShell({ children }: DashboardShellProps) {
         <Sidebar
           currentRole={effectiveRole}
           isCollapsed={isCollapsed}
-          onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
+          onToggleCollapse={handleToggleCollapse}
           isMobileOpen={isMobileOpen}
-          onCloseMobile={() => setIsMobileOpen(false)}
+          onCloseMobile={handleCloseMobile}
         />
 
         {/* Main Content Viewport */}
         <div className="flex flex-1 flex-col overflow-x-hidden">
           <Header
             currentRole={effectiveRole}
-            onOpenMobileNav={() => setIsMobileOpen(true)}
+            onOpenMobileNav={handleOpenMobile}
           />
 
           <main className="flex-1 p-4 sm:p-6 lg:p-8">

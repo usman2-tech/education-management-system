@@ -28,6 +28,7 @@ import {
   fetchTeacherDashboard,
   fetchStudentDashboard,
 } from '@/lib/dashboards-api';
+import { DashboardSkeleton } from '@/components/ui/skeleton';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import {
   AttendanceTrendChart,
@@ -104,14 +105,7 @@ export default function DashboardPage() {
   }, [user, isAuthLoading, router]);
 
   if (isAuthLoading || isLoading) {
-    return (
-      <div className="flex h-96 flex-col items-center justify-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground">
-          Aggregating institutional telemetry from database...
-        </p>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {

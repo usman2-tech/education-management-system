@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { apiClient } from '@/lib/api-client';
 import { UserRole } from '@ems/contracts';
 import { feesApi } from '@/lib/fees-api';
+import { TableSkeleton } from '@/components/ui/skeleton';
 import {
   GraduationCap,
   Search,
@@ -415,10 +416,7 @@ export default function StudentsDirectoryPage() {
 
       {/* Main Table */}
       {isLoading ? (
-        <div className="py-24 flex flex-col items-center justify-center text-muted-foreground gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-xs font-medium">Loading student enrollment records...</p>
-        </div>
+        <TableSkeleton rows={6} columns={6} />
       ) : error ? (
         <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-6 text-center text-xs text-rose-600">
           {error}

@@ -23,6 +23,7 @@ import { fetchParentDashboard as fetchOldParentDashboard } from '@/lib/parents-a
 import { fetchParentDashboard as fetchNewParentDashboard } from '@/lib/dashboards-api';
 import { fetchChildTimetable } from '@/lib/classes-api';
 import { DonutMetricChart } from '@/components/dashboard/dashboard-charts';
+import { DashboardSkeleton } from '@/components/ui/skeleton';
 import {
   Users,
   GraduationCap,
@@ -103,12 +104,7 @@ export default function ParentDashboardPage() {
   }, [selectedChildId]);
 
   if (isLoading) {
-    return (
-      <div className="py-24 flex flex-col items-center justify-center text-muted-foreground gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-sm font-medium">Aggregating family portal records...</p>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error || !summary) {

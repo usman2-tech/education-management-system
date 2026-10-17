@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { TeacherDto, UserRole, TeacherEmploymentStatus } from '@ems/contracts';
 import { fetchTeachers, updateTeacherStatus } from '@/lib/teachers-api';
 import { TeacherStatusBadge } from '@/components/teachers/teacher-status-badge';
+import { TableSkeleton } from '@/components/ui/skeleton';
 import {
   Briefcase,
   Plus,
@@ -215,13 +216,11 @@ export default function TeachersPage() {
       )}
 
       {/* Directory Table */}
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center p-16 text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="mt-3 text-sm font-medium">Querying faculty database...</p>
-          </div>
-        ) : teachers.length === 0 ? (
+      {isLoading ? (
+        <TableSkeleton rows={5} columns={6} />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          {teachers.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-16 text-center">
             <div className="rounded-full bg-muted p-4">
               <Briefcase className="h-8 w-8 text-muted-foreground" />
@@ -397,6 +396,7 @@ export default function TeachersPage() {
           </div>
         )}
       </div>
+    )}
 
       {/* Confirmation Modal for Activation / Deactivation */}
       {targetTeacher && (

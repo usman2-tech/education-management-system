@@ -49,6 +49,7 @@ import {
   Bus,
   BookMarked,
   FolderGit2,
+  Loader2,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -100,6 +101,13 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const [pendingHref, setPendingHref] = React.useState<string | null>(null);
+
+  // Clear pending state whenever active pathname updates
+  React.useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
   const navSections = ROLE_NAVIGATION[currentRole] || [];
 
   const roleLabels: Record<UserRole, string> = {
@@ -185,27 +193,43 @@ export function Sidebar({
               )}
               {section.items.map((item) => {
                 const IconComponent = ICON_MAP[item.icon] || LayoutDashboard;
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
+                const isPending = pendingHref === item.href;
 
                 return (
                   <Link
                     key={item.title}
                     href={item.href}
+                    prefetch={true}
                     title={isCollapsed ? `${item.title}: ${item.description}` : undefined}
                     onClick={() => {
+                      if (pathname !== item.href) {
+                        setPendingHref(item.href);
+                      }
                       if (isMobileOpen) onCloseMobile();
                     }}
-                    className={`group flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                    className={`group flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium transition-all ${
                       isActive
                         ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+                        : isPending
+                        ? 'bg-sidebar-accent/90 text-sidebar-foreground ring-1 ring-accent/60'
                         : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                     } ${isCollapsed ? 'justify-center px-2' : ''}`}
                   >
-                    <IconComponent className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-sidebar-foreground/70'}`} />
+                    {isPending ? (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-accent" />
+                    ) : (
+                      <IconComponent className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-sidebar-foreground/70'}`} />
+                    )}
                     {!isCollapsed && (
                       <span className="flex-1 truncate">{item.title}</span>
                     )}
-                    {!isCollapsed && item.badge && (
+                    {!isCollapsed && isPending && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-accent">
+                        <span className="h-1.5 w-1.5 rounded-full bg-accent animate-ping" />
+                      </span>
+                    )}
+                    {!isCollapsed && !isPending && item.badge && (
                       <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[9px] font-semibold text-accent-foreground">
                         {item.badge}
                       </span>
