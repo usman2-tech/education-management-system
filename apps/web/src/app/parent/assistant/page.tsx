@@ -43,9 +43,13 @@ import {
   TrendingUp,
   AlertTriangle,
   UserCheck,
+  BookOpen,
+  BookMarked,
+  Check,
 } from 'lucide-react';
+import { documentsApi } from '@/lib/documents-api';
 
-type ParentTab = 'academic' | 'attendance' | 'homework' | 'fees' | 'home-learning' | 'chat';
+type ParentTab = 'academic' | 'attendance' | 'homework' | 'fees' | 'home-learning' | 'chat' | 'policies';
 
 export default function ParentAssistantPage() {
   const { user } = useAuth();
@@ -72,6 +76,27 @@ export default function ParentAssistantPage() {
 
   // Status message
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // School Policies & Rules State (TASK 026)
+  const [policyQuery, setPolicyQuery] = useState('');
+  const [policyResults, setPolicyResults] = useState<any[]>([]);
+  const [policyLoading, setPolicyLoading] = useState(false);
+
+  const handleSearchPolicy = async (customQuery?: string) => {
+    const q = customQuery || policyQuery;
+    if (!q.trim()) return;
+    setPolicyLoading(true);
+    setStatusMessage(null);
+    try {
+      const res = await documentsApi.searchSections(q.trim(), undefined, 5);
+      setPolicyResults(res.sections || []);
+      setStatusMessage({ type: 'success', text: `Found ${res.sections?.length || 0} policy sections grounded in official documents.` });
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err.message || 'Failed to search school policies.' });
+    } finally {
+      setPolicyLoading(false);
+    }
+  };
 
   // Load verified children on mount
   useEffect(() => {
@@ -292,6 +317,7 @@ export default function ParentAssistantPage() {
                   { id: 'fees', label: 'Tuition & Fees', icon: Receipt },
                   { id: 'home-learning', label: 'Home Learning Tips', icon: Lightbulb },
                   { id: 'chat', label: 'Ask Assistant', icon: MessageSquare },
+                  { id: 'policies', label: 'School Policies & Rules', icon: BookOpen },
                 ].map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -878,6 +904,98 @@ export default function ParentAssistantPage() {
                       <Send className="w-4 h-4" />
                       Ask
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 7: SCHOOL POLICIES & RULES (TASK 026) */}
+              {activeTab === 'policies' && (
+                <div className="space-y-6">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+                    <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-lg">
+                      <BookOpen className="w-5 h-5" />
+                      <h2>Institutional School Policies & Guardian Guidelines</h2>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Search official school regulations regarding tuition payment schedules, bus transport safety, illness attendance policies, and examination protocols. All guidance is grounded directly in official institutional documents.
+                    </p>
+
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSearchPolicy();
+                      }}
+                      className="flex gap-2"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Search school policies (e.g. 'What is the policy for tuition installment payments?')"
+                        value={policyQuery}
+                        onChange={(e) => setPolicyQuery(e.target.value)}
+                        className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <button
+                        type="submit"
+                        disabled={policyLoading || !policyQuery.trim()}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold disabled:opacity-50 transition-all shadow-md shadow-emerald-700/20"
+                      >
+                        {policyLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                        Search Policies
+                      </button>
+                    </form>
+
+                    {/* Quick Topics */}
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <span className="text-xs text-slate-500 self-center font-medium">Quick Inquiries:</span>
+                      {[
+                        'Fee payment schedules and refund policy',
+                        'Bus transport safety and pickup rules',
+                        'Excused absence and medical leave policy',
+                        'Examination rules and report card release',
+                      ].map((topicText, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setPolicyQuery(topicText);
+                            handleSearchPolicy(topicText);
+                          }}
+                          className="px-3 py-1 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
+                        >
+                          {topicText}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Results List */}
+                  <div className="space-y-4">
+                    {policyResults.length > 0 ? (
+                      policyResults.map((sec: any) => (
+                        <div
+                          key={sec.id}
+                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-2 hover:border-emerald-500/40 transition-colors"
+                        >
+                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                            <span className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                              <BookMarked className="w-4 h-4 text-emerald-600" />
+                              {sec.documentTitle}
+                            </span>
+                            <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                              {sec.pageNumber ? `Page ${sec.pageNumber}` : `Section ${sec.sectionIndex + 1}`}
+                            </span>
+                          </div>
+                          <h4 className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{sec.title}</h4>
+                          <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-line">
+                            {sec.content}
+                          </p>
+                        </div>
+                      ))
+                    ) : policyQuery ? (
+                      <div className="bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center text-xs text-slate-500">
+                        No policy sections matched "{policyQuery}". Official policies are strictly cited without fabrication.
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )}

@@ -25,6 +25,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { DocumentsService } from '../documents/documents.service';
 import { AuthUser, UserRole } from '@ems/contracts';
 import {
   ParentAskQuestionDto,
@@ -40,6 +41,7 @@ export class AiParentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly documentsService: DocumentsService,
   ) {
     this.aiServiceUrl = this.configService.get<string>('AI_SERVICE_URL', 'http://127.0.0.1:8000');
     this.internalSecret = this.configService.get<string>('AI_INTERNAL_SECRET', 'ems-internal-secret');
@@ -667,11 +669,33 @@ export class AiParentService {
     if (aiRes && aiRes.success) {
       replyData = aiRes.data;
     } else {
+      // Check for policy / guideline questions and ground using authorized documents
+      const isPolicyQuery = /policy|handbook|guideline|rule|attendance|fee|transport|bus|library|borrow/i.test(dto.question);
+      let docAnswer = '';
+
+      if (isPolicyQuery) {
+        const docSections = await this.documentsService.searchAuthorizedSections(
+          parentUser,
+          dto.question,
+          undefined,
+          3,
+        );
+
+        if (docSections.length > 0) {
+          docAnswer = `Here is the verified institutional policy information applicable to ${student.firstName}'s school campus:\n\n`;
+          for (const s of docSections) {
+            docAnswer += `**${s.documentTitle}** (${s.sectionTitle || `Section ${s.sectionIndex}`}):\n> ${s.snippet.replace(/\n/g, ' ')}\n*Citation: ${s.documentTitle} (v${s.version}, Section ${s.sectionIndex}${s.pageNumber ? `, Page ${s.pageNumber}` : ''})*\n\n`;
+          }
+          docAnswer += `---\n*Verified child metrics for ${student.firstName}: Attendance Rate ${attRate}%, Average Grade ${avgGrade}%, Outstanding Balance ${outstandingFee}.*`;
+        }
+      }
+
       replyData = {
-        answer: `Regarding your inquiry about ${student.firstName}: our institutional records confirm ${student.firstName} maintains an attendance rate of ${attRate}% and an average assessment performance of ${avgGrade}%. If you have any specific curriculum or classroom questions, our faculty and administration remain readily accessible.`,
+        answer: docAnswer || `Regarding your inquiry about ${student.firstName}: our institutional records confirm ${student.firstName} maintains an attendance rate of ${attRate}% and an average assessment performance of ${avgGrade}%. If you have any specific curriculum, attendance, fee, or transport questions, our faculty and administration remain readily accessible.`,
         suggestedFollowUps: [
+          `What is the school attendance policy and absence reporting procedure?`,
           `What homework is due this week for ${student.firstName}?`,
-          `How can I help ${student.firstName} prepare for upcoming examinations?`,
+          `What are the library borrowing rules for students?`,
         ],
       };
     }

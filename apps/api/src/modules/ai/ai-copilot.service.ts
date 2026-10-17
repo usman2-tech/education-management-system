@@ -22,6 +22,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { DocumentsService } from '../documents/documents.service';
 import { UserRole, AICopilotContentType, AICopilotDraftStatus } from '@ems/contracts';
 import {
   GenerateLessonPlanRequestDto,
@@ -41,6 +42,7 @@ export class AiCopilotService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly documentsService: DocumentsService,
   ) {}
 
   private get copilotDraftRepo(): any {
@@ -1099,4 +1101,71 @@ export class AiCopilotService {
       this.logger.warn(`Could not log AI usage: ${err.message}`);
     }
   }
+
+  // ==========================================================================
+  // TEACHING DOCUMENT INTELLIGENCE (TASK 026)
+  // ==========================================================================
+
+  /**
+   * Search curriculum documents, examination rules, and teaching guidelines
+   */
+  async searchTeachingDocuments(user: any, query: string) {
+    this.assertTeacherRole(user);
+    const sections = await this.documentsService.searchAuthorizedSections(
+      user,
+      query,
+      undefined,
+      4,
+    );
+
+    return {
+      query,
+      resultsCount: sections.length,
+      sections: sections.map((s) => ({
+        documentTitle: s.documentTitle,
+        category: s.category,
+        sectionIndex: s.sectionIndex,
+        pageNumber: s.pageNumber,
+        sectionTitle: s.sectionTitle,
+        snippet: s.snippet,
+        citation: `${s.documentTitle} (v${s.version}, Section ${s.sectionIndex}${s.pageNumber ? `, Page ${s.pageNumber}` : ''})`,
+      })),
+    };
+  }
+
+  /**
+   * Summarize teaching guidelines or curriculum documents
+   */
+  async summarizeTeachingGuidelines(user: any, documentId: string) {
+    this.assertTeacherRole(user);
+    return this.documentsService.summarizeDocument(user, documentId, 'STAFF');
+  }
+
+  /**
+   * Prepare a parent communication draft for review
+   */
+  async draftParentNotice(user: any, dto: { subject: string; body: string; classSectionId?: string }) {
+    this.assertTeacherRole(user);
+    if (dto.classSectionId) {
+      await this.assertTeacherAssignment(user, dto.classSectionId);
+    }
+
+    const draft = await this.documentsService.createDraft(user, {
+      subject: dto.subject,
+      body: dto.body,
+      category: 'NOTICE',
+      targetRole: 'PARENT',
+      classSectionId: dto.classSectionId,
+    });
+
+    return {
+      message: 'Parent communication draft registered. Administrative review required before dispatch.',
+      draftId: draft.id,
+      subject: draft.subject,
+      body: draft.body,
+      targetRole: 'PARENT',
+      status: draft.status,
+    };
+  }
+
 }

@@ -351,46 +351,49 @@ export class AiService {
   /**
    * Generates suggested prompt questions tailored to each user role
    */
-  getSuggestedPrompts(role: UserRole): string[] {
+    getSuggestedPrompts(role: UserRole): string[] {
     switch (role) {
       case UserRole.PLATFORM_ADMIN:
         return [
+          'What is our institutional attendance policy and absence reporting rule?',
+          'Summarize the master examination guidelines across campuses.',
+          'Draft an institutional circular to all teachers regarding term schedules.',
+          'Generate a monthly student attendance narrative report.',
           'What is the total student enrollment and teacher count across all schools?',
-          'Give me a summary of attendance performance across institutional campuses.',
-          'What are the aggregate fee billing and collection numbers platform-wide?',
-          'List active school tenants and their status.',
         ];
 
       case UserRole.SCHOOL_ADMIN:
         return [
-          'Give me an overview of our campus enrollment and academic classes.',
-          'What is our school fee collection rate and outstanding balance?',
-          'What is our overall attendance rate this month?',
-          'How many homework assignments and assessments have been published?',
+          'What is our school\'s attendance policy and late arrival procedure?',
+          'Summarize the examination guidelines for our campus.',
+          'What are the library borrowing rules and loan periods?',
+          'Explain the transport safety policy for fleet routes.',
+          'Draft a message to parents about the upcoming examination.',
+          'Generate a monthly student attendance narrative report.',
         ];
 
       case UserRole.TEACHER:
         return [
-          'What classes and teaching periods are scheduled on my weekly timetable?',
-          'Summarize homework tasks I have assigned and pending submissions.',
-          'What assessments have I created in the gradebook?',
-          'How can I structure a 45-minute lesson plan for my subject?',
+          'Explain the school examination guidelines and grading scales for teachers.',
+          'What are the curriculum guidelines and teaching requirements for faculty?',
+          'Draft a parent communication regarding homework completion for review.',
+          'Summarize the teacher handbook policy on classroom supervision.',
         ];
 
       case UserRole.STUDENT:
         return [
-          'What is my overall attendance rate and how many sessions have I attended?',
-          'What published grades and assessment marks do I currently have?',
-          'What homework assignments do I have pending and when are they due?',
-          'Show my class timetable schedule for this week.',
+          'Explain the published student handbook rules on campus conduct.',
+          'What are the examination rules and permitted materials?',
+          'What are the library borrowing rules for students?',
+          'What is the student attendance policy requirement?',
         ];
 
       case UserRole.PARENT:
         return [
-          'What is the attendance record and attendance rate for my child?',
-          'What are the latest published grades and marks for my child?',
-          'Are there any pending homework assignments for my children?',
-          'What is our outstanding tuition fee balance and invoice status?',
+          'What is our school\'s attendance policy and absence reporting procedure?',
+          'Explain the tuition fee payment policy and payment schedules.',
+          'What are the transport safety rules for student bus riders?',
+          'What are the library borrowing rules and loan durations?',
         ];
 
       default:
@@ -441,8 +444,44 @@ export class AiService {
     let toolResultData: any = null;
     let toolNameCalled: string | null = null;
 
-    // Detect requested domain
-    if (lowerPrompt.includes('attendance') || lowerPrompt.includes('absent') || lowerPrompt.includes('present')) {
+    // Detect requested domain (TASK 026 Document Intelligence & Automation prioritized)
+    let toolArgs: Record<string, any> = {};
+
+    if (/draft.*(?:message|notice|announcement|reminder|circular)|write.*(?:message|reminder|notice|announcement)|prepare.*(?:reminder|announcement|notice)/i.test(prompt)) {
+      toolNameCalled = 'draft_administrative_notice';
+      const isParent = /parent|guardian/i.test(prompt);
+      const isTeacher = /teacher|faculty/i.test(prompt);
+      const targetRole = isParent ? 'PARENT' : isTeacher ? 'TEACHER' : 'ALL';
+      const category = /fee/i.test(prompt) ? 'FEE_REMINDER' : /exam/i.test(prompt) ? 'NOTICE' : /transport|bus/i.test(prompt) ? 'TRANSPORT_ALERT' : /library|book/i.test(prompt) ? 'LIBRARY_NOTICE' : 'NOTICE';
+      
+      let subject = 'Institutional Notice';
+      if (/exam/i.test(prompt)) subject = 'Upcoming Examination Schedule & Instructions';
+      else if (/fee/i.test(prompt)) subject = 'Important: Tuition Fee Payment Reminder';
+      else if (/transport|route/i.test(prompt)) subject = 'Transportation Route & Schedule Notification';
+      else if (/library|book/i.test(prompt)) subject = 'Notice: Library Book Return Reminder';
+      else if (/attendance/i.test(prompt)) subject = 'Attendance Notification & Guidelines';
+
+      toolArgs = {
+        subject,
+        body: `Dear ${targetRole === 'PARENT' ? 'Parents and Guardians' : targetRole === 'TEACHER' ? 'Faculty Members' : 'School Community'},\n\nPlease be advised of the following official institutional update regarding our upcoming academic schedules and guidelines.\n\nPlease review your portal records for specific student details.\n\nSincerely,\nSchool Administration`,
+        category,
+        targetRole,
+      };
+    } else if (/narrative.*report|generate.*(?:attendance|fee|transport|library|academic).*report/i.test(prompt)) {
+      toolNameCalled = 'generate_administrative_narrative_report';
+      let reportType = 'ATTENDANCE_SUMMARY';
+      if (/fee/i.test(prompt)) reportType = 'FEE_COLLECTION';
+      else if (/transport|vehicle|fleet/i.test(prompt)) reportType = 'TRANSPORT_OPERATIONS';
+      else if (/library|book/i.test(prompt)) reportType = 'LIBRARY_CIRCULATION';
+      else if (/academic|grade|exam/i.test(prompt)) reportType = 'ACADEMIC_PERFORMANCE';
+      toolArgs = { reportType };
+    } else if (/summarize.*(?:policy|guideline|handbook|rules|document|circular|examination|exam|library|transport|fee|attendance)/i.test(prompt)) {
+      toolNameCalled = 'search_authorized_documents';
+      toolArgs = { query: prompt.replace(/summarize/gi, '').trim(), limit: 4 };
+    } else if (/policy|handbook|guideline|rules|regulation|borrowing rules|transport safety|exam guidelines|examination rules|fee payment procedure|attendance policy/i.test(prompt)) {
+      toolNameCalled = 'search_authorized_documents';
+      toolArgs = { query: prompt, limit: 5 };
+    } else if (lowerPrompt.includes('attendance') || lowerPrompt.includes('absent') || lowerPrompt.includes('present')) {
       toolNameCalled = 'get_attendance_summary';
     } else if (lowerPrompt.includes('grade') || lowerPrompt.includes('mark') || lowerPrompt.includes('score') || lowerPrompt.includes('gpa') || lowerPrompt.includes('assessment')) {
       toolNameCalled = 'get_grade_summary';
@@ -462,7 +501,7 @@ export class AiService {
 
     if (toolNameCalled) {
       toolsUsed.push(toolNameCalled);
-      const res = await this.aiToolsService.executeTool(toolNameCalled, principal);
+      const res = await this.aiToolsService.executeTool(toolNameCalled, principal, toolArgs);
       if (res.success) {
         toolResultData = res.data;
       }
@@ -475,7 +514,38 @@ export class AiService {
       content = `### Academic Data Summary (${this.formatToolName(toolNameCalled!)})\n\n`;
       content += `Here is your verified institutional data retrieved from live EMS records:\n\n`;
 
-      if (toolNameCalled === 'get_attendance_summary') {
+      if (toolNameCalled === 'search_authorized_documents') {
+        const sections = (toolResultData.sections || []) as any[];
+        if (sections.length > 0) {
+          content = `### Institutional Document Intelligence\n\n`;
+          content += `Based on verified institutional documents accessible to your role, here are the documented policies and guidelines:\n\n`;
+
+          for (const s of sections) {
+            content += `#### ${s.documentTitle} — ${s.sectionTitle || `Section ${s.sectionIndex}`}\n`;
+            content += `> ${s.snippet.replace(/\n/g, ' ')}\n\n`;
+            content += `*Citation: ${s.citation}*\n\n`;
+          }
+
+          content += `---\n**Documented Facts vs Guidance:** The above excerpts reflect official institutional policies. If you require individualized policy exceptions, please submit a formal administrative inquiry.\n`;
+        } else {
+          content = `### Institutional Document Intelligence\n\n`;
+          content += `The available institutional documents do not provide an answer to this question.\n\n`;
+          content += `No matching published policy documents or handbook sections were found within your authorized role scope. Please consult campus administration for official clarification.\n`;
+        }
+      } else if (toolNameCalled === 'draft_administrative_notice') {
+        content = '### Administrative Notice Draft Prepared\n\n';
+        content += 'An editable administrative draft has been prepared based on institutional communication standards:\n\n';
+        content += '- **Draft ID:** `' + toolResultData.draftId + '`\n';
+        content += '- **Subject:** ' + toolResultData.subject + '\n';
+        content += '- **Target Audience:** ' + toolResultData.targetRole + '\n';
+        content += '- **Status:** `' + toolResultData.status + '` (Pending Administrative Review)\n\n';
+        content += '**Proposed Body Text:**\n\n';
+        content += '```text\n' + toolResultData.body + '\n```\n\n';
+        content += '> [!IMPORTANT]\n> **Security & Human-in-the-Loop Directives:** In compliance with EMS enterprise security protocols, the AI assistant is strictly forbidden from broadcasting or sending messages autonomously. This draft has been safely registered in the Document Library drafts registry and requires human administrative review and explicit dispatch confirmation before sending through TASK 030.';
+      } else if (toolNameCalled === 'generate_administrative_narrative_report') {
+        content = toolResultData.narrativeText || 'Authoritative narrative report generated.';
+        content += `\n\n*Reporting Period: ${toolResultData.reportingPeriod} | Verified Live Database Metrics.*\n`;
+      } else if (toolNameCalled === 'get_attendance_summary') {
         content += `- **Attendance Rate**: ${toolResultData.attendanceRate || toolResultData.overallAttendanceRate || '95%'}\n`;
         content += `- **Total Sessions Logged**: ${toolResultData.totalSessionsLogged || toolResultData.totalRecordsLogged || toolResultData.totalSessions || 0}\n`;
         if (toolResultData.counts) {

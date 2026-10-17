@@ -24,6 +24,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { DocumentsService } from '../documents/documents.service';
 import { AuthUser, UserRole } from '@ems/contracts';
 import {
   ConceptExplanationRequestDto,
@@ -44,6 +45,7 @@ export class AiTutorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly documentsService: DocumentsService,
   ) {
     this.aiServiceUrl = this.configService.get<string>('AI_SERVICE_URL', 'http://127.0.0.1:8000');
     this.internalSecret = this.configService.get<string>('AI_INTERNAL_SECRET', 'ems-internal-secret');
@@ -886,4 +888,47 @@ export class AiTutorService {
       },
     };
   }
+
+  /**
+   * Explain published school rules, student handbook policies, or examination guidelines
+   */
+  async explainSchoolRule(user: AuthUser, query: string) {
+    const sections = await this.documentsService.searchAuthorizedSections(
+      user,
+      query,
+      undefined,
+      3,
+    );
+
+    if (sections.length === 0) {
+      return {
+        query,
+        found: false,
+        explanation: 'No published student handbook rules or policy guidelines were found matching your inquiry. Please consult your homeroom teacher or school office for official guidance.',
+        citations: [],
+      };
+    }
+
+    let explanation = `### Student Handbook & Guidelines Explanation\n\n`;
+    explanation += `Here are the official rules from your school handbook and guidelines:\n\n`;
+
+    for (const s of sections) {
+      explanation += `**${s.documentTitle}** (${s.sectionTitle || `Section ${s.sectionIndex}`}):\n> ${s.snippet.replace(/\n/g, ' ')}\n*Citation: ${s.documentTitle} (Section ${s.sectionIndex}${s.pageNumber ? `, Page ${s.pageNumber}` : ''})*\n\n`;
+    }
+
+    explanation += `---\n*Educational Reminder:* Adherence to institutional guidelines helps maintain a safe and supportive learning environment for all students.`;
+
+    return {
+      query,
+      found: true,
+      explanation,
+      citations: sections.map((s) => ({
+        documentTitle: s.documentTitle,
+        sectionIndex: s.sectionIndex,
+        pageNumber: s.pageNumber,
+        snippet: s.snippet,
+      })),
+    };
+  }
+
 }

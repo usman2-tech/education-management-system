@@ -168,4 +168,14 @@ export class AiTutorController {
   async getLearningProgress(@CurrentUser() user: AuthUser) {
     return this.tutorService.getLearningProgress(user);
   }
+
+  @Post('explain-rule')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Explain published student handbook rules, examination guidelines, or library rules' })
+  async explainRule(
+    @CurrentUser() user: AuthUser,
+    @Body('query') query: string,
+  ) {
+    return this.tutorService.explainSchoolRule(user, query || '');
+  }
 }

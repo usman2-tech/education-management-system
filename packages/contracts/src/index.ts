@@ -3045,4 +3045,208 @@ export interface LibraryReportsDto {
 }
 
 
+// ==============================================================================
+// Document Intelligence & Administrative Automation Contracts (TASK 026)
+// ==============================================================================
+
+export enum DocumentCategory {
+  SCHOOL_POLICY = 'SCHOOL_POLICY',
+  ATTENDANCE_POLICY = 'ATTENDANCE_POLICY',
+  EXAMINATION_GUIDELINE = 'EXAMINATION_GUIDELINE',
+  CURRICULUM_DOCUMENT = 'CURRICULUM_DOCUMENT',
+  TEACHER_HANDBOOK = 'TEACHER_HANDBOOK',
+  STUDENT_HANDBOOK = 'STUDENT_HANDBOOK',
+  PARENT_GUIDELINE = 'PARENT_GUIDELINE',
+  FEE_POLICY = 'FEE_POLICY',
+  TRANSPORT_SAFETY_POLICY = 'TRANSPORT_SAFETY_POLICY',
+  LIBRARY_RULE = 'LIBRARY_RULE',
+  ADMINISTRATIVE_CIRCULAR = 'ADMINISTRATIVE_CIRCULAR',
+  GENERAL_INSTITUTIONAL = 'GENERAL_INSTITUTIONAL',
+}
+
+export enum DocumentProcessingStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  READY = 'READY',
+  FAILED = 'FAILED',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export enum DocumentDraftStatus {
+  DRAFT = 'DRAFT',
+  PENDING_REVIEW = 'PENDING_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  PUBLISHED = 'PUBLISHED',
+}
+
+export interface DocumentSectionDto {
+  id: string;
+  documentId: string;
+  sectionIndex: number;
+  title?: string | null;
+  content: string;
+  pageNumber?: number | null;
+  tokenCount?: number | null;
+  createdAt: string;
+}
+
+export interface DocumentVersionHistoryDto {
+  id: string;
+  documentId: string;
+  versionNumber: number;
+  fileUrl: string;
+  fileSize: number;
+  changeSummary?: string | null;
+  uploadedById: string;
+  uploadedByName?: string;
+  createdAt: string;
+}
+
+export interface InstitutionalDocumentDto {
+  id: string;
+  schoolId?: string | null;
+  schoolName?: string | null;
+  title: string;
+  description?: string | null;
+  category: DocumentCategory;
+  documentType: string;
+  fileUrl: string;
+  fileSize: number;
+  version: number;
+  status: DocumentProcessingStatus;
+  isPublished: boolean;
+  visibilityRoles: UserRole[];
+  uploadedById: string;
+  uploadedByName?: string;
+  sectionCount?: number;
+  sections?: DocumentSectionDto[];
+  versions?: DocumentVersionHistoryDto[];
+  metadata?: Record<string, any> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDocumentDto {
+  title: string;
+  description?: string;
+  category: DocumentCategory;
+  documentType: 'PDF' | 'DOCX' | 'TXT';
+  fileContentBase64?: string;
+  textContent?: string;
+  fileName?: string;
+  fileSize?: number;
+  visibilityRoles?: UserRole[];
+  isPublished?: boolean;
+  schoolId?: string;
+}
+
+export interface UpdateDocumentDto {
+  title?: string;
+  description?: string;
+  category?: DocumentCategory;
+  visibilityRoles?: UserRole[];
+  isPublished?: boolean;
+}
+
+export interface ReplaceDocumentVersionDto {
+  fileContentBase64?: string;
+  textContent?: string;
+  fileName?: string;
+  fileSize?: number;
+  changeSummary: string;
+}
+
+export interface DocumentFilterDto {
+  category?: DocumentCategory;
+  schoolId?: string;
+  isPublished?: boolean;
+  visibilityRole?: UserRole;
+  status?: DocumentProcessingStatus;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface DocumentApprovalDraftDto {
+  id: string;
+  schoolId?: string | null;
+  schoolName?: string | null;
+  authorId: string;
+  authorName?: string;
+  sourceDocumentId?: string | null;
+  sourceDocumentTitle?: string | null;
+  category: string;
+  targetRole: string;
+  classSectionId?: string | null;
+  classSectionName?: string | null;
+  subject: string;
+  body: string;
+  status: DocumentDraftStatus;
+  rejectionReason?: string | null;
+  approvedById?: string | null;
+  approvedByName?: string | null;
+  approvedAt?: string | null;
+  publishedAt?: string | null;
+  publishedAnnouncementId?: string | null;
+  version: number;
+  history?: any[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDocumentDraftDto {
+  sourceDocumentId?: string;
+  category: string;
+  targetRole?: string;
+  classSectionId?: string;
+  subject: string;
+  body: string;
+}
+
+export interface UpdateDocumentDraftDto {
+  subject?: string;
+  body?: string;
+  targetRole?: string;
+  category?: string;
+  classSectionId?: string;
+}
+
+export interface ReviewDocumentDraftDto {
+  decision: 'APPROVE' | 'REJECT';
+  rejectionReason?: string;
+}
+
+export interface PublishDocumentDraftDto {
+  confirmDispatch: boolean;
+}
+
+export interface DocumentSearchQueryDto {
+  query: string;
+  category?: DocumentCategory;
+  limit?: number;
+}
+
+export interface DocumentSearchResultItemDto {
+  documentId: string;
+  documentTitle: string;
+  category: DocumentCategory;
+  version: number;
+  sectionIndex: number;
+  pageNumber?: number | null;
+  snippet: string;
+  relevanceScore?: number;
+}
+
+export interface DocumentSummaryRequestDto {
+  documentId: string;
+  summaryType?: 'SHORT' | 'DETAILED' | 'KEY_POINTS' | 'ACTION_ITEMS' | 'STAFF' | 'PARENT' | 'STUDENT';
+}
+
+export interface NarrativeReportRequestDto {
+  reportType: 'ATTENDANCE_SUMMARY' | 'FEE_COLLECTION' | 'ACADEMIC_PERFORMANCE' | 'TRANSPORT_OPERATIONS' | 'LIBRARY_CIRCULATION';
+  dateFrom?: string;
+  dateTo?: string;
+  schoolId?: string;
+}
 

@@ -45,6 +45,7 @@ import {
   BookOpen,
   ChevronRight,
   StopCircle,
+  FolderGit2,
 } from 'lucide-react';
 
 export default function AIAssistantPage() {
@@ -482,7 +483,15 @@ export default function AIAssistantPage() {
                           {msg.toolCalls && Array.isArray(msg.toolCalls) && msg.toolCalls.length > 0 ? (
                             <span className="flex items-center gap-1 text-primary font-medium">
                               <CheckCircle className="h-3 w-3" />
-                              <span>Verified EMS records retrieved ({msg.toolCalls.map((t: any) => t.name).join(', ')})</span>
+                              <span>
+                                {msg.toolCalls.some((t: any) => t.name?.includes('document')) ? (
+                                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                                    <FolderGit2 className="h-3 w-3" /> Grounded Institutional Policy Citation
+                                  </span>
+                                ) : (
+                                  `Verified EMS records retrieved (${msg.toolCalls.map((t: any) => t.name).join(', ')})`
+                                )}
+                              </span>
                             </span>
                           ) : (
                             <span className="text-muted-foreground">Institutional AI Advisor</span>
@@ -517,6 +526,46 @@ export default function AIAssistantPage() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Quick Actions Bar (TASK 026) */}
+          <div className="px-3 sm:px-4 py-1.5 border-t border-border/40 bg-muted/10 flex items-center gap-1.5 overflow-x-auto text-[11px] shrink-0">
+            <span className="text-muted-foreground font-semibold flex items-center gap-1 shrink-0">
+              <FolderGit2 className="h-3 w-3 text-accent" />
+              <span>Doc Intelligence:</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => handleSendMessage('What are the official attendance thresholds and examination eligibility rules?')}
+              className="rounded-full border border-border bg-background px-2.5 py-0.5 font-medium hover:border-accent hover:text-accent transition-colors shrink-0"
+            >
+              Ask School Documents
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSendMessage('Summarize the institutional examination policy and student grading guidelines.')}
+              className="rounded-full border border-border bg-background px-2.5 py-0.5 font-medium hover:border-accent hover:text-accent transition-colors shrink-0"
+            >
+              Summarize Policy
+            </button>
+            {(effectiveRole === UserRole.PLATFORM_ADMIN || effectiveRole === UserRole.SCHOOL_ADMIN || effectiveRole === UserRole.TEACHER) && (
+              <button
+                type="button"
+                onClick={() => handleSendMessage('Draft an administrative notice announcing the upcoming parent-teacher conference schedule.')}
+                className="rounded-full border border-border bg-background px-2.5 py-0.5 font-medium hover:border-accent hover:text-accent transition-colors shrink-0"
+              >
+                Draft Announcement
+              </button>
+            )}
+            {(effectiveRole === UserRole.PLATFORM_ADMIN || effectiveRole === UserRole.SCHOOL_ADMIN) && (
+              <button
+                type="button"
+                onClick={() => handleSendMessage('Generate an institutional executive narrative report on campus attendance and academic operations.')}
+                className="rounded-full border border-border bg-background px-2.5 py-0.5 font-medium hover:border-accent hover:text-accent transition-colors shrink-0"
+              >
+                Generate Report
+              </button>
+            )}
+          </div>
+
           {/* Bottom Message Input Dock */}
           <div className="p-3 sm:p-4 border-t border-border bg-card shrink-0">
             <form
@@ -532,12 +581,12 @@ export default function AIAssistantPage() {
                 onKeyDown={handleKeyDown}
                 placeholder={`Ask about ${
                   effectiveRole === UserRole.STUDENT
-                    ? 'your attendance, grades, homework or timetable...'
+                    ? 'your attendance, grades, homework, exam rules or policies...'
                     : effectiveRole === UserRole.TEACHER
-                    ? 'your classes, lesson planning, timetable or homework tasks...'
+                    ? 'your classes, lesson planning, staff guidelines or drafting notices...'
                     : effectiveRole === UserRole.PARENT
                     ? 'your child’s attendance, homework, report card or tuition...'
-                    : 'campus operations, attendance rates, fee collections or enrollment...'
+                    : 'campus operations, policies, notice drafts or executive reports...'
                 }`}
                 rows={2}
                 className="w-full resize-none border-0 bg-transparent p-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0 leading-relaxed"

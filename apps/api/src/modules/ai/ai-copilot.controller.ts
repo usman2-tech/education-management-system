@@ -166,4 +166,34 @@ export class AiCopilotController {
   async deleteDraft(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.copilotService.deleteDraft(user, id);
   }
+
+  @Post('documents/search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Search authorized curriculum documents, guidelines, and policies for teachers' })
+  async searchTeachingDocuments(
+    @CurrentUser() user: AuthUser,
+    @Body('query') query: string,
+  ) {
+    return this.copilotService.searchTeachingDocuments(user, query || '');
+  }
+
+  @Post('documents/summarize')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Summarize authorized teaching guidelines or curriculum documents' })
+  async summarizeTeachingGuidelines(
+    @CurrentUser() user: AuthUser,
+    @Body('documentId') documentId: string,
+  ) {
+    return this.copilotService.summarizeTeachingGuidelines(user, documentId);
+  }
+
+  @Post('parent-notice')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Draft parent communication for administrative review' })
+  async draftParentNotice(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: { subject: string; body: string; classSectionId?: string },
+  ) {
+    return this.copilotService.draftParentNotice(user, dto);
+  }
 }

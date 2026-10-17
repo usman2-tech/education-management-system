@@ -58,7 +58,8 @@ type CopilotTab =
   | 'grading'
   | 'insights'
   | 'materials'
-  | 'drafts';
+  | 'drafts'
+  | 'documents';
 
 export default function TeacherCopilotPage() {
   const { user } = useAuth();
@@ -95,8 +96,19 @@ export default function TeacherCopilotPage() {
   const [activeDraft, setActiveDraft] = useState<any | null>(null);
   const [savedDrafts, setSavedDrafts] = useState<any[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Faculty Documents & Notice State (TASK 026)
+  const [docSearchQuery, setDocSearchQuery] = useState('');
+  const [docSearchResults, setDocSearchResults] = useState<any[]>([]);
+  const [docSearchLoading, setDocSearchLoading] = useState(false);
+  const [parentNoticeForm, setParentNoticeForm] = useState({
+    noticeType: 'Academic Progress Advisory',
+    keyPoints: 'Term exam preparation; missing physics assignment #3; recommend office hour tutorial',
+    urgency: 'NORMAL',
+  });
+  const [noticeDraftResult, setNoticeDraftResult] = useState<any>(null);
+  const [noticeDraftLoading, setNoticeDraftLoading] = useState(false);
 
   // Fetch teacher's assigned context on mount
   useEffect(() => {
@@ -376,6 +388,44 @@ export default function TeacherCopilotPage() {
     }
   }
 
+  // Faculty Guidelines & Notice Handlers (TASK 026)
+  async function handleSearchTeachingDocs(e: React.FormEvent) {
+    e.preventDefault();
+    if (!docSearchQuery.trim()) return;
+    setDocSearchLoading(true);
+    try {
+      const res = await aiCopilotApi.searchTeachingDocuments(docSearchQuery.trim());
+      setDocSearchResults(res.sections || []);
+      setStatusMessage({ type: 'success', text: `Found ${res.sections?.length || 0} grounded sections.` });
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err?.message || 'Failed to search teaching documents.' });
+    } finally {
+      setDocSearchLoading(false);
+    }
+  }
+
+  async function handleDraftParentNotice(e: React.FormEvent) {
+    e.preventDefault();
+    if (!parentNoticeForm.keyPoints.trim()) {
+      setStatusMessage({ type: 'error', text: 'Please enter key points for the notice.' });
+      return;
+    }
+    setNoticeDraftLoading(true);
+    try {
+      const res = await aiCopilotApi.draftParentNotice({
+        noticeType: parentNoticeForm.noticeType,
+        keyPoints: parentNoticeForm.keyPoints.split(';').map((k) => k.trim()).filter(Boolean),
+        urgency: parentNoticeForm.urgency,
+      });
+      setNoticeDraftResult(res);
+      setStatusMessage({ type: 'success', text: 'Parent notice drafted with AI copilot.' });
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err?.message || 'Failed to draft parent notice.' });
+    } finally {
+      setNoticeDraftLoading(false);
+    }
+  }
+
   // Copy content to clipboard
   function handleCopyContent() {
     if (!activeDraft) return;
@@ -533,12 +583,24 @@ export default function TeacherCopilotPage() {
             <Sparkles className="h-4 w-4" />
             Teaching Materials
           </button>
+
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-all ${
+              activeTab === 'documents'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            <FolderOpen className="h-4 w-4" />
+            Documents & Notices
+          </button>
         </div>
 
         {/* Main Workspace Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Generator Form (or Drafts List if drafts tab active) */}
-          <div className={`${activeTab === 'drafts' ? 'lg:col-span-12' : 'lg:col-span-5'} space-y-6`}>
+          {/* Left Column: Generator Form (or Full Width if drafts or documents active) */}
+          <div className={`${activeTab === 'drafts' || activeTab === 'documents' ? 'lg:col-span-12' : 'lg:col-span-5'} space-y-6`}>
             {activeTab === 'drafts' ? (
               /* Drafts Repository View */
               <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -640,6 +702,192 @@ export default function TeacherCopilotPage() {
                     ))}
                   </div>
                 )}
+              </div>
+            ) : activeTab === 'documents' ? (
+              /* Faculty Documents & Notice Generator View (TASK 026) */
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Section 1: Search Guidelines & Regulations */}
+                <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
+                  <div className="border-b border-border pb-3">
+                    <div className="flex items-center gap-2 text-foreground font-bold text-base">
+                      <BookOpen className="h-5 w-5 text-indigo-600" />
+                      <h3>Teaching Guidelines & Institutional Policies</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Direct grounded search in staff handbooks, grading scales, attendance thresholds, and exam rules.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleSearchTeachingDocs} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. grading scale, exam invigilation, leave policy..."
+                      value={docSearchQuery}
+                      onChange={(e) => setDocSearchQuery(e.target.value)}
+                      className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      type="submit"
+                      disabled={docSearchLoading}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {docSearchLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      Search
+                    </button>
+                  </form>
+
+                  {/* Quick Filter Chips */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <span className="text-[11px] text-muted-foreground self-center">Quick Inquiries:</span>
+                    <button
+                      type="button"
+                      onClick={() => setDocSearchQuery('Attendance minimum threshold')}
+                      className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium hover:bg-muted/80"
+                    >
+                      Attendance Threshold
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDocSearchQuery('Exam rules and invigilation')}
+                      className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium hover:bg-muted/80"
+                    >
+                      Exam Guidelines
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDocSearchQuery('Staff code of conduct')}
+                      className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium hover:bg-muted/80"
+                    >
+                      Staff Handbook
+                    </button>
+                  </div>
+
+                  {/* Results List */}
+                  <div className="space-y-3 max-h-[450px] overflow-y-auto pt-2">
+                    {docSearchResults.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+                        Type an inquiry or click a quick suggestion to search institutional regulations.
+                      </div>
+                    ) : (
+                      docSearchResults.map((sec: any) => (
+                        <div key={sec.id} className="rounded-lg border border-border bg-muted/20 p-3.5 space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-foreground flex items-center gap-1">
+                              <BookOpen className="h-3.5 w-3.5 text-indigo-500" />
+                              {sec.documentTitle}
+                            </span>
+                            <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                              {sec.pageNumber ? `Page ${sec.pageNumber}` : `Section ${sec.sectionIndex + 1}`}
+                            </span>
+                          </div>
+                          <h4 className="text-xs font-semibold text-primary">{sec.title}</h4>
+                          <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+                            {sec.content}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 2: Draft Parent Notice */}
+                <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
+                  <div className="border-b border-border pb-3">
+                    <div className="flex items-center gap-2 text-foreground font-bold text-base">
+                      <Send className="h-5 w-5 text-purple-600" />
+                      <h3>Draft Parent Notice / Absence Alert</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Synthesize formal, empathetic parent notices grounded in school policy. Human approval required before sending.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleDraftParentNotice} className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-foreground mb-1">
+                        Notice Type / Advisory Topic
+                      </label>
+                      <select
+                        value={parentNoticeForm.noticeType}
+                        onChange={(e) => setParentNoticeForm({ ...parentNoticeForm, noticeType: e.target.value })}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="Attendance Warning">Attendance Warning (Threshold Alert)</option>
+                        <option value="Academic Progress Advisory">Academic Progress Advisory</option>
+                        <option value="Homework Completion Alert">Homework Completion Alert</option>
+                        <option value="Parent-Teacher Conference Invitation">Parent-Teacher Conference Invitation</option>
+                        <option value="General Classroom Announcement">General Classroom Announcement</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-foreground mb-1">
+                        Key Points (separated by semicolon ';')
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={parentNoticeForm.keyPoints}
+                        onChange={(e) => setParentNoticeForm({ ...parentNoticeForm, keyPoints: e.target.value })}
+                        placeholder="e.g. 3 consecutive unexcused absences; missed midterm review; mandatory parent check-in"
+                        className="w-full rounded-md border border-input bg-background p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                        required
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-medium text-foreground">Urgency:</label>
+                        <select
+                          value={parentNoticeForm.urgency}
+                          onChange={(e) => setParentNoticeForm({ ...parentNoticeForm, urgency: e.target.value })}
+                          className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+                        >
+                          <option value="NORMAL">Normal Priority</option>
+                          <option value="HIGH">High Priority</option>
+                          <option value="URGENT">Urgent Advisory</option>
+                        </select>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={noticeDraftLoading}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-xs font-semibold text-white shadow hover:opacity-95 disabled:opacity-50"
+                      >
+                        {noticeDraftLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                        Generate Notice Draft
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Rendered Notice Draft */}
+                  {noticeDraftResult && (
+                    <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground">Generated Notice Subject:</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(
+                              `${noticeDraftResult.subject}\n\n${noticeDraftResult.content}`
+                            );
+                            setStatusMessage({ type: 'success', text: 'Notice copied to clipboard!' });
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                        >
+                          <Copy className="h-3 w-3" />
+                          Copy Notice Text
+                        </button>
+                      </div>
+                      <div className="text-xs font-semibold text-primary">{noticeDraftResult.subject}</div>
+                      <div className="rounded-lg bg-card p-3 border border-border text-xs leading-relaxed text-foreground whitespace-pre-line max-h-60 overflow-y-auto">
+                        {noticeDraftResult.content}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground flex items-center justify-between">
+                        <span>Human-in-the-loop: Review draft before messaging guardian via Messages or Announcements.</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               /* Generator Controls Card */
@@ -931,7 +1179,7 @@ export default function TeacherCopilotPage() {
           </div>
 
           {/* Right Column: Interactive Content Preview & Editing Workspace */}
-          {activeTab !== 'drafts' && (
+          {activeTab !== 'drafts' && activeTab !== 'documents' && (
             <div className="lg:col-span-7 space-y-6">
               {activeDraft ? (
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-5">

@@ -240,6 +240,10 @@ model School {
   // Notifications & Messaging Preferences (TASK 030)
   notificationPreference      NotificationPreference?
 
+  // Document Intelligence (TASK 026)
+  institutionalDocuments      InstitutionalDocument[]
+  documentApprovalDrafts      DocumentApprovalDraft[]
+
   @@map("schools")
 }
 
@@ -359,6 +363,12 @@ model User {
   returnedBookLoans           BookLoan[]                    @relation("LoanReturner")
   bookReservations            BookReservation[]             @relation("ReservationUser")
   libraryFines                LibraryFine[]                 @relation("FineStudent")
+
+  // Document Intelligence (TASK 026)
+  uploadedDocuments           InstitutionalDocument[]       @relation("DocumentUploader")
+  uploadedDocumentVersions    DocumentVersionHistory[]      @relation("VersionUploader")
+  createdDocumentDrafts       DocumentApprovalDraft[]       @relation("DraftAuthor")
+  approvedDocumentDrafts      DocumentApprovalDraft[]       @relation("DraftApprover")
 
   @@index([schoolId])
   @@index([email])
@@ -2134,8 +2144,133 @@ model LibraryPolicy {
   @@map("library_policies")
 }
 
+// ==============================================================================
+// Document Intelligence & Administrative Automation (TASK 026)
+// ==============================================================================
 
+enum DocumentCategory {
+  SCHOOL_POLICY
+  ATTENDANCE_POLICY
+  EXAMINATION_GUIDELINE
+  CURRICULUM_DOCUMENT
+  TEACHER_HANDBOOK
+  STUDENT_HANDBOOK
+  PARENT_GUIDELINE
+  FEE_POLICY
+  TRANSPORT_SAFETY_POLICY
+  LIBRARY_RULE
+  ADMINISTRATIVE_CIRCULAR
+  GENERAL_INSTITUTIONAL
+}
 
+enum DocumentProcessingStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+  ARCHIVED
+}
 
+enum DocumentDraftStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  PUBLISHED
+}
 
+model InstitutionalDocument {
+  id              String                   @id @default(uuid())
+  schoolId        String?
+  school          School?                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?                  @db.Text
+  category        DocumentCategory         @default(GENERAL_INSTITUTIONAL)
+  documentType    String                   @default("TXT") // PDF, DOCX, TXT
+  fileUrl         String
+  fileSize        Int                      @default(0)
+  version         Int                      @default(1)
+  status          DocumentProcessingStatus @default(READY)
+  isPublished     Boolean                  @default(true)
+  visibilityRoles UserRole[]               @default([PLATFORM_ADMIN, SCHOOL_ADMIN])
+  uploadedById    String
+  uploadedBy      User                     @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+  sections        DocumentSection[]
+  versions        DocumentVersionHistory[]
+  drafts          DocumentApprovalDraft[]
+  metadata        Json?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([schoolId])
+  @@index([category])
+  @@index([status])
+  @@index([isPublished])
+  @@map("institutional_documents")
+}
+
+model DocumentSection {
+  id           String                @id @default(uuid())
+  documentId   String
+  document     InstitutionalDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sectionIndex Int
+  title        String?
+  content      String                @db.Text
+  pageNumber   Int?
+  tokenCount   Int?                  @default(0)
+  createdAt    DateTime              @default(now())
+
+  @@index([documentId])
+  @@index([sectionIndex])
+  @@map("document_sections")
+}
+
+model DocumentVersionHistory {
+  id            String                @id @default(uuid())
+  documentId    String
+  document      InstitutionalDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  fileUrl       String
+  fileSize      Int
+  changeSummary String?
+  uploadedById  String
+  uploadedBy    User                  @relation("VersionUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt     DateTime              @default(now())
+
+  @@index([documentId])
+  @@index([versionNumber])
+  @@map("document_version_histories")
+}
+
+model DocumentApprovalDraft {
+  id                      String                @id @default(uuid())
+  schoolId                String?
+  school                  School?               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  authorId                String
+  author                  User                  @relation("DraftAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  sourceDocumentId        String?
+  sourceDocument          InstitutionalDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  category                String                @default("NOTICE") // NOTICE, CIRCULAR, FEE_REMINDER, TRANSPORT_ALERT, LIBRARY_NOTICE, ANNOUNCEMENT
+  targetRole              String                @default("ALL") // ALL, TEACHER, PARENT, STUDENT, STAFF
+  classSectionId          String?
+  subject                 String
+  body                    String                @db.Text
+  status                  DocumentDraftStatus   @default(DRAFT)
+  rejectionReason         String?
+  approvedById            String?
+  approvedBy              User?                 @relation("DraftApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt              DateTime?
+  publishedAt             DateTime?
+  publishedAnnouncementId String?
+  version                 Int                   @default(1)
+  history                 Json?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  @@index([schoolId])
+  @@index([authorId])
+  @@index([status])
+  @@index([category])
+  @@map("document_approval_drafts")
+}
 

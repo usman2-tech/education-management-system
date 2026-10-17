@@ -1321,3 +1321,136 @@ This document guides the user through manually verifying the architecture, front
 3. Review toggles: Student Absence Alerts (enabled by default), Attendance Correction Alerts, Homework Alerts, Fee Alerts, Transport Alerts, Library Alerts.
 4. Toggle an optional setting and save. Verify the setting persists across page reloads.
 
+---
+
+# Manual Testing Guide — TASK 026: Revised AI Document Intelligence & Administrative Automation
+
+## Overview
+This document guides the user through manually verifying the institutional document repository, grounded policy Q&A, AI summarization, version replacement, administrative notice draft review & broadcast, and executive narrative reporting across all integrated role AI assistants.
+
+### Test Credentials
+- Default password for all seed accounts: `Password123!`
+- Platform Admin: `platform.admin@ems.local`
+- School Admin (St. Jude): `admin@stjude.ems.local`
+- School Admin (Apex Academy): `admin@apex.ems.local`
+- Teacher: `teacher@stjude.ems.local`
+- Student: `student@stjude.ems.local`
+- Parent / Guardian: `parent@stjude.ems.local`
+
+---
+
+### Test Suite 1: Document Library & Management (`/documents`)
+1. Log in as School Admin (`admin@stjude.ems.local`).
+2. Notice the "Document Library" item in the left sidebar navigation under Operations & Records (`/documents`).
+3. Click "Document Library".
+4. Verify the top metric cards display:
+   - Total Institutional Documents (9+)
+   - Indexed Document Sections (25+)
+   - Pending Notice Drafts
+   - Active Policy Versions
+5. Verify the 4 functional tabs are present:
+   - **Institutional Documents**: Filter by category, view cards with badges, metadata, section count, and version indicator.
+   - **Administrative Drafts**: Notice drafts with status badges (`DRAFT`, `PENDING_REVIEW`, `APPROVED`, `PUBLISHED`).
+   - **Grounded Policy Search & Q&A**: Real-time semantic search returning matched sections with citations.
+   - **Executive Narrative Reports**: Real database-driven narrative reports.
+6. Click "Upload Document".
+7. Provide:
+   - Title: `Campus Science Laboratory Safety Protocols`
+   - Category: `SCHOOL_POLICY`
+   - Permitted Roles: School Admin, Teacher, Student
+   - Markdown Content with `# Headers`.
+8. Click "Upload & Index".
+9. Verify document appears in the library with 3 extracted sections and Status `READY`.
+
+---
+
+### Test Suite 2: Document Detail, Sections, Version Increment & Archival
+1. In the Document Library, click "View & Edit" on the uploaded document.
+2. In the Document Preview modal, verify all 3 chunked markdown sections are displayed with section indices and token counts.
+3. Click "AI Summarize". Select summary type `Executive (Short)`. Verify structured summary with key takeaways and citations renders.
+4. Click "Upload New Version".
+5. Enter change summary: `Annual revision updating eyewash safety protocols`.
+6. Provide updated text content. Click "Save Version".
+7. Verify version badge increments from `v1` to `v2` and version history log shows both versions with timestamps and author names.
+8. Click "Archive Document". Confirm prompt. Verify document status transitions to `ARCHIVED` and is hidden from active student searches.
+
+---
+
+### Test Suite 3: Tenant Isolation & Multi-School Security Boundary
+1. Log out and log in as Apex Academy School Admin (`admin@apex.ems.local`).
+2. Navigate to `/documents`.
+3. Verify that St. Jude specific documents and administrative drafts are NOT visible in the Apex document library.
+4. Attempting to directly request a St. Jude document ID returns HTTP 403 Forbidden.
+
+---
+
+### Test Suite 4: Grounded Policy Search & Zero Fabrication
+1. In `/documents`, switch to the **Grounded Policy Search & Q&A** tab.
+2. Enter inquiry: `What is the minimum attendance threshold required to sit for final examinations?`.
+3. Click "Search Policies".
+4. Verify results display:
+   - Citation: `Institutional Student Attendance & Punctuality Policy (v1, Section 1)`
+   - Verified section snippet explaining the 90% attendance requirement.
+   - Relevance score badge (`EXACT` or `HIGH MATCH`).
+5. Now enter an inquiry with zero database evidence: `What is the protocol for extraterrestrial quantum teleportation?`.
+6. Click "Search Policies".
+7. Verify the interface displays a clean zero-evidence message stating no institutional policies were found, confirming zero metric/citation fabrication.
+
+---
+
+### Test Suite 5: Administrative Notice Draft Lifecycle & TASK 030 Broadcast
+1. In `/documents`, switch to the **Administrative Drafts** tab.
+2. Click "Draft New Notice".
+3. Provide:
+   - Subject: `Mandatory Laboratory Safety Orientation Schedule`
+   - Category: `NOTICE`
+   - Target Audience: `ALL` (or `STUDENT`, `PARENT`, `TEACHER`)
+   - Body: `All enrolled science students must attend the safety orientation before starting experiments.`
+4. Click "Generate Draft".
+5. Verify the notice draft appears in the list with `DRAFT` status.
+6. Click "Review Draft". Select decision `APPROVE`.
+7. Verify status updates to `APPROVED` with approved timestamp and approver name.
+8. Click "Broadcast Notice".
+9. Confirm the modal prompt to dispatch through the TASK 030 Institutional Communications Engine.
+10. Verify draft status transitions to `PUBLISHED` with delivery counter.
+11. Log in as Teacher or Parent and navigate to `/notifications` to confirm the broadcast notification was delivered.
+
+---
+
+### Test Suite 6: Executive Narrative Reporting (Real Database Grounding)
+1. In `/documents`, switch to the **Executive Narrative Reports** tab.
+2. Select Report Type: `Attendance & Punctuality Summary`.
+3. Click "Generate Narrative Report".
+4. Verify the report generates:
+   - Reporting interval
+   - Executive narrative summary based on real database attendance records
+   - Verified underlying metrics table (Total Logs, Present, Absent, Late, Attendance Rate %)
+   - Zero fabricated numbers.
+
+---
+
+### Test Suite 7: Role AI Assistants Integration (Zero Fabrication)
+1. **Platform / School Admin AI Assistant (`/ai-assistant`)**:
+   - Navigate to `/ai-assistant`.
+   - Click the quick action chip: "What is our attendance threshold policy for exams?".
+   - Verify the assistant replies with official policy citations (`Institutional Student Attendance & Punctuality Policy`) and renders a clickable document citation badge.
+2. **Teacher AI Copilot (`/teacher/copilot`)**:
+   - Log in as Teacher (`teacher@stjude.ems.local`).
+   - Navigate to `/teacher/copilot`.
+   - Click the 7th tab: **Documents & Notices**.
+   - Use "Search Guidelines": enter `examination grading guidelines`. Verify matched faculty sections appear.
+   - Use "Draft Parent Notice": enter subject and content. Click "Submit Draft for Review". Verify draft is queued for administrative review.
+3. **Student AI Tutor (`/student/tutor`)**:
+   - Log in as Student (`student@stjude.ems.local`).
+   - Navigate to `/student/tutor`.
+   - Click the 7th tab: **School Rules & Handbook**.
+   - Ask: `Can I use my mobile phone during class hours?`.
+   - Verify the AI Tutor responds citing `Student Rights, Conduct & Campus Life Handbook` Section 2.
+4. **Parent AI Assistant (`/parent/assistant`)**:
+   - Log in as Parent (`parent@stjude.ems.local`).
+   - Navigate to `/parent/assistant`.
+   - Click the 7th tab: **School Policies & Rules**.
+   - Ask: `What is the procedure if my child is absent due to illness?`.
+   - Verify the Parent Assistant cites the official absence reporting procedures and displays verified child metrics.
+
+

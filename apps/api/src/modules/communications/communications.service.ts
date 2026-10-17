@@ -214,7 +214,7 @@ export class CommunicationsService {
 
   private async resolveAnnouncementRecipients(
     currentUser: AuthUser,
-    filter: { targetRole?: UserRole; classSectionId?: string },
+    filter: { targetRole?: UserRole | string; classSectionId?: string },
   ): Promise<string[]> {
     const schoolId = currentUser.schoolId;
 
@@ -270,7 +270,9 @@ export class CommunicationsService {
 
     const where: any = {};
     if (schoolId) where.schoolId = schoolId;
-    if (filter.targetRole) where.role = filter.targetRole;
+    if (filter.targetRole && filter.targetRole !== 'ALL' && Object.values(UserRole).includes(filter.targetRole as UserRole)) {
+      where.role = filter.targetRole;
+    }
 
     const users = await this.prisma.user.findMany({
       where,

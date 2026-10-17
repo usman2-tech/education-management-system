@@ -12,9 +12,10 @@
  * Never grants direct SQL access. Enforces RBAC and multi-school isolation on every query.
  */
 
-import { Injectable, Logger, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserRole } from '@ems/contracts';
+import { UserRole, AuthUser } from '@ems/contracts';
+import { DocumentsService } from '../documents/documents.service';
 
 export interface ToolPrincipal {
   userId: string;
@@ -38,7 +39,10 @@ export interface ToolExecutionResult {
 export class AiToolsService {
   private readonly logger = new Logger(AiToolsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly documentsService: DocumentsService,
+  ) {}
 
   /**
    * Main entrypoint for executing authorized tools
@@ -85,6 +89,26 @@ export class AiToolsService {
 
         case 'get_school_overview':
           data = await this.getSchoolOverview(principal);
+          break;
+
+        case 'search_authorized_documents':
+          data = await this.searchAuthorizedDocuments(principal, args);
+          break;
+
+        case 'get_authorized_document_sections':
+          data = await this.getAuthorizedDocumentSections(principal, args);
+          break;
+
+        case 'summarize_authorized_document':
+          data = await this.summarizeAuthorizedDocument(principal, args);
+          break;
+
+        case 'draft_administrative_notice':
+          data = await this.draftAdministrativeNotice(principal, args);
+          break;
+
+        case 'generate_administrative_narrative_report':
+          data = await this.generateAdministrativeNarrativeReport(principal, args);
           break;
 
         default:
@@ -793,4 +817,155 @@ export class AiToolsService {
 
     return relationships.map((r) => r.student);
   }
+
+  // ==========================================================================
+  // DOCUMENT INTELLIGENCE TOOLS (TASK 026)
+  // ==========================================================================
+
+  private buildAuthUser(principal: ToolPrincipal): AuthUser {
+    return {
+      id: principal.userId,
+      email: '',
+      role: principal.role,
+      schoolId: principal.schoolId || undefined,
+    } as AuthUser;
+  }
+
+  /**
+   * Search authorized institutional documents and extracted sections
+   */
+  private async searchAuthorizedDocuments(
+    principal: ToolPrincipal,
+    args: Record<string, any>,
+  ) {
+    const user = this.buildAuthUser(principal);
+    const query = args.query || args.search || args.topic || '';
+    const category = args.category;
+    const limit = args.limit || 5;
+
+    const results = await this.documentsService.searchAuthorizedSections(
+      user,
+      query,
+      category,
+      limit,
+    );
+
+    return {
+      query,
+      resultsCount: results.length,
+      sections: results.map((r) => ({
+        documentId: r.documentId,
+        documentTitle: r.documentTitle,
+        category: r.category,
+        version: r.version,
+        sectionIndex: r.sectionIndex,
+        pageNumber: r.pageNumber,
+        sectionTitle: r.sectionTitle,
+        snippet: r.snippet,
+        citation: `${r.documentTitle} (v${r.version}, Section ${r.sectionIndex}${r.pageNumber ? `, Page ${r.pageNumber}` : ''})`,
+      })),
+    };
+  }
+
+  /**
+   * Retrieve full sections for an authorized document
+   */
+  private async getAuthorizedDocumentSections(
+    principal: ToolPrincipal,
+    args: Record<string, any>,
+  ) {
+    const user = this.buildAuthUser(principal);
+    const documentId = args.documentId || args.id;
+    if (!documentId) {
+      throw new BadRequestException('documentId parameter is required.');
+    }
+
+    const doc = await this.documentsService.getDocumentById(user, documentId);
+    return {
+      documentId: doc.id,
+      title: doc.title,
+      category: doc.category,
+      version: doc.version,
+      sectionCount: doc.sectionCount,
+      sections: (doc.sections || []).map((s: any) => ({
+        sectionIndex: s.sectionIndex,
+        pageNumber: s.pageNumber,
+        title: s.title,
+        content: s.content,
+      })),
+    };
+  }
+
+  /**
+   * Structured summarization of an authorized document
+   */
+  private async summarizeAuthorizedDocument(
+    principal: ToolPrincipal,
+    args: Record<string, any>,
+  ) {
+    const user = this.buildAuthUser(principal);
+    const documentId = args.documentId || args.id;
+    if (!documentId) {
+      throw new BadRequestException('documentId parameter is required.');
+    }
+
+    return this.documentsService.summarizeDocument(
+      user,
+      documentId,
+      args.summaryType || 'SHORT',
+    );
+  }
+
+  /**
+   * Prepare an editable administrative notice draft
+   */
+  private async draftAdministrativeNotice(
+    principal: ToolPrincipal,
+    args: Record<string, any>,
+  ) {
+    const user = this.buildAuthUser(principal);
+    const subject = args.subject || args.title || 'Administrative Notice';
+    const body = args.body || args.message || args.content || '';
+    const category = args.category || 'NOTICE';
+    const targetRole = args.targetRole || 'ALL';
+    const classSectionId = args.classSectionId;
+    const sourceDocumentId = args.sourceDocumentId;
+
+    const draft = await this.documentsService.createDraft(user, {
+      subject,
+      body,
+      category,
+      targetRole,
+      classSectionId,
+      sourceDocumentId,
+    });
+
+    return {
+      message: 'Draft notice created successfully. Human administrative approval required before dispatch.',
+      draftId: draft.id,
+      subject: draft.subject,
+      body: draft.body,
+      targetRole: draft.targetRole,
+      status: draft.status,
+      requiresApproval: true,
+    };
+  }
+
+  /**
+   * Generate an authoritative written narrative report from verified EMS data
+   */
+  private async generateAdministrativeNarrativeReport(
+    principal: ToolPrincipal,
+    args: Record<string, any>,
+  ) {
+    const user = this.buildAuthUser(principal);
+    const reportType = args.reportType || 'ATTENDANCE_SUMMARY';
+    return this.documentsService.generateNarrativeReport(user, {
+      reportType,
+      dateFrom: args.dateFrom,
+      dateTo: args.dateTo,
+      schoolId: args.schoolId,
+    });
+  }
+
 }

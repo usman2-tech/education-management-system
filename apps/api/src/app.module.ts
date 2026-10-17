@@ -30,6 +30,7 @@ import { FeesModule } from './modules/fees/fees.module';
 import { AiModule } from './modules/ai/ai.module';
 import { TransportModule } from './modules/transport/transport.module';
 import { LibraryModule } from './modules/library/library.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { LibraryModule } from './modules/library/library.module';
     AiModule,
     TransportModule,
     LibraryModule,
+    DocumentsModule,
   ],
 })
 export class AppModule {}

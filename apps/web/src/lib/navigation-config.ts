@@ -49,6 +49,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       title: 'Governance & Communications',
       items: [
         { title: 'AI Assistant', href: '/ai-assistant', icon: 'Bot', badge: 'Gemini', description: 'Institutional AI advisor & analytics' },
+        { title: 'Document Library', href: '/documents', icon: 'FolderGit2', description: 'Institutional document intelligence & policies' },
         { title: 'Notifications', href: '/notifications', icon: 'Bell', description: 'System alerts & announcements' },
         { title: 'Subscriptions', href: '/subscriptions', icon: 'CreditCard', description: 'Platform plans & institutional subscriptions' },
         { title: 'Audit Logs', href: '/audit-logs', icon: 'ShieldCheck', description: 'Security trails & access logs' },
@@ -77,6 +78,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       title: 'Operations & Records',
       items: [
         { title: 'AI Assistant', href: '/ai-assistant', icon: 'Bot', badge: 'Gemini', description: 'Campus AI advisor & operations copilot' },
+        { title: 'Document Library', href: '/documents', icon: 'FolderGit2', description: 'Institutional document intelligence & policies' },
         { title: 'Transport Management', href: '/transport', icon: 'Bus', description: 'Fleet vehicles, routes, GPS tracking & allocations' },
         { title: 'Library Management', href: '/library', icon: 'BookMarked', description: 'Book catalog, copies, issues, returns & fines' },
         { title: 'Fee Management', href: '/fees', icon: 'Receipt', description: 'Fee structures, invoices & payments' },

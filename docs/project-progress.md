@@ -33,6 +33,7 @@ Feature lifecycle states:
 | **TASK-022** | Google Gemini AI Foundation & Academic Assistant | **AWAITING MANUAL TEST** | `feature/TASK-022-gemini-ai-assistant` | Current | Ready for User Approval |
 | **TASK-023** | AI Teacher Copilot (6 Pedagogical Tools & Approval Workflow) | **AWAITING MANUAL TEST** | `feature/TASK-023-ai-teacher-copilot` | `c8309f4` | Ready for User Approval |
 | **TASK-024** | AI Student Tutor & AI Parent/Guardian Assistant | **AWAITING MANUAL TEST** | `feature/TASK-024-ai-student-parent` | `e6e5aad` | Ready for User Approval |
+| **TASK-026** | Revised AI Document Intelligence & Administrative Automation | **AWAITING MANUAL TEST** | `feature/TASK-026-integrated-ai-documents` | Current | Ready for User Approval |
 | **TASK-027** | Transport Management with Real-Time GPS Tracking | **AWAITING MANUAL TEST** | `feature/TASK-027-028-transport-library` | Current | Ready for User Approval |
 | **TASK-028** | Library Management & Circulation Control | **AWAITING MANUAL TEST** | `feature/TASK-027-028-transport-library` | Current | Ready for User Approval |
 | **TASK-030** | Direct Messaging & Automated Parent Notifications | **AWAITING MANUAL TEST** | `feature/TASK-030-direct-messaging-notifications` | Current | Ready for User Approval |

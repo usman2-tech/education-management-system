@@ -138,6 +138,32 @@ export const aiCopilotApi = {
       method: 'DELETE',
     });
   },
+
+  async searchTeachingDocuments(query: string, category?: string): Promise<any> {
+    return apiClient.request('/ai/copilot/documents/search', {
+      method: 'POST',
+      body: JSON.stringify({ query, category }),
+    });
+  },
+
+  async summarizeTeachingGuidelines(documentId: string, focusArea?: string): Promise<any> {
+    return apiClient.request('/ai/copilot/documents/summarize', {
+      method: 'POST',
+      body: JSON.stringify({ documentId, focusArea }),
+    });
+  },
+
+  async draftParentNotice(dto: {
+    studentId?: string;
+    noticeType: string;
+    keyPoints: string[];
+    urgency?: string;
+  }): Promise<any> {
+    return apiClient.request('/ai/copilot/draft-notice', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
 };
 
 export const aiTutorApi = {
@@ -263,6 +289,13 @@ export const aiTutorApi = {
     };
   }> {
     return apiClient.request('/ai/tutor/learning-progress');
+  },
+
+  async explainSchoolRule(ruleQuery: string): Promise<any> {
+    return apiClient.request('/ai/tutor/explain-rule', {
+      method: 'POST',
+      body: JSON.stringify({ ruleQuery }),
+    });
   },
 };
 

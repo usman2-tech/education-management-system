@@ -14,6 +14,7 @@
 
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
+import { DocumentsModule } from '../documents/documents.module';
 import { AiController } from './ai.controller';
 import { AiInternalController } from './ai-internal.controller';
 import { AiCopilotController } from './ai-copilot.controller';
@@ -26,7 +27,7 @@ import { AiTutorService } from './ai-tutor.service';
 import { AiParentService } from './ai-parent.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, DocumentsModule],
   controllers: [
     AiController,
     AiInternalController,
