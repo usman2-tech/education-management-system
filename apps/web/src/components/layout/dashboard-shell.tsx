@@ -21,12 +21,30 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname();
-  const { effectiveRole, setPreviewRole } = useAuth();
+  const { effectiveRole } = useAuth();
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(false);
   const [isMobileOpen, setIsMobileOpen] = React.useState<boolean>(false);
 
-  // Standalone authentication page bypasses shell scaffolding
-  if (pathname === '/login') {
+  const handleToggleCollapse = React.useCallback(() => {
+    setIsCollapsed((prev) => !prev);
+  }, []);
+
+  const handleCloseMobile = React.useCallback(() => {
+    setIsMobileOpen(false);
+  }, []);
+
+  const handleOpenMobile = React.useCallback(() => {
+    setIsMobileOpen(true);
+  }, []);
+
+  // Standalone authentication and activation pages bypass shell scaffolding
+  const isAuthPage =
+    pathname === '/login' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password' ||
+    pathname === '/activate';
+
+  if (isAuthPage) {
     return <>{children}</>;
   }
 
@@ -36,18 +54,17 @@ export function DashboardShell({ children }: DashboardShellProps) {
         {/* Role-Aware Sidebar */}
         <Sidebar
           currentRole={effectiveRole}
-          onRoleChange={setPreviewRole}
           isCollapsed={isCollapsed}
-          onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
+          onToggleCollapse={handleToggleCollapse}
           isMobileOpen={isMobileOpen}
-          onCloseMobile={() => setIsMobileOpen(false)}
+          onCloseMobile={handleCloseMobile}
         />
 
         {/* Main Content Viewport */}
         <div className="flex flex-1 flex-col overflow-x-hidden">
           <Header
             currentRole={effectiveRole}
-            onOpenMobileNav={() => setIsMobileOpen(true)}
+            onOpenMobileNav={handleOpenMobile}
           />
 
           <main className="flex-1 p-4 sm:p-6 lg:p-8">

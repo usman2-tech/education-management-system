@@ -21,9 +21,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   effectiveRole: UserRole;
-  previewRole: UserRole | null;
-  setPreviewRole: (role: UserRole | null) => void;
-  login: (email: string, pass: string) => Promise<AuthUser>;
+  login: (email: string, pass: string, selectedRole?: UserRole) => Promise<AuthUser>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -34,10 +32,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = React.useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
-  const [previewRole, setPreviewRole] = React.useState<UserRole | null>(null);
 
   // Initialize session from localStorage and verify against /auth/me
   React.useEffect(() => {
+    let isMounted = true;
+
+    // Safety watchdog: ensure loading never gets stuck indefinitely
+    const watchdog = setTimeout(() => {
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    }, 4000);
+
     async function initAuth() {
       try {
         const storedUser = localStorage.getItem('ems_user');
@@ -45,40 +51,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (storedUser && token) {
           try {
-            setUser(JSON.parse(storedUser));
+            const parsed = JSON.parse(storedUser);
+            if (isMounted) setUser(parsed);
           } catch {
             // Invalid JSON in localStorage
           }
 
-          // Verify with live backend
-          const meUser = await apiClient.get<AuthUser>('/auth/me');
-          setUser(meUser);
-          localStorage.setItem('ems_user', JSON.stringify(meUser));
+          // Unblock loading state immediately with authenticated cached state
+          if (isMounted) setIsLoading(false);
+
+          // Verify with live backend in background
+          try {
+            const meUser = await apiClient.get<AuthUser>('/auth/me');
+            if (isMounted) {
+              setUser(meUser);
+              localStorage.setItem('ems_user', JSON.stringify(meUser));
+            }
+          } catch (err: any) {
+            // Explicit token invalidation (401)
+            if (err?.statusCode === 401) {
+              apiClient.clearTokens();
+              if (isMounted) setUser(null);
+            } else {
+              console.warn('Background session verification network error (retaining cached credentials):', err?.message);
+            }
+          }
+        } else {
+          if (isMounted) {
+            setUser(null);
+            setIsLoading(false);
+          }
         }
       } catch (err) {
         console.warn('Session verification failed:', err);
         apiClient.clearTokens();
-        setUser(null);
+        if (isMounted) setUser(null);
       } finally {
-        setIsLoading(false);
+        clearTimeout(watchdog);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
     initAuth();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(watchdog);
+    };
   }, []);
 
   const login = React.useCallback(
-    async (email: string, pass: string): Promise<AuthUser> => {
+    async (email: string, pass: string, selectedRole?: UserRole): Promise<AuthUser> => {
       setIsLoading(true);
       try {
         const res = await apiClient.post<AuthResponse>('/auth/login', {
           email,
           password: pass,
+          selectedRole,
         });
 
         apiClient.setTokens(res.tokens);
         setUser(res.user);
-        setPreviewRole(null);
         localStorage.setItem('ems_user', JSON.stringify(res.user));
         return res.user;
       } finally {
@@ -94,7 +129,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       apiClient.clearTokens();
       setUser(null);
-      setPreviewRole(null);
       router.push('/login');
     }
   }, [router]);
@@ -109,8 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [logout]);
 
-  const effectiveRole: UserRole =
-    previewRole || user?.role || UserRole.SCHOOL_ADMIN;
+  const effectiveRole: UserRole = user?.role || UserRole.SCHOOL_ADMIN;
 
   const value = React.useMemo<AuthContextValue>(
     () => ({
@@ -118,8 +151,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isAuthenticated: !!user,
       effectiveRole,
-      previewRole,
-      setPreviewRole,
       login,
       logout,
       refreshProfile,
@@ -128,8 +159,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       isLoading,
       effectiveRole,
-      previewRole,
-      setPreviewRole,
       login,
       logout,
       refreshProfile,

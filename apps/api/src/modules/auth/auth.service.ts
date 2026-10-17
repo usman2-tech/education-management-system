@@ -17,6 +17,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -25,6 +26,10 @@ import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { InviteUserDto } from './dto/invite-user.dto';
+import { ActivateAccountDto } from './dto/activate-account.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import {
   AuthResponse,
   AuthTokens,
@@ -46,7 +51,7 @@ export class AuthService {
   /**
    * Validates user credentials and returns full user with tenant relation
    */
-  async validateUser(email: string, pass: string) {
+  async validateUser(email: string, pass: string, selectedRole?: UserRole) {
     const normalizedEmail = email.trim().toLowerCase();
 
     const user = await this.prisma.user.findUnique({
@@ -76,6 +81,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid institutional credentials.');
     }
 
+    // Role verification: ensure selected portal role matches actual account role
+    if (selectedRole && user.role !== selectedRole) {
+      throw new UnauthorizedException(
+        `Access denied: Your account role is '${user.role}', but you attempted to sign into the '${selectedRole}' portal.`
+      );
+    }
+
     // Update last login timestamp asynchronously
     await this.prisma.user.update({
       where: { id: user.id },
@@ -91,7 +103,7 @@ export class AuthService {
    * Authenticates user and generates institutional access + refresh tokens
    */
   async login(loginDto: LoginDto): Promise<AuthResponse> {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
+    const user = await this.validateUser(loginDto.email, loginDto.password, loginDto.selectedRole);
 
     const authUser: AuthUser = {
       id: user.id,
@@ -320,5 +332,319 @@ export class AuthService {
    */
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
+   * Invites a new institutional user with a cryptographically secure token
+   */
+  async inviteUser(invitedBy: AuthUser, dto: InviteUserDto) {
+    const targetEmail = dto.email.trim().toLowerCase();
+
+    // 1. RBAC & School Isolation
+    let targetSchoolId: string | null = dto.schoolId || null;
+
+    if (invitedBy.role === UserRole.PLATFORM_ADMIN) {
+      if (dto.role !== UserRole.PLATFORM_ADMIN && !targetSchoolId && invitedBy.schoolId) {
+        targetSchoolId = invitedBy.schoolId;
+      }
+    } else if (invitedBy.role === UserRole.SCHOOL_ADMIN) {
+      if (!invitedBy.schoolId) {
+        throw new ForbiddenException('School Administrator lacks an active institutional school context.');
+      }
+      if (dto.schoolId && dto.schoolId !== invitedBy.schoolId) {
+        throw new ForbiddenException('School Administrators cannot invite users to other institutional campuses.');
+      }
+      if (dto.role === UserRole.PLATFORM_ADMIN || dto.role === UserRole.SCHOOL_ADMIN) {
+        throw new ForbiddenException('School Administrators can only invite Teachers, Students, and Parents.');
+      }
+      targetSchoolId = invitedBy.schoolId;
+    } else {
+      throw new ForbiddenException('You do not have permission to invite institutional users.');
+    }
+
+    // 2. Prevent duplicate active accounts
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: targetEmail },
+    });
+    if (existingUser && existingUser.isActive) {
+      throw new BadRequestException('An active institutional account with this email address already exists.');
+    }
+
+    // 3. Generate secure token & hash
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    // Invalidate prior pending invitations for this email
+    await this.prisma.userInvitation.deleteMany({
+      where: { email: targetEmail, accepted: false },
+    });
+
+    const invitation = await this.prisma.userInvitation.create({
+      data: {
+        email: targetEmail,
+        role: dto.role,
+        schoolId: targetSchoolId,
+        tokenHash,
+        expiresAt,
+        invitedById: invitedBy.id,
+      },
+      include: {
+        school: { select: { id: true, name: true, code: true } },
+      },
+    });
+
+    // 4. Audit Log
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'USER_INVITATION_CREATED',
+        entityType: 'UserInvitation',
+        entityId: invitation.id,
+        actorId: invitedBy.id,
+        actorEmail: invitedBy.email,
+        schoolId: targetSchoolId,
+        details: { email: targetEmail, role: dto.role },
+      },
+    });
+
+    this.logger.log(`Invitation created for ${targetEmail} [${dto.role}] by ${invitedBy.email}`);
+
+    return {
+      success: true,
+      message: `Invitation successfully created for ${targetEmail}.`,
+      invitationId: invitation.id,
+      activationToken: rawToken,
+      devToken: rawToken,
+      devActivationLink: rawToken ? `http://localhost:3000/activate?token=${rawToken}` : undefined,
+    };
+  }
+
+  /**
+   * Retrieves invitation metadata for the activation screen
+   */
+  async getInvitationDetails(rawToken: string) {
+    if (!rawToken) {
+      throw new BadRequestException('Activation token is required.');
+    }
+    const tokenHash = this.hashToken(rawToken);
+    const invitation = await this.prisma.userInvitation.findUnique({
+      where: { tokenHash },
+      include: {
+        school: { select: { name: true, code: true } },
+      },
+    });
+
+    if (!invitation || invitation.accepted || invitation.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid, expired, or already-consumed invitation token.');
+    }
+
+    return {
+      email: invitation.email,
+      role: invitation.role,
+      schoolName: invitation.school?.name || null,
+    };
+  }
+
+  /**
+   * Consumes activation token and sets up password and user profile
+   */
+  async activateAccount(dto: ActivateAccountDto) {
+    const tokenHash = this.hashToken(dto.token);
+    const invitation = await this.prisma.userInvitation.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!invitation || invitation.accepted || invitation.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid, expired, or already-consumed activation link.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    // Check if user already exists
+    let user = await this.prisma.user.findUnique({
+      where: { email: invitation.email },
+    });
+
+    if (user) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          firstName: dto.firstName.trim(),
+          lastName: dto.lastName.trim(),
+          isActive: true,
+          role: invitation.role,
+          schoolId: invitation.schoolId,
+        },
+      });
+    } else {
+      user = await this.prisma.user.create({
+        data: {
+          email: invitation.email,
+          passwordHash,
+          firstName: dto.firstName.trim(),
+          lastName: dto.lastName.trim(),
+          role: invitation.role,
+          schoolId: invitation.schoolId,
+          isActive: true,
+        },
+      });
+    }
+
+    // Role-specific profile initialization
+    if (invitation.role === UserRole.TEACHER) {
+      await this.prisma.teacherProfile.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: { userId: user.id },
+      });
+    } else if (invitation.role === UserRole.STUDENT) {
+      await this.prisma.studentProfile.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: { userId: user.id },
+      });
+    } else if (invitation.role === UserRole.PARENT) {
+      await this.prisma.parentGuardianProfile.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: { userId: user.id },
+      });
+    }
+
+    // Mark invitation consumed
+    await this.prisma.userInvitation.update({
+      where: { id: invitation.id },
+      data: { accepted: true, acceptedAt: new Date() },
+    });
+
+    // Audit Log
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'ACCOUNT_ACTIVATED',
+        entityType: 'User',
+        entityId: user.id,
+        actorId: user.id,
+        actorEmail: user.email,
+        schoolId: invitation.schoolId,
+        details: { email: user.email, role: user.role },
+      },
+    });
+
+    this.logger.log(`Account activated for ${user.email} [${user.role}]`);
+
+    return {
+      success: true,
+      message: 'Your institutional account has been successfully activated. You may now sign in.',
+    };
+  }
+
+  /**
+   * Password Recovery: Requests password reset (generic response)
+   */
+  async requestPasswordReset(dto: ForgotPasswordDto) {
+    const normalizedEmail = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    let rawToken: string | undefined;
+
+    if (user && user.isActive) {
+      rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = this.hashToken(rawToken);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      // Invalidate existing unused reset tokens for this user
+      await this.prisma.passwordResetToken.deleteMany({
+        where: { userId: user.id, used: false },
+      });
+
+      await this.prisma.passwordResetToken.create({
+        data: {
+          tokenHash,
+          userId: user.id,
+          expiresAt,
+          used: false,
+        },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          action: 'PASSWORD_RESET_REQUESTED',
+          entityType: 'User',
+          entityId: user.id,
+          actorId: user.id,
+          actorEmail: user.email,
+          schoolId: user.schoolId,
+          details: { email: normalizedEmail },
+        },
+      });
+
+      this.logger.log(`[DEV ONLY] Password reset token for ${user.email}: ${rawToken}`);
+    }
+
+    return {
+      success: true,
+      message: 'If an institutional account exists with this email address, password recovery instructions have been initiated.',
+      resetToken: rawToken,
+      devToken: rawToken,
+      devResetLink: rawToken ? `http://localhost:3000/reset-password?token=${rawToken}` : undefined,
+    };
+  }
+
+  /**
+   * Password Recovery: Consumes reset token and sets new password, invalidating sessions
+   */
+  async resetPassword(dto: ResetPasswordDto) {
+    const tokenHash = this.hashToken(dto.token);
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!resetToken || resetToken.used || resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid, expired, or already-consumed password reset token.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    // Update password
+    await this.prisma.user.update({
+      where: { id: resetToken.userId },
+      data: { passwordHash },
+    });
+
+    // Mark token as used
+    await this.prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { used: true },
+    });
+
+    // Invalidate ALL existing refresh tokens / sessions for this user
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: resetToken.userId, revoked: false },
+      data: { revoked: true },
+    });
+
+    // Audit Log
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'PASSWORD_RESET_COMPLETED',
+        entityType: 'User',
+        entityId: resetToken.userId,
+        actorId: resetToken.userId,
+        actorEmail: resetToken.user.email,
+        schoolId: resetToken.user.schoolId,
+        details: { email: resetToken.user.email },
+      },
+    });
+
+    this.logger.log(`Password reset completed and active sessions revoked for ${resetToken.user.email}`);
+
+    return {
+      success: true,
+      message: 'Your password has been reset successfully. Please log in with your new password.',
+    };
   }
 }

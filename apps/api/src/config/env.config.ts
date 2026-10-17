@@ -21,7 +21,14 @@ export interface AppConfig {
   redisHost: string;
   redisPort: number;
   aiServiceUrl: string;
+  jwtSecret: string;
+  jwtExpiresIn: string;
+  jwtRefreshSecret: string;
+  jwtRefreshExpiresIn: string;
 }
+
+const DEFAULT_JWT_SECRET = 'super_secret_jwt_access_key_ems_institutional_2026';
+const DEFAULT_JWT_REFRESH_SECRET = 'super_secret_jwt_refresh_key_ems_institutional_2026';
 
 export const loadConfig = (): AppConfig => {
   const nodeEnv = process.env.NODE_ENV || 'development';
@@ -31,7 +38,12 @@ export const loadConfig = (): AppConfig => {
   const apiPrefix = process.env.API_PREFIX || 'api/v1';
   const corsOriginsRaw = process.env.CORS_ORIGIN || 'http://localhost:3000,http://127.0.0.1:3000';
   const corsOrigins = corsOriginsRaw.split(',').map((origin) => origin.trim());
-  const swaggerEnabled = process.env.SWAGGER_ENABLED !== 'false';
+
+  // In production, Swagger is disabled by default unless SWAGGER_ENABLED=true is explicitly set
+  const swaggerEnabled = isProduction
+    ? process.env.SWAGGER_ENABLED === 'true'
+    : process.env.SWAGGER_ENABLED !== 'false';
+
   const logLevel = process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug');
   const databaseUrl =
     process.env.DATABASE_URL ||
@@ -39,6 +51,33 @@ export const loadConfig = (): AppConfig => {
   const redisHost = process.env.REDIS_HOST || '127.0.0.1';
   const redisPort = parseInt(process.env.REDIS_PORT || '6379', 10);
   const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
+
+  const jwtSecret = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
+  const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '1h';
+  const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || DEFAULT_JWT_REFRESH_SECRET;
+  const jwtRefreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+
+  // Production strict validations
+  if (isProduction) {
+    const missing: string[] = [];
+    if (!process.env.DATABASE_URL) {
+      missing.push('DATABASE_URL');
+    }
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_JWT_SECRET) {
+      missing.push('JWT_SECRET (must be configured and must not use development fallback)');
+    }
+    if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEFAULT_JWT_REFRESH_SECRET) {
+      missing.push('JWT_REFRESH_SECRET (must be configured and must not use development fallback)');
+    }
+
+    if (missing.length > 0) {
+      throw new Error(
+        `[CRITICAL CONFIGURATION ERROR] Missing or insecure production environment variables:\n` +
+          missing.map((item) => `  - ${item}`).join('\n') +
+          `\nPlease provide secure production credentials in your environment before starting in production mode.`,
+      );
+    }
+  }
 
   return {
     nodeEnv,
@@ -52,6 +91,10 @@ export const loadConfig = (): AppConfig => {
     redisHost,
     redisPort,
     aiServiceUrl,
+    jwtSecret,
+    jwtExpiresIn,
+    jwtRefreshSecret,
+    jwtRefreshExpiresIn,
   };
 };
 

@@ -317,3 +317,119 @@ export class TimetableFilterDto {
   @IsOptional()
   schoolId?: string;
 }
+
+export class CreateStudentDto {
+  @IsString()
+  @IsNotEmpty()
+  firstName!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  lastName!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  email!: string;
+
+  @IsString()
+  @IsOptional()
+  password?: string;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @IsString()
+  @IsOptional()
+  admissionNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  gradeLevel?: string;
+
+  @IsString()
+  @IsOptional()
+  dateOfBirth?: string;
+
+  @IsString()
+  @IsOptional()
+  gender?: string;
+
+  @IsString()
+  @IsOptional()
+  bloodGroup?: string;
+
+  @IsString()
+  @IsOptional()
+  emergencyContact?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @IsUUID()
+  @IsOptional()
+  sectionId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  schoolId?: string;
+
+  @IsString()
+  @IsOptional()
+  photoBase64?: string;
+}
+
+export class UpdateStudentDto {
+  @IsString()
+  @IsOptional()
+  firstName?: string;
+
+  @IsString()
+  @IsOptional()
+  lastName?: string;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @IsString()
+  @IsOptional()
+  admissionNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  gradeLevel?: string;
+
+  @IsString()
+  @IsOptional()
+  dateOfBirth?: string;
+
+  @IsString()
+  @IsOptional()
+  gender?: string;
+
+  @IsString()
+  @IsOptional()
+  bloodGroup?: string;
+
+  @IsString()
+  @IsOptional()
+  emergencyContact?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @IsUUID()
+  @IsOptional()
+  sectionId?: string;
+
+  @IsString()
+  @IsOptional()
+  avatarUrl?: string | null;
+
+  @IsString()
+  @IsOptional()
+  photoBase64?: string | null;
+}

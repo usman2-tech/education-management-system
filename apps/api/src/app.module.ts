@@ -19,6 +19,18 @@ import { ParentsModule } from './modules/parents/parents.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { GradesModule } from './modules/grades/grades.module';
+import { HomeworkModule } from './modules/homework/homework.module';
+import { CoursesModule } from './modules/courses/courses.module';
+import { ExamsModule } from './modules/exams/exams.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { SubscriptionCodesModule } from './modules/subscription-codes/subscription-codes.module';
+import { CommunicationsModule } from './modules/communications/communications.module';
+import { DashboardsModule } from './modules/dashboards/dashboards.module';
+import { FeesModule } from './modules/fees/fees.module';
+import { AiModule } from './modules/ai/ai.module';
+import { TransportModule } from './modules/transport/transport.module';
+import { LibraryModule } from './modules/library/library.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 
 @Module({
   imports: [
@@ -35,6 +47,19 @@ import { GradesModule } from './modules/grades/grades.module';
     ClassesModule,
     AttendanceModule,
     GradesModule,
+    HomeworkModule,
+    CoursesModule,
+    ExamsModule,
+    SubscriptionsModule,
+    SubscriptionCodesModule,
+    CommunicationsModule,
+    DashboardsModule,
+    FeesModule,
+    AiModule,
+    TransportModule,
+    LibraryModule,
+    DocumentsModule,
   ],
 })
 export class AppModule {}
+

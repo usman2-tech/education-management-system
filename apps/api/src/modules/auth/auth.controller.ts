@@ -18,19 +18,26 @@ import {
   Post,
   Get,
   Body,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
   Req,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { InviteUserDto } from './dto/invite-user.dto';
+import { ActivateAccountDto } from './dto/activate-account.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { SchoolIsolationGuard } from './guards/school-isolation.guard';
+import { Roles } from './decorators/roles.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { AuthUser } from '@ems/contracts';
+import { AuthUser, UserRole } from '@ems/contracts';
 
 @ApiTags('Authentication & Access Control')
 @Controller('auth')
@@ -88,5 +95,57 @@ export class AuthController {
       activeSchoolId: req.activeSchoolId,
       isolationMode: user.role === 'PLATFORM_ADMIN' ? 'GLOBAL_SUPERVISOR' : 'TENANT_ISOLATED',
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // INVITATION-BASED REGISTRATION
+  // ---------------------------------------------------------------------------
+
+  @Post('invite')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN)
+  @ApiBearerAuth('JWT-Auth')
+  @ApiOperation({ summary: 'Issue an institutional invitation for controlled user onboarding' })
+  @ApiResponse({ status: 201, description: 'Invitation created successfully.' })
+  async inviteUser(
+    @CurrentUser() currentUser: AuthUser,
+    @Body() dto: InviteUserDto,
+  ) {
+    return this.authService.inviteUser(currentUser, dto);
+  }
+
+  @Get('invitation-details')
+  @ApiOperation({ summary: 'Retrieve invitation metadata for the activation screen' })
+  @ApiQuery({ name: 'token', required: true, description: 'Raw invitation token' })
+  async getInvitationDetails(@Query('token') token: string) {
+    return this.authService.getInvitationDetails(token);
+  }
+
+  @Post('activate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Consume invitation token and establish initial account password' })
+  @ApiResponse({ status: 200, description: 'Account successfully activated.' })
+  async activateAccount(@Body() dto: ActivateAccountDto) {
+    return this.authService.activateAccount(dto);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PASSWORD RECOVERY
+  // ---------------------------------------------------------------------------
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset token (generic response)' })
+  @ApiResponse({ status: 200, description: 'Reset instructions initiated if account exists.' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.requestPasswordReset(dto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset account password with valid single-use token' })
+  @ApiResponse({ status: 200, description: 'Password reset successfully and sessions revoked.' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

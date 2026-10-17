@@ -1,93 +1,81 @@
 'use client';
 
 /**
- * MODULE: Institutional Login Page
+ * MODULE: Institutional Authentication Portal
  *
  * PURPOSE:
- * Secure authentication portal for institutional staff, students, and parents.
- * Features 1-click test credential fill buttons for all 5 RBAC roles.
+ * Modern, professional two-panel authentication layout:
+ * - LEFT PANEL: Institutional branding, greeting, and 5-role selection grid (2-2-1).
+ * - RIGHT PANEL: Dynamic selected-portal indicator, credentials form, password toggle,
+ *   remember me, forgot password, and account activation.
  *
  * DEPENDENCIES:
- * useAuth, UserRole, lucide-react
+ * useAuth, UserRole, ThemeToggle, lucide-react
+ *
+ * SECURITY:
+ * Role selection prepares credentials context; access permissions are strictly enforced
+ * by NestJS JWT verification and school-tenant scoped RBAC.
  */
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { UserRole } from '@ems/contracts';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
-  GraduationCap,
   Shield,
   School,
   BookOpen,
-  UserCheck,
+  GraduationCap,
   Users,
   Lock,
   Mail,
   ArrowRight,
   Loader2,
-  CheckCircle2,
   AlertCircle,
   Eye,
   EyeOff,
+  CheckCircle,
 } from 'lucide-react';
 
-interface QuickAccount {
+interface RolePortalCard {
   role: UserRole;
   title: string;
-  name: string;
-  email: string;
-  scope: string;
+  subtitle: string;
   icon: React.ComponentType<{ className?: string }>;
-  color: string;
 }
 
-const DEMO_ACCOUNTS: QuickAccount[] = [
+const ROLE_PORTALS: RolePortalCard[] = [
   {
     role: UserRole.PLATFORM_ADMIN,
-    title: 'Platform Admin',
-    name: 'Alexander Vance',
-    email: 'platform.admin@ems.local',
-    scope: 'Universal Superintendent',
+    title: 'Platform Administrator',
+    subtitle: 'System & Institutional Governance',
     icon: Shield,
-    color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
   },
   {
     role: UserRole.SCHOOL_ADMIN,
-    title: 'School Admin',
-    name: 'Eleanor Pemberton',
-    email: 'admin@stjude.ems.local',
-    scope: 'Principal / Registrar',
+    title: 'School Administrator',
+    subtitle: 'Campus Operations & Enrollment',
     icon: School,
-    color: 'text-blue-600 bg-blue-500/10 border-blue-500/20',
   },
   {
     role: UserRole.TEACHER,
     title: 'Teacher',
-    name: 'Marcus Holloway',
-    email: 'teacher@stjude.ems.local',
-    scope: 'Faculty & Curriculum',
+    subtitle: 'Instruction & Gradebook',
     icon: BookOpen,
-    color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
   },
   {
     role: UserRole.STUDENT,
     title: 'Student',
-    name: 'Liam Chen',
-    email: 'student@stjude.ems.local',
-    scope: 'Enrolled Academic Portal',
+    subtitle: 'Academic Learning Portal',
     icon: GraduationCap,
-    color: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
   },
   {
     role: UserRole.PARENT,
-    title: 'Parent',
-    name: 'Sarah Chen',
-    email: 'parent@stjude.ems.local',
-    scope: 'Guardian Academic Monitor',
+    title: 'Parent / Guardian',
+    subtitle: 'Guardian Academic Monitor',
     icon: Users,
-    color: 'text-rose-600 bg-rose-500/10 border-rose-500/20',
   },
 ];
 
@@ -95,9 +83,11 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, isAuthenticated } = useAuth();
 
+  const [selectedRole, setSelectedRole] = React.useState<UserRole>(UserRole.SCHOOL_ADMIN);
   const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('Password123!');
+  const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
+  const [rememberMe, setRememberMe] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
@@ -110,256 +100,318 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (!email.trim() || !password) {
+      setErrorMessage('Please provide both institutional email and account password.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      await login(email.trim(), password, selectedRole);
       router.push('/');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Authentication failed. Please verify credentials.');
+      setErrorMessage(
+        err.message || 'Authentication failed. Please verify your credentials and selected portal.'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleQuickFill = async (acc: QuickAccount, autoSubmit = false) => {
-    setEmail(acc.email);
-    setPassword('Password123!');
-    setErrorMessage(null);
+  const activePortal = ROLE_PORTALS.find((p) => p.role === selectedRole) || ROLE_PORTALS[1];
 
-    if (autoSubmit) {
-      setIsLoading(true);
-      try {
-        await login(acc.email, 'Password123!');
-        router.push('/');
-      } catch (err: any) {
-        setErrorMessage(err.message || 'Quick login failed.');
-      } finally {
-        setIsLoading(false);
-      }
-    }
+  const renderRoleCard = (portal: RolePortalCard, extraClassName = '') => {
+    const Icon = portal.icon;
+    const isSelected = selectedRole === portal.role;
+    return (
+      <button
+        key={portal.role}
+        type="button"
+        onClick={() => {
+          setSelectedRole(portal.role);
+          setErrorMessage(null);
+        }}
+        className={`group text-left rounded-xl p-2.5 sm:px-3 sm:py-2.5 transition-all duration-150 border flex items-center justify-between gap-2 h-full ${
+          isSelected
+            ? 'border-primary bg-primary/10 shadow-xs ring-1 ring-primary'
+            : 'border-border bg-card/60 hover:border-primary/40 hover:bg-card hover:shadow-xs'
+        } ${extraClassName}`}
+        aria-pressed={isSelected}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div
+            className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+              isSelected
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-muted text-muted-foreground group-hover:text-foreground group-hover:bg-primary/10'
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </div>
+          <div className="truncate">
+            <div className="text-xs font-bold text-foreground truncate leading-tight">
+              {portal.title}
+            </div>
+            <div className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
+              {portal.subtitle}
+            </div>
+          </div>
+        </div>
+        {isSelected ? (
+          <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+        ) : (
+          <div className="h-3.5 w-3.5 rounded-full border border-border/80 shrink-0 group-hover:border-primary/40" />
+        )}
+      </button>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-card/50 to-background flex flex-col justify-between p-4 sm:p-8">
-      {/* Top Header */}
-      <header className="flex items-center justify-between max-w-6xl w-full mx-auto">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20">
-            <GraduationCap className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold tracking-tight text-foreground">
-              Educational Management System
-            </h1>
-            <p className="text-[11px] text-muted-foreground font-medium">
-              St. Jude Institutional Academy &bull; Academic Portal
-            </p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex flex-col justify-between p-3 sm:p-5 lg:p-6">
+      {/* Top Bar with System Status & Theme Toggle */}
+      <header className="w-full max-w-[960px] mx-auto flex items-center justify-between pb-2">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Institutional Portal Online</span>
         </div>
         <ThemeToggle />
       </header>
 
-      {/* Main Container */}
-      <main className="max-w-5xl w-full mx-auto my-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        {/* Left Column: Login Form */}
-        <div className="lg:col-span-5 bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-xl shadow-foreground/5">
-          <div className="mb-6">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              <Shield className="h-3.5 w-3.5" />
-              Institutional Authentication
-            </span>
-            <h2 className="mt-3 text-xl font-bold tracking-tight text-foreground">
-              Welcome back
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Enter your institutional credentials to access your portal.
-            </p>
+      {/* Main Two-Panel Login Container */}
+      <main className="w-full max-w-[960px] mx-auto my-auto">
+        <div className="w-full rounded-2xl sm:rounded-3xl border border-border bg-card shadow-2xl shadow-foreground/5 overflow-hidden flex flex-col lg:flex-row">
+          
+          {/* LEFT PANEL: Branding & Role Selection (approx 55% width) */}
+          <div className="w-full lg:w-[55%] p-5 sm:p-6 lg:p-7 flex flex-col justify-between bg-muted/15 lg:border-r border-border">
+            <div className="space-y-4">
+              {/* Institutional Branding */}
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
+                  <School className="h-5 w-5" />
+                </div>
+                <div>
+                  <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-foreground leading-tight">
+                    Samahat Taibah Group
+                  </h1>
+                  <p className="text-[11px] text-muted-foreground font-medium">
+                    Educational Management System
+                  </p>
+                </div>
+              </div>
+
+              {/* Portal Selection Heading */}
+              <div className="space-y-0.5">
+                <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground">
+                  Choose Your Academic Portal
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Select your institutional role to continue.
+                </p>
+              </div>
+
+              {/* Five Role Cards: 2 - 2 - 1 Arrangement */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {/* Row 1: Platform Admin | School Admin */}
+                {renderRoleCard(ROLE_PORTALS[0])}
+                {renderRoleCard(ROLE_PORTALS[1])}
+
+                {/* Row 2: Teacher | Student */}
+                {renderRoleCard(ROLE_PORTALS[2])}
+                {renderRoleCard(ROLE_PORTALS[3])}
+
+                {/* Row 3: Parent / Guardian — Full-width spanning both columns */}
+                {renderRoleCard(ROLE_PORTALS[4], 'sm:col-span-2 w-full')}
+              </div>
+            </div>
+
+            {/* Left Panel Security Badge */}
+            <div className="pt-4 mt-4 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5 text-primary" />
+                <span>Enterprise RBAC Isolation</span>
+              </div>
+              <span>v1.0 Institutional Release</span>
+            </div>
           </div>
 
-          {errorMessage && (
-            <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/10 p-3.5 text-xs text-destructive">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <div className="flex-1 leading-relaxed">{errorMessage}</div>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label
-                htmlFor="email-input"
-                className="block text-xs font-semibold text-foreground mb-1.5"
-              >
-                Institutional Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  id="email-input"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. admin@stjude.ems.local"
-                  className="w-full h-10 rounded-xl border border-input bg-background pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                />
+          {/* RIGHT PANEL: Sign-In Form & Authentication (approx 45% width) */}
+          <div className="w-full lg:w-[45%] p-5 sm:p-6 lg:p-7 flex flex-col justify-center bg-card">
+            <div className="w-full max-w-sm mx-auto space-y-4">
+              
+              {/* Form Header */}
+              <div className="space-y-0.5">
+                <h3 className="text-lg sm:text-xl font-extrabold tracking-tight text-foreground">
+                  Sign In
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Access your academic portal with your credentials.
+                </p>
               </div>
-            </div>
 
-            <div>
-              <label
-                htmlFor="password-input"
-                className="block text-xs font-semibold text-foreground mb-1.5"
-              >
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  id="password-input"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full h-10 rounded-xl border border-input bg-background pl-9 pr-10 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
+              {/* Selected Portal Indicator */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-primary/10 border border-primary/20">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="h-7 w-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-xs">
+                    <activePortal.icon className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="truncate">
+                    <div className="text-[9px] uppercase font-semibold tracking-wider text-muted-foreground">
+                      Selected Portal
+                    </div>
+                    <div className="text-xs font-bold text-foreground truncate">
+                      {activePortal.title}
+                    </div>
+                  </div>
+                </div>
+                <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[9px] font-bold text-primary">
+                  Active
+                </span>
               </div>
-            </div>
 
-            <button
-              id="submit-login-btn"
-              type="submit"
-              disabled={isLoading}
-              className="w-full h-10 mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary text-xs font-semibold text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 transition-all"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Verifying Session...</span>
-                </>
-              ) : (
-                <>
-                  <span>Sign In to Institutional Portal</span>
-                  <ArrowRight className="h-4 w-4" />
-                </>
+              {/* Error Alert */}
+              {errorMessage && (
+                <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div className="flex-1 leading-relaxed">{errorMessage}</div>
+                </div>
               )}
-            </button>
-          </form>
 
-          <div className="mt-6 pt-5 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>Enterprise Multi-Tenant Node</span>
-            <span className="flex items-center gap-1 text-emerald-600 font-medium">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              PostgreSQL 18 Connected
-            </span>
-          </div>
-        </div>
-
-        {/* Right Column: 1-Click Role Fast-Fill Panel */}
-        <div className="lg:col-span-7 flex flex-col justify-center space-y-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
-              <CheckCircle2 className="h-4 w-4" />
-              Development Fast-Access Matrix
-            </div>
-            <h3 className="mt-1 text-lg font-bold text-foreground">
-              Select an Institutional Test Account
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Click any role to autofill and authenticate with the database-seeded credentials.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            {DEMO_ACCOUNTS.map((acc) => {
-              const Icon = acc.icon;
-              return (
-                <div
-                  key={acc.role}
-                  className="group relative rounded-xl border border-border bg-card p-3.5 hover:border-primary/50 hover:shadow-md transition-all text-left flex flex-col justify-between"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`p-2 rounded-lg border ${acc.color}`}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-foreground">
-                          {acc.title}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {acc.name}
-                        </div>
-                      </div>
-                    </div>
+              {/* Authentication Form */}
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <div>
+                  <label
+                    htmlFor="email-input"
+                    className="block text-xs font-semibold text-foreground mb-1"
+                  >
+                    Institutional Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <input
+                      id="email-input"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@institution.edu"
+                      autoComplete="email"
+                      className="w-full h-9 rounded-xl border border-input bg-background pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
                   </div>
+                </div>
 
-                  <div className="mt-3 pt-2 border-t border-border/50 text-[11px]">
-                    <div className="font-mono text-muted-foreground truncate">
-                      {acc.email}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground/80 mt-0.5">
-                      Scope: {acc.scope}
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2">
+                <div>
+                  <label
+                    htmlFor="password-input"
+                    className="block text-xs font-semibold text-foreground mb-1"
+                  >
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <input
+                      id="password-input"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      autoComplete="current-password"
+                      className="w-full h-9 rounded-xl border border-input bg-background pl-9 pr-9 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
                     <button
                       type="button"
-                      onClick={() => handleQuickFill(acc, false)}
-                      className="flex-1 py-1.5 px-2 rounded-lg border border-border bg-background text-[11px] font-semibold text-foreground hover:bg-muted transition-colors text-center"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
-                      Fill Form
-                    </button>
-                    <button
-                      type="button"
-                      id={`fast-login-${acc.role.toLowerCase()}`}
-                      onClick={() => handleQuickFill(acc, true)}
-                      className="flex-1 py-1.5 px-2 rounded-lg bg-primary/10 text-[11px] font-semibold text-primary hover:bg-primary hover:text-primary-foreground transition-all text-center flex items-center justify-center gap-1"
-                    >
-                      <span>1-Click In</span>
-                      <ArrowRight className="h-3 w-3" />
+                      {showPassword ? (
+                        <EyeOff className="h-3.5 w-3.5" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>
-              );
-            })}
+
+                <div className="flex items-center justify-between pt-0.5">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-input text-primary focus:ring-primary/20 cursor-pointer"
+                    />
+                    <span>Remember this device</span>
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-[11px] font-semibold text-primary hover:underline"
+                  >
+                    Forgot Password?
+                  </Link>
+                </div>
+
+                <button
+                  id="submit-login-btn"
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full h-9.5 flex items-center justify-center gap-2 rounded-xl bg-primary text-xs font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 transition-all"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Signing in...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Sign In to {activePortal.title}</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Divider with "OR" */}
+              <div className="relative my-3 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative bg-card px-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  or
+                </div>
+              </div>
+
+              {/* Account Activation Invitation Callout */}
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">
+                  Have an invitation?{' '}
+                  <Link
+                    href="/activate"
+                    className="font-bold text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>Activate account</span>
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="rounded-xl border border-border/80 bg-muted/40 p-3.5 text-[11px] text-muted-foreground leading-relaxed">
-            <span className="font-semibold text-foreground">Test Password: </span>
-            <code className="rounded bg-background px-1.5 py-0.5 text-xs font-mono font-bold text-foreground border border-border">
-              Password123!
-            </code>
-            <span className="ml-2">
-              (All 5 accounts share this bcrypt-hashed credential, configured in database seed).
-            </span>
-          </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="max-w-6xl w-full mx-auto pt-6 border-t border-border text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-2">
+      {/* Institutional Legal & Security Footer */}
+      <footer className="w-full max-w-[960px] mx-auto pt-3 text-center text-[11px] text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-1">
         <div>
-          Educational Management System &bull; Version 0.1.0 &bull; TASK 002 Auth & RBAC
+          Educational Management System &bull; Enterprise Institutional Platform
         </div>
-        <div className="flex items-center gap-4 text-[11px]">
-          <span>School Isolation Guard Enabled</span>
+        <div className="flex items-center gap-3">
+          <span>Role-Based Access Control</span>
           <span>&bull;</span>
-          <span>JWT Access (1h) / Refresh (7d)</span>
+          <span>School Tenant Isolation</span>
         </div>
       </footer>
     </div>

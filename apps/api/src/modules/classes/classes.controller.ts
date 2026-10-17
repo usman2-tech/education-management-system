@@ -17,16 +17,22 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
   Query,
   UseGuards,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ClassesService } from './classes.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser, UserRole } from '@ems/contracts';
 import {
@@ -42,6 +48,8 @@ import {
   AssignTeacherSubjectDto,
   CreateTimetableEntryDto,
   UpdateTimetableEntryDto,
+  CreateStudentDto,
+  UpdateStudentDto,
 } from './dto/classes.dto';
 
 @Controller()
@@ -301,5 +309,88 @@ export class ClassesController {
     @CurrentUser() currentUser: AuthUser,
   ) {
     return this.classesService.getChildTimetable(childId, currentUser);
+  }
+
+  // ---------------------------------------------------------------------------
+  // STUDENTS ROSTER
+  // ---------------------------------------------------------------------------
+
+  @Get('students')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
+  async getSchoolStudents(
+    @CurrentUser() currentUser: AuthUser,
+    @Query('search') search?: string,
+    @Query('sectionId') sectionId?: string,
+    @Query('schoolId') schoolId?: string,
+  ) {
+    return this.classesService.getSchoolStudents(currentUser, { search, sectionId, schoolId });
+  }
+
+  @Post('students')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN)
+  async enrollNewStudent(
+    @Body() dto: CreateStudentDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.classesService.enrollNewStudent(dto, currentUser);
+  }
+
+  @Get('students/:id')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
+  async getStudentById(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.classesService.getStudentById(id, currentUser);
+  }
+
+  @Patch('students/:id')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN)
+  async updateStudent(
+    @Param('id') id: string,
+    @Body() dto: UpdateStudentDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.classesService.updateStudent(id, dto, currentUser);
+  }
+
+  @Put('students/:id')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN)
+  async putStudent(
+    @Param('id') id: string,
+    @Body() dto: UpdateStudentDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.classesService.updateStudent(id, dto, currentUser);
+  }
+
+  @Post('students/:id/photo')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN)
+  async uploadStudentPhoto(
+    @Param('id') id: string,
+    @Body('photoBase64') photoBase64: string,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.classesService.uploadStudentPhoto(id, photoBase64, currentUser);
+  }
+
+  @Delete('students/:id/photo')
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.SCHOOL_ADMIN)
+  async removeStudentPhoto(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.classesService.removeStudentPhoto(id, currentUser);
+  }
+
+  @Public()
+  @Get('classes/students/photos/:filename')
+  serveStudentPhoto(@Param('filename') filename: string, @Res() res: any) {
+    const safeFilename = path.basename(filename);
+    const filePath = path.resolve(process.cwd(), 'uploads', 'student-photos', safeFilename);
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException('Photo not found');
+    }
+    return res.sendFile(filePath);
   }
 }

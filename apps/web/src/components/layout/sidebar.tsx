@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { UserRole } from '@ems/contracts';
 import { ROLE_NAVIGATION } from '@/lib/navigation-config';
+import { useAuth } from '@/hooks/use-auth';
 import {
   GraduationCap,
   LayoutDashboard,
@@ -42,11 +43,17 @@ import {
   ChevronRight,
   School,
   X,
+  Shield,
+  Receipt,
+  Banknote,
+  Bus,
+  BookMarked,
+  FolderGit2,
+  Loader2,
 } from 'lucide-react';
 
 interface SidebarProps {
   currentRole: UserRole;
-  onRoleChange: (role: UserRole) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   isMobileOpen: boolean;
@@ -78,26 +85,41 @@ const ICON_MAP: Record<string, React.ElementType> = {
   MessageSquare,
   Bot,
   Bell,
+  Receipt,
+  Banknote,
+  Bus,
+  BookMarked,
+  FolderGit2,
 };
 
 export function Sidebar({
   currentRole,
-  onRoleChange,
   isCollapsed,
   onToggleCollapse,
   isMobileOpen,
   onCloseMobile,
 }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const [pendingHref, setPendingHref] = React.useState<string | null>(null);
+
+  // Clear pending state whenever active pathname updates
+  React.useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
   const navSections = ROLE_NAVIGATION[currentRole] || [];
 
   const roleLabels: Record<UserRole, string> = {
-    [UserRole.PLATFORM_ADMIN]: 'Platform Admin',
-    [UserRole.SCHOOL_ADMIN]: 'School Admin',
+    [UserRole.PLATFORM_ADMIN]: 'Platform Administrator',
+    [UserRole.SCHOOL_ADMIN]: 'School Administrator',
     [UserRole.TEACHER]: 'Teacher',
     [UserRole.STUDENT]: 'Student',
     [UserRole.PARENT]: 'Parent / Guardian',
   };
+
+  const schoolName = user?.school?.name || (currentRole === UserRole.PLATFORM_ADMIN ? 'Global Platform Scope' : 'St. Jude Academy');
+  const schoolCode = user?.school?.code || (currentRole === UserRole.PLATFORM_ADMIN ? 'GLOBAL' : 'SCH-001');
 
   const sidebarContent = (
     <div className="flex h-full flex-col justify-between overflow-hidden bg-sidebar text-sidebar-foreground">
@@ -110,11 +132,11 @@ export function Sidebar({
             </div>
             {!isCollapsed && (
               <div className="truncate">
-                <div className="text-sm font-semibold tracking-tight text-sidebar-foreground">
-                  St. Jude Academy
+                <div className="text-sm font-semibold tracking-tight text-sidebar-foreground truncate">
+                  {schoolName}
                 </div>
                 <div className="text-xs text-sidebar-foreground/60">
-                  Campus ID: #SCH-001
+                  Campus ID: #{schoolCode}
                 </div>
               </div>
             )}
@@ -131,35 +153,29 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* Role Selector Preview Bar */}
+        {/* Read-Only Authenticated Role Indicator */}
         <div className="border-b border-sidebar-border p-3">
           {!isCollapsed ? (
-            <div>
-              <label
-                htmlFor="role-selector"
-                className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50"
-              >
-                Active Role View
-              </label>
-              <select
-                id="role-selector"
-                value={currentRole}
-                onChange={(e) => onRoleChange(e.target.value as UserRole)}
-                className="w-full rounded-md border border-sidebar-border bg-sidebar-accent px-2.5 py-1.5 text-xs font-medium text-sidebar-foreground outline-none focus:ring-1 focus:ring-sidebar-ring"
-              >
-                {Object.entries(roleLabels).map(([roleKey, label]) => (
-                  <option key={roleKey} value={roleKey} className="bg-slate-900 text-white">
-                    {label}
-                  </option>
-                ))}
-              </select>
+            <div className="rounded-lg bg-sidebar-accent/50 p-2.5 border border-sidebar-border">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
+                  Authenticated Role
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Verified
+                </span>
+              </div>
+              <div className="text-xs font-bold text-sidebar-foreground">
+                {roleLabels[currentRole] || currentRole}
+              </div>
+              <div className="mt-1 text-[11px] text-sidebar-foreground/70 truncate">
+                {user ? `${user.firstName} ${user.lastName}` : 'Active Session'}
+              </div>
             </div>
           ) : (
-            <div className="flex justify-center">
-              <span
-                title={roleLabels[currentRole]}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sidebar-accent text-[10px] font-bold text-sidebar-foreground"
-              >
+            <div className="flex justify-center" title={`${roleLabels[currentRole]} (Verified)`}>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/20 text-xs font-bold text-primary border border-primary/30">
                 {currentRole.charAt(0)}
               </span>
             </div>
@@ -177,27 +193,43 @@ export function Sidebar({
               )}
               {section.items.map((item) => {
                 const IconComponent = ICON_MAP[item.icon] || LayoutDashboard;
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
+                const isPending = pendingHref === item.href;
 
                 return (
                   <Link
                     key={item.title}
                     href={item.href}
+                    prefetch={true}
                     title={isCollapsed ? `${item.title}: ${item.description}` : undefined}
                     onClick={() => {
+                      if (pathname !== item.href) {
+                        setPendingHref(item.href);
+                      }
                       if (isMobileOpen) onCloseMobile();
                     }}
-                    className={`group flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                    className={`group flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium transition-all ${
                       isActive
                         ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+                        : isPending
+                        ? 'bg-sidebar-accent/90 text-sidebar-foreground ring-1 ring-accent/60'
                         : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                     } ${isCollapsed ? 'justify-center px-2' : ''}`}
                   >
-                    <IconComponent className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-sidebar-foreground/70'}`} />
+                    {isPending ? (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-accent" />
+                    ) : (
+                      <IconComponent className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-sidebar-foreground/70'}`} />
+                    )}
                     {!isCollapsed && (
                       <span className="flex-1 truncate">{item.title}</span>
                     )}
-                    {!isCollapsed && item.badge && (
+                    {!isCollapsed && isPending && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-accent">
+                        <span className="h-1.5 w-1.5 rounded-full bg-accent animate-ping" />
+                      </span>
+                    )}
+                    {!isCollapsed && !isPending && item.badge && (
                       <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[9px] font-semibold text-accent-foreground">
                         {item.badge}
                       </span>

@@ -50,20 +50,14 @@ export async function updateTeacher(
   id: string,
   data: UpdateTeacherRequest,
 ): Promise<TeacherDto> {
-  return apiClient.request<TeacherDto>(`/teachers/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  });
+  return apiClient.patch<TeacherDto>(`/teachers/${id}`, data);
 }
 
 export async function updateTeacherStatus(
   id: string,
   data: UpdateTeacherStatusRequest,
 ): Promise<TeacherDto> {
-  return apiClient.request<TeacherDto>(`/teachers/${id}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  });
+  return apiClient.patch<TeacherDto>(`/teachers/${id}/status`, data);
 }
 
 export async function assignTeacherToSchool(

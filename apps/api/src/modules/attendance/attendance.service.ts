@@ -24,6 +24,7 @@ import {
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppLogger } from '../../common/logger/app.logger';
+import { NotificationType } from '@prisma/client';
 import {
   AuthUser,
   UserRole,
@@ -412,6 +413,9 @@ export class AttendanceService {
           details: { finalizedAt: new Date().toISOString() },
         },
       });
+
+      // TASK 030: Dispatch automated absence notifications to verified guardians
+      await this.dispatchAutomatedAbsenceAlerts(session, tx);
     });
 
     return this.getSessionById(id, currentUser);
@@ -498,6 +502,18 @@ export class AttendanceService {
       }
     }
 
+    // Capture previous records if this is a correction on a finalized register
+    const existingRecords = isCorrection
+      ? await this.prisma.attendanceRecord.findMany({
+          where: {
+            attendanceSessionId: sessionId,
+            studentId: { in: studentIds },
+          },
+          select: { studentId: true, status: true },
+        })
+      : [];
+    const oldStatusMap = new Map(existingRecords.map((r) => [r.studentId, r.status]));
+
     // Atomic transaction for bulk upsert
     await this.prisma.$transaction(async (tx) => {
       for (const item of dto.records) {
@@ -540,6 +556,18 @@ export class AttendanceService {
             },
           },
         });
+
+        // TASK 030: Dispatch attendance correction notifications for status changes
+        const corrections: { studentId: string; oldStatus: string; newStatus: string }[] = [];
+        for (const item of dto.records) {
+          const oldStatus = oldStatusMap.get(item.studentId);
+          if (oldStatus && oldStatus !== item.status) {
+            corrections.push({ studentId: item.studentId, oldStatus, newStatus: item.status });
+          }
+        }
+        if (corrections.length > 0) {
+          await this.dispatchAttendanceCorrectionAlerts(session, corrections, tx);
+        }
       }
     });
 
@@ -1225,4 +1253,182 @@ export class AttendanceService {
       updatedAt: session.updatedAt instanceof Date ? session.updatedAt.toISOString() : String(session.updatedAt),
     };
   }
+
+  // ===========================================================================
+  // TASK 030: AUTOMATED ABSENCE & CORRECTION NOTIFICATIONS
+  // ===========================================================================
+
+  private async dispatchAutomatedAbsenceAlerts(
+    session: { id: string; schoolId: string; attendanceDate: Date },
+    txOrPrisma: any,
+  ) {
+    // 1. Check if absence alerts are enabled for this school
+    const pref = await txOrPrisma.notificationPreference.findUnique({
+      where: { schoolId: session.schoolId },
+    });
+    if (pref && pref.absenceAlertsEnabled === false) {
+      return;
+    }
+
+    // 2. Fetch school name
+    const school = await txOrPrisma.school.findUnique({
+      where: { id: session.schoolId },
+      select: { name: true },
+    });
+    const schoolName = school?.name || 'School Administration';
+
+    // 3. Find all absent records in this session
+    const absentRecords = await txOrPrisma.attendanceRecord.findMany({
+      where: {
+        attendanceSessionId: session.id,
+        status: AttendanceStatus.ABSENT,
+      },
+      include: {
+        student: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    if (absentRecords.length === 0) return;
+
+    const dateStr = new Date(session.attendanceDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    for (const record of absentRecords) {
+      const studentName = `${record.student.firstName} ${record.student.lastName}`;
+
+      // 4. Resolve verified active guardians
+      const relationships = await txOrPrisma.studentGuardianRelationship.findMany({
+        where: {
+          studentId: record.student.id,
+          verificationStatus: 'VERIFIED',
+        },
+        include: { guardian: true },
+      });
+
+      for (const rel of relationships) {
+        const guardian = rel.guardian;
+        if (!guardian || !guardian.isActive) continue;
+
+        // 5. Deduplication check: check if absence alert already sent for this student, guardian, session
+        const existingNotifications = await txOrPrisma.notification.findMany({
+          where: {
+            userId: guardian.id,
+            type: NotificationType.ATTENDANCE,
+          },
+          select: { metadata: true },
+        });
+
+        const isDuplicate = existingNotifications.some(
+          (n: any) =>
+            n.metadata &&
+            n.metadata.attendanceSessionId === session.id &&
+            n.metadata.studentId === record.student.id &&
+            n.metadata.alertType === 'ABSENCE',
+        );
+
+        if (isDuplicate) {
+          continue; // Prevent duplicate alert
+        }
+
+        const messageBody = `Dear Parent/Guardian,\n\nYour child, ${studentName}, has been marked absent from ${schoolName} on ${dateStr}.\n\nIf you believe this record is incorrect, please contact the school administration.\n\nRegards,\nSchool Administration`;
+
+        await txOrPrisma.notification.create({
+          data: {
+            userId: guardian.id,
+            schoolId: session.schoolId,
+            title: 'Student Absence Alert',
+            message: messageBody,
+            type: NotificationType.ATTENDANCE,
+            link: '/parent',
+            read: false,
+            metadata: {
+              studentId: record.student.id,
+              studentName,
+              attendanceSessionId: session.id,
+              attendanceDate: new Date(session.attendanceDate).toISOString(),
+              alertType: 'ABSENCE',
+            },
+          },
+        });
+      }
+    }
+  }
+
+  private async dispatchAttendanceCorrectionAlerts(
+    session: { id: string; schoolId: string; attendanceDate: Date },
+    corrections: { studentId: string; oldStatus: string; newStatus: string }[],
+    txOrPrisma: any,
+  ) {
+    const pref = await txOrPrisma.notificationPreference.findUnique({
+      where: { schoolId: session.schoolId },
+    });
+    if (pref && pref.attendanceCorrectionAlertsEnabled === false) {
+      return;
+    }
+
+    const school = await txOrPrisma.school.findUnique({
+      where: { id: session.schoolId },
+      select: { name: true },
+    });
+    const schoolName = school?.name || 'School Administration';
+
+    const dateStr = new Date(session.attendanceDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    for (const corr of corrections) {
+      // If student was ABSENT and is now corrected to PRESENT, LATE, or EXCUSED
+      if (corr.oldStatus === 'ABSENT' && corr.newStatus !== 'ABSENT') {
+        const student = await txOrPrisma.user.findUnique({
+          where: { id: corr.studentId },
+          select: { firstName: true, lastName: true },
+        });
+        const studentName = student ? `${student.firstName} ${student.lastName}` : 'Student';
+
+        const relationships = await txOrPrisma.studentGuardianRelationship.findMany({
+          where: {
+            studentId: corr.studentId,
+            verificationStatus: 'VERIFIED',
+          },
+          include: { guardian: true },
+        });
+
+        for (const rel of relationships) {
+          const guardian = rel.guardian;
+          if (!guardian || !guardian.isActive) continue;
+
+          const messageBody = `Dear Parent/Guardian,\n\nThe attendance record for your child, ${studentName}, on ${dateStr} has been updated from ABSENT to ${corr.newStatus}.\n\nRegards,\n${schoolName}`;
+
+          await txOrPrisma.notification.create({
+            data: {
+              userId: guardian.id,
+              schoolId: session.schoolId,
+              title: 'Attendance Record Corrected',
+              message: messageBody,
+              type: NotificationType.ATTENDANCE,
+              link: '/parent',
+              read: false,
+              metadata: {
+                studentId: corr.studentId,
+                studentName,
+                attendanceSessionId: session.id,
+                attendanceDate: new Date(session.attendanceDate).toISOString(),
+                alertType: 'CORRECTION',
+                newStatus: corr.newStatus,
+              },
+            },
+          });
+        }
+      } else if (corr.oldStatus !== 'ABSENT' && corr.newStatus === 'ABSENT') {
+        // If student was corrected to ABSENT, dispatch absence alert
+        await this.dispatchAutomatedAbsenceAlerts(session, txOrPrisma);
+      }
+    }
+  }
 }
+
