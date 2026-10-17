@@ -6,11 +6,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AiToolsService } from './ai-tools.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { DocumentsService } from '../documents/documents.service';
 import { UserRole } from '@ems/contracts';
 
 describe('AiToolsService - RBAC & Multi-Tenant Isolation', () => {
   let service: AiToolsService;
   let prisma: any;
+
+  const mockDocumentsService = {
+    searchPolicyContext: jest.fn().mockResolvedValue([]),
+    findDocumentById: jest.fn(),
+  };
 
   const mockPrismaService = {
     user: {
@@ -67,6 +73,7 @@ describe('AiToolsService - RBAC & Multi-Tenant Isolation', () => {
       providers: [
         AiToolsService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: DocumentsService, useValue: mockDocumentsService },
       ],
     }).compile();
 

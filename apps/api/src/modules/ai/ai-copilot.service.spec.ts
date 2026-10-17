@@ -8,8 +8,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AiCopilotService } from './ai-copilot.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { DocumentsService } from '../documents/documents.service';
 import { UserRole, AICopilotContentType, AICopilotDraftStatus } from '@ems/contracts';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+
+const mockDocumentsService = {
+  searchPolicyContext: jest.fn().mockResolvedValue([]),
+  findDocumentById: jest.fn(),
+};
 
 describe('AiCopilotService - Authorization & Workflow Integrity', () => {
   let service: AiCopilotService;
@@ -108,6 +114,7 @@ describe('AiCopilotService - Authorization & Workflow Integrity', () => {
             get: jest.fn((_k: string, defaultVal: any) => defaultVal),
           },
         },
+        { provide: DocumentsService, useValue: mockDocumentsService },
       ],
     }).compile();
 

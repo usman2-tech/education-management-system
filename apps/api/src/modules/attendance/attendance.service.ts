@@ -512,7 +512,7 @@ export class AttendanceService {
           select: { studentId: true, status: true },
         })
       : [];
-    const oldStatusMap = new Map(existingRecords.map((r) => [r.studentId, r.status]));
+    const oldStatusMap = new Map((existingRecords || []).map((r) => [r.studentId, r.status]));
 
     // Atomic transaction for bulk upsert
     await this.prisma.$transaction(async (tx) => {

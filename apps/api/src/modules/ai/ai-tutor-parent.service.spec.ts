@@ -9,8 +9,14 @@ import { AiTutorService } from './ai-tutor.service';
 import { AiParentService } from './ai-parent.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { DocumentsService } from '../documents/documents.service';
 import { UserRole } from '@ems/contracts';
 import { ForbiddenException, BadRequestException } from '@nestjs/common';
+
+const mockDocumentsService = {
+  searchPolicyContext: jest.fn().mockResolvedValue([]),
+  findDocumentById: jest.fn(),
+};
 
 describe('AiTutorService & AiParentService - Security, Integrity & Workflows', () => {
   let tutorService: AiTutorService;
@@ -232,6 +238,7 @@ describe('AiTutorService & AiParentService - Security, Integrity & Workflows', (
             get: jest.fn((_key, def) => def),
           },
         },
+        { provide: DocumentsService, useValue: mockDocumentsService },
       ],
     }).compile();
 

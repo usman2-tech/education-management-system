@@ -365,6 +365,8 @@ export class AiService {
       case UserRole.SCHOOL_ADMIN:
         return [
           'What is our school\'s attendance policy and late arrival procedure?',
+          'What is the current campus student enrollment and active faculty count?',
+          'Summarize the tuition fee structure and collection balance.',
           'Summarize the examination guidelines for our campus.',
           'What are the library borrowing rules and loan periods?',
           'Explain the transport safety policy for fleet routes.',
@@ -390,6 +392,8 @@ export class AiService {
 
       case UserRole.PARENT:
         return [
+          'How is my child performing in their enrolled courses?',
+          'Summarize my child\'s attendance record and any recent absences.',
           'What is our school\'s attendance policy and absence reporting procedure?',
           'Explain the tuition fee payment policy and payment schedules.',
           'What are the transport safety rules for student bus riders?',
