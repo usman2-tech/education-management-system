@@ -103,7 +103,6 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       items: [
         { title: 'Teacher Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Class schedule & daily agenda' },
         { title: 'AI Teacher Copilot', href: '/teacher/copilot', icon: 'Sparkles', badge: 'Gemini', description: 'Pedagogical copilot, quizzes, grading & materials' },
-        { title: 'AI Assistant', href: '/ai-assistant', icon: 'Bot', badge: 'Gemini', description: 'Institutional AI assistant & Q&A' },
         { title: 'Library Catalog', href: '/teacher/library', icon: 'BookMarked', description: 'Search books, availability & personal loans' },
         { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Personal teaching timetable' },
         { title: 'Classes & Sections', href: '/classes', icon: 'BookOpen', description: 'Assigned sections and rosters' },
@@ -124,8 +123,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavSection[]> = {
       title: 'Learning Portal',
       items: [
         { title: 'Student Dashboard', href: '/', icon: 'LayoutDashboard', description: 'Classes, deadlines & updates' },
-        { title: 'AI Tutor', href: '/student/tutor', icon: 'Sparkles', badge: 'Gemini', description: 'Concept explanations, practice quizzes & revision plans' },
-        { title: 'AI Assistant', href: '/ai-assistant', icon: 'Bot', badge: 'Gemini', description: 'Academic tutor & learning companion' },
+        { title: 'AI Student Copilot', href: '/student/tutor', icon: 'Sparkles', badge: 'Gemini', description: 'Concept explanations, practice quizzes, revision plans & assistant' },
         { title: 'My Transport', href: '/student/transport', icon: 'Bus', description: 'Route, pickup stops & live bus tracking' },
         { title: 'Library Portal', href: '/student/library', icon: 'BookMarked', description: 'Browse books, my loans, reservations & fines' },
         { title: 'My Schedule', href: '/timetable', icon: 'Calendar', description: 'Class timetable & room numbers' },

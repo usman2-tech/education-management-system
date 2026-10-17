@@ -21,11 +21,13 @@
  * and never published automatically to students.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { UserRole } from '@ems/contracts';
 import { aiCopilotApi } from '@/lib/ai-api';
+import { AIAssistantView } from '@/components/ai/ai-assistant-view';
 import {
   Sparkles,
   BookOpen,
@@ -49,6 +51,7 @@ import {
   Shield,
   Download,
   Copy,
+  Bot,
 } from 'lucide-react';
 
 type CopilotTab =
@@ -59,13 +62,38 @@ type CopilotTab =
   | 'insights'
   | 'materials'
   | 'drafts'
-  | 'documents';
+  | 'documents'
+  | 'assistant';
 
-export default function TeacherCopilotPage() {
+function TeacherCopilotContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab');
+  const initialConversationId = searchParams.get('conversationId');
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<CopilotTab>('lesson-plan');
+  const [activeTab, setActiveTab] = useState<CopilotTab>(
+    (initialTab as CopilotTab) || 'lesson-plan'
+  );
+
+  useEffect(() => {
+    if (
+      initialTab &&
+      [
+        'lesson-plan',
+        'homework',
+        'exam',
+        'grading',
+        'insights',
+        'materials',
+        'drafts',
+        'documents',
+        'assistant',
+      ].includes(initialTab)
+    ) {
+      setActiveTab(initialTab as CopilotTab);
+    }
+  }, [initialTab]);
 
   // Teacher Context State (Assigned classes, subjects, pending submissions)
   const [contextLoading, setContextLoading] = useState(true);
@@ -97,6 +125,12 @@ export default function TeacherCopilotPage() {
   const [savedDrafts, setSavedDrafts] = useState<any[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Status Notification State (Fix: restore missing statusMessage notification state)
+  const [statusMessage, setStatusMessage] = useState<{
+    type: 'success' | 'error' | 'info';
+    text: string;
+  } | null>(null);
 
   // Faculty Documents & Notice State (TASK 026)
   const [docSearchQuery, setDocSearchQuery] = useState('');
@@ -595,13 +629,31 @@ export default function TeacherCopilotPage() {
             <FolderOpen className="h-4 w-4" />
             Documents & Notices
           </button>
+
+          <button
+            onClick={() => setActiveTab('assistant')}
+            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-all ${
+              activeTab === 'assistant'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            <Bot className="h-4 w-4" />
+            Ask Assistant
+          </button>
         </div>
 
         {/* Main Workspace Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Generator Form (or Full Width if drafts or documents active) */}
-          <div className={`${activeTab === 'drafts' || activeTab === 'documents' ? 'lg:col-span-12' : 'lg:col-span-5'} space-y-6`}>
-            {activeTab === 'drafts' ? (
+          {/* Left Column: Generator Form (or Full Width if drafts, documents, or assistant active) */}
+          <div className={`${activeTab === 'drafts' || activeTab === 'documents' || activeTab === 'assistant' ? 'lg:col-span-12' : 'lg:col-span-5'} space-y-6`}>
+            {activeTab === 'assistant' ? (
+              /* Integrated General Institutional AI Assistant View */
+              <AIAssistantView
+                initialConversationId={initialConversationId}
+                embedded
+              />
+            ) : activeTab === 'drafts' ? (
               /* Drafts Repository View */
               <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
                 <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
@@ -1179,7 +1231,7 @@ export default function TeacherCopilotPage() {
           </div>
 
           {/* Right Column: Interactive Content Preview & Editing Workspace */}
-          {activeTab !== 'drafts' && activeTab !== 'documents' && (
+          {activeTab !== 'drafts' && activeTab !== 'documents' && activeTab !== 'assistant' && (
             <div className="lg:col-span-7 space-y-6">
               {activeDraft ? (
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-5">
@@ -1594,5 +1646,20 @@ export default function TeacherCopilotPage() {
         </div>
       </div>
     </ProtectedRoute>
+  );
+}
+
+export default function TeacherCopilotPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3">
+          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-sm font-medium text-muted-foreground">Loading AI Teacher Copilot...</p>
+        </div>
+      }
+    >
+      <TeacherCopilotContent />
+    </Suspense>
   );
 }

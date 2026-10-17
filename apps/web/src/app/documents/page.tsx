@@ -122,7 +122,7 @@ export default function DocumentLibraryPage() {
   const [uploadForm, setUploadForm] = useState({
     title: '',
     description: '',
-    category: DocumentCategory.POLICY,
+    category: DocumentCategory.SCHOOL_POLICY,
     visibilityRoles: [UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT],
     isPublished: true,
     textContent: '',
@@ -201,7 +201,7 @@ export default function DocumentLibraryPage() {
       setUploadForm({
         title: '',
         description: '',
-        category: DocumentCategory.POLICY,
+        category: DocumentCategory.SCHOOL_POLICY,
         visibilityRoles: [UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT],
         isPublished: true,
         textContent: '',

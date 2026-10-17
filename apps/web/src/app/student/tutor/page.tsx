@@ -17,11 +17,13 @@
  * Formative self-practice only; never alters official exam grades or report cards.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { UserRole } from '@ems/contracts';
 import { aiTutorApi } from '@/lib/ai-api';
+import { AIAssistantView } from '@/components/ai/ai-assistant-view';
 import {
   Sparkles,
   BookOpen,
@@ -42,13 +44,46 @@ import {
   Check,
   ChevronRight,
   Save,
+  Bot,
 } from 'lucide-react';
 
-type TutorTab = 'concept' | 'socratic' | 'quiz' | 'revision' | 'homework' | 'progress' | 'rules';
+type TutorTab =
+  | 'concept'
+  | 'socratic'
+  | 'quiz'
+  | 'revision'
+  | 'homework'
+  | 'progress'
+  | 'rules'
+  | 'assistant';
 
-export default function StudentTutorPage() {
+function StudentCopilotContent() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TutorTab>('concept');
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab');
+  const initialConversationId = searchParams.get('conversationId');
+
+  const [activeTab, setActiveTab] = useState<TutorTab>(
+    (initialTab as TutorTab) || 'concept'
+  );
+
+  useEffect(() => {
+    if (
+      initialTab &&
+      [
+        'concept',
+        'socratic',
+        'quiz',
+        'revision',
+        'homework',
+        'progress',
+        'rules',
+        'assistant',
+      ].includes(initialTab)
+    ) {
+      setActiveTab(initialTab as TutorTab);
+    }
+  }, [initialTab]);
 
   // Student Context
   const [loadingContext, setLoadingContext] = useState(true);
@@ -419,7 +454,7 @@ export default function StudentTutorPage() {
                     Formative Practice
                   </span>
                 </div>
-                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">AI Student Tutor</h1>
+                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">AI Student Copilot</h1>
                 <p className="text-blue-100 text-sm md:text-base max-w-2xl mt-1">
                   Your personalized Socratic study companion. Explore clear concept breakdowns, solve practice quizzes, build revision schedules, and get ethical homework hints.
                 </p>
@@ -466,6 +501,7 @@ export default function StudentTutorPage() {
               { id: 'homework', label: 'Homework Hints', icon: HelpCircle },
               { id: 'progress', label: 'Learning Progress', icon: TrendingUp },
               { id: 'rules', label: 'School Rules & Handbook', icon: BookMarked },
+              { id: 'assistant', label: 'Ask Assistant', icon: Bot },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -1673,8 +1709,31 @@ export default function StudentTutorPage() {
             </div>
           )}
 
+          {/* TAB 8: INTEGRATED GENERAL AI ASSISTANT */}
+          {activeTab === 'assistant' && (
+            <AIAssistantView
+              initialConversationId={initialConversationId}
+              embedded
+            />
+          )}
+
         </div>
       </div>
     </ProtectedRoute>
+  );
+}
+
+export default function StudentTutorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3">
+          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-sm font-medium text-muted-foreground">Loading AI Student Copilot...</p>
+        </div>
+      }
+    >
+      <StudentCopilotContent />
+    </Suspense>
   );
 }

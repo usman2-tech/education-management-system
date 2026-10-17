@@ -568,9 +568,9 @@ export default function MessagesPage() {
                         </span>
                         {m.isMine && (
                           m.isRead ? (
-                            <CheckCheck className="h-3 w-3 text-sky-500" title="Read" />
+                            <span title="Read"><CheckCheck className="h-3 w-3 text-sky-500" /></span>
                           ) : (
-                            <Check className="h-3 w-3 text-muted-foreground" title="Delivered" />
+                            <span title="Delivered"><Check className="h-3 w-3 text-muted-foreground" /></span>
                           )
                         )}
                       </div>
