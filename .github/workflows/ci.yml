@@ -6,6 +6,7 @@ on:
       - develop
       - main
       - 'feature/**'
+      - 'fix/**'
   pull_request:
     branches:
       - develop
@@ -37,6 +38,13 @@ jobs:
 
       - name: Validate Prisma Schema
         run: npx prisma validate --schema=apps/api/prisma/schema.prisma
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ems_ci_placeholder?schema=public"
+
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ems_ci_placeholder?schema=public"
 
       - name: Build Shared Contracts
         run: npm run build --workspace=packages/contracts
@@ -45,11 +53,13 @@ jobs:
         run: npm run build --workspace=apps/api
         env:
           NODE_ENV: test
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ems_ci_placeholder?schema=public"
 
       - name: Run Focused Backend Tests
         run: npm run test --workspace=apps/api --if-present
         env:
           NODE_ENV: test
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ems_ci_placeholder?schema=public"
 
   # ============================================================================
   # 2. FRONTEND PRODUCTION BUILD & TYPECHECK
