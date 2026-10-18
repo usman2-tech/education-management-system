@@ -111,6 +111,10 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-"Samahat Taibah Educational Management System"}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+        NEXT_PUBLIC_AI_SERVICE_URL: ${NEXT_PUBLIC_AI_SERVICE_URL:-/ai}
     container_name: ems-prod-web
     restart: unless-stopped
     depends_on:
@@ -141,8 +145,20 @@ services:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
       - ems_ssl_certs:/etc/nginx/ssl:ro
+      - ems_certbot_www:/var/www/certbot:ro
     networks:
       - ems-frontend-net
+
+  # ----------------------------------------------------------------------------
+  # 7. Certbot (Automated Let's Encrypt TLS Certificate Issuance & Renewal)
+  # ----------------------------------------------------------------------------
+  certbot:
+    image: certbot/certbot
+    container_name: ems-prod-certbot
+    volumes:
+      - ems_ssl_certs:/etc/nginx/ssl
+      - ems_certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'"
 
 # ------------------------------------------------------------------------------
 # NETWORKS & VOLUMES (Data Isolation & Zero-Downtime Persistence)
@@ -163,3 +179,5 @@ volumes:
     name: ems_prod_uploads_data
   ems_ssl_certs:
     name: ems_prod_ssl_certs
+  ems_certbot_www:
+    name: ems_prod_certbot_www
