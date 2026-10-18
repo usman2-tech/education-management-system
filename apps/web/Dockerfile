@@ -28,6 +28,12 @@ RUN npm run build --workspace=packages/contracts
 COPY apps/web/ ./apps/web/
 
 # Build Next.js application
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ARG NEXT_PUBLIC_APP_NAME="Samahat Taibah Educational Management System"
+ARG NEXT_PUBLIC_AI_SERVICE_URL=/ai
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
+ENV NEXT_PUBLIC_AI_SERVICE_URL=$NEXT_PUBLIC_AI_SERVICE_URL
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build --workspace=apps/web

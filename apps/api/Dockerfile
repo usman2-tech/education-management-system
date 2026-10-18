@@ -28,6 +28,7 @@ RUN npm run build --workspace=packages/contracts
 COPY apps/api/ ./apps/api/
 
 # Generate Prisma Client and build API
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ems_placeholder?schema=public"
 RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 RUN npm run build --workspace=apps/api
 
