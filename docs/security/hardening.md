@@ -90,3 +90,25 @@ Communication between the FastAPI AI microservice (`apps/ai-service`) and the Ne
 | Valid internal secret accepted for tool execution | `apps/api/src/modules/ai/ai-internal.controller.spec.ts` | **PASS** |
 | NestJS env loader fails fast on missing secrets | `apps/api/src/config/env.config.spec.ts` | **PASS** |
 | FastAPI settings validator fails fast on insecure secrets | `apps/ai-service/tests/test_settings_security.py` | **PASS** |
+
+---
+
+## 4. Dependency Vulnerability Hardening (TASK-035.1)
+
+### Overview
+Remediated transitive dependency vulnerabilities across backend and frontend workspaces by applying targeted npm dependency overrides.
+
+### Remediated Packages & Advisories
+- **`body-parser` (>= 1.20.8)**: Remediated silent bypass of request size limit enforcement.
+- **`js-yaml` (>= 4.3.2)**: Remediated prototype pollution and quadratic-complexity CPU exhaustion DoS in merge keys.
+- **`lodash` (>= 4.18.1)**: Remediated code injection via template imports and prototype pollution in `unset`/`omit`.
+- **`postcss` (>= 8.5.31)**: Remediated path traversal, arbitrary file read via `sourceMappingURL`, and XSS via unescaped style tags.
+- **`qs` (>= 6.16.1)**: Remediated array-limit bypass and DoS via crafted bracket keys and unhandled TypeErrors.
+- **`multer` (>= 2.4.0)**: Remediated multiple DoS vectors from uncontrolled recursion, fileFilter race conditions, and nested multipart field names.
+- **`file-type` (>= 21.3.4)**: Remediated infinite loop in ASF parser and ZIP decompression bomb DoS.
+
+### Audit Summary
+- **High-severity production vulnerabilities**: Reduced from 37 to **0**.
+- **Low-severity production vulnerabilities**: Reduced to **0**.
+- **Non-blocking items**: 3 moderate vulnerabilities in NestJS core (`<=11.1.17`) and 1 critical Next.js self-hosted Windows advisory (production deployed in Linux Docker containers behind Nginx).
+
