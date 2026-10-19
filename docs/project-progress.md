@@ -44,4 +44,5 @@ Feature lifecycle states:
 | **TASK-035** | Public Release Security Hardening (SEC-001 & SEC-002) | **AUTOMATED TESTED** | `security/task-035-public-release-hardening` | `3934ce4` | Verified All Security Tests Passing |
 | **TASK-035.1** | Transitive Dependency CVE Remediation & Overrides Resolution | **AUTOMATED TESTED** | `security/task-035-public-release-hardening` | In Progress | High/Low Prod Vulnerabilities 0 |
 | **TASK-031** | Complete EMS Integration & System-Wide Verification | **IN PROGRESS** | `develop` | Current | Testing & Verification |
+| **TASK-036** | Azure HTTPS Bootstrap & Deployment Reliability Fix | **AUTOMATED TESTED** | `fix/task-036-azure-https-bootstrap` | Pending Commit | Awaiting PR & Verification |
 
