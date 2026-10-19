@@ -251,16 +251,33 @@ nano .env
    ping ems.yourdomain.com
    ```
 
-### Step 11.2: Update Nginx Domain Configuration
-In `infrastructure/nginx/conf.d/default.conf`, update `ems.yourdomain.com` to your actual domain name:
+### Step 11.2: Verify Nginx Domain Configuration
+The default Nginx configuration (`infrastructure/nginx/conf.d/default.conf`) is configured for `ems.eduportal.dev`. If you are using a different domain, update the server name and certificate paths:
 ```bash
-sed -i 's/ems.yourdomain.com/YOUR_ACTUAL_DOMAIN/g' infrastructure/nginx/conf.d/default.conf
+sed -i 's/ems.eduportal.dev/YOUR_ACTUAL_DOMAIN/g' infrastructure/nginx/conf.d/default.conf
 ```
 
 ### Step 11.3: Bootstrap Let's Encrypt SSL
-Run the automated SSL bootstrap script:
+Run the automated SSL bootstrap script. This script creates a temporary self-signed certificate inside the persistent Docker named volume (`ems_prod_ssl_certs` mounted at `/etc/letsencrypt`), boots Nginx on port 80 to satisfy ACME challenges, requests a trusted Let's Encrypt certificate via Certbot, and reloads Nginx with zero downtime:
 ```bash
-./infrastructure/scripts/init-letsencrypt.sh YOUR_ACTUAL_DOMAIN your-email@gmail.com
+./infrastructure/scripts/init-letsencrypt.sh ems.eduportal.dev your-email@example.com
+```
+
+> [!NOTE]
+> **Idempotent & Safe**: If trusted certificates already exist in the named volume, the script will skip certificate re-issuance to protect against Let's Encrypt rate limits. If Certbot fails (e.g. DNS propagation delay), the script automatically restores the fallback certificates so Nginx remains operational on HTTP/HTTPS.
+
+### Step 11.4: Verify Certificate Renewal (Automated & Manual)
+Automatic certificate renewal is built-in:
+1. The `certbot` container checks every 12 hours for expiring certificates (`certbot renew --webroot -w /var/www/certbot`).
+2. The `nginx` container runs a background graceful reload every 12 hours (`nginx -s reload`) to apply renewed certificates seamlessly.
+
+To test certificate renewal manually at any time without waiting for expiry:
+```bash
+# Perform a dry-run renewal test
+./infrastructure/scripts/renew-certificates.sh --dry-run
+
+# Or perform an active renewal and reload
+./infrastructure/scripts/renew-certificates.sh
 ```
 
 ---

@@ -11,10 +11,15 @@
 
 set -euo pipefail
 
+# Ensure script runs from project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "${ROOT_DIR}"
+
 DOMAIN="${1:-}"
 
 if [ -z "${DOMAIN}" ]; then
-    read -p "Enter your staging domain or Azure VM Public IP (e.g., ems.yourdomain.com or 20.xx.xx.xx): " DOMAIN
+    read -p "Enter your staging domain or Azure VM Public IP (e.g., ems.yourdomain.com or 20.xx.xx.xx): " DOMAIN || true
 fi
 
 if [ -z "${DOMAIN}" ]; then
@@ -124,9 +129,18 @@ AI_MOCK_FALLBACK=true
 # Domain & SSL Settings
 # ------------------------------------------------------------------------------
 STAGING_DOMAIN=${DOMAIN}
+LETSENCRYPT_EMAIL=
 EOF
 
 chmod 600 "${ENV_FILE}"
+
+# Keep Nginx default.conf synchronized with the chosen domain
+NGINX_CONF="infrastructure/nginx/conf.d/default.conf"
+if [ -f "${NGINX_CONF}" ] && [ "${PROTOCOL}" = "https" ]; then
+    sed -i "s|/etc/letsencrypt/live/[^/]*/|/etc/letsencrypt/live/${DOMAIN}/|g" "${NGINX_CONF}" 2>/dev/null || true
+    sed -i -E "s|server_name [^ ;]+ _|server_name ${DOMAIN} _|g" "${NGINX_CONF}" 2>/dev/null || true
+    sed -i -E "s|server_name [^ ;]+;|server_name ${DOMAIN};|g" "${NGINX_CONF}" 2>/dev/null || true
+fi
 
 echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] .env created successfully with secure permissions (chmod 600)."
 echo "Credentials:       [GENERATED CRYPTOGRAPHICALLY AND SECURED IN .env]"

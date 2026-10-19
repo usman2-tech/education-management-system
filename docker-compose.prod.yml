@@ -147,8 +147,9 @@ services:
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
-      - ems_ssl_certs:/etc/nginx/ssl:ro
+      - ems_ssl_certs:/etc/letsencrypt:ro
       - ems_certbot_www:/var/www/certbot:ro
+    command: '/bin/sh -c "while :; do sleep 12h; nginx -s reload 2>/dev/null || true; done & exec nginx -g \"daemon off;\""'
     networks:
       - ems-frontend-net
 
@@ -158,10 +159,13 @@ services:
   certbot:
     image: certbot/certbot
     container_name: ems-prod-certbot
+    restart: unless-stopped
     volumes:
-      - ems_ssl_certs:/etc/nginx/ssl
+      - ems_ssl_certs:/etc/letsencrypt
       - ems_certbot_www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'"
+    networks:
+      - ems-frontend-net
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
 
 # ------------------------------------------------------------------------------
 # NETWORKS & VOLUMES (Data Isolation & Zero-Downtime Persistence)
