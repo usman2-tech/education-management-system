@@ -59,6 +59,15 @@ describe('AuthService', () => {
         update: jest.fn(),
         updateMany: jest.fn(),
       },
+      passwordResetToken: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        deleteMany: jest.fn(),
+      },
+      auditLog: {
+        create: jest.fn(),
+      },
     };
 
     jwtService = {
@@ -164,6 +173,115 @@ describe('AuthService', () => {
         where: { userId: 'user-uuid-1', revoked: false },
         data: { revoked: true },
       });
+    });
+  });
+
+  describe('SEC-001: Password Recovery Hardening', () => {
+    it('should never return resetToken, devToken, or devResetLink in production mode', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'NODE_ENV') return 'production';
+        if (key === 'EMAIL_SERVICE_ENABLED') return 'true';
+        if (key === 'ENABLE_DEV_AUTH_TOKENS') return 'true'; // must be ignored in production
+        return null;
+      });
+
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.passwordResetToken.create.mockResolvedValue({ id: 'token-1' });
+      prisma.auditLog.create.mockResolvedValue({ id: 'audit-1' });
+
+      const result = await service.requestPasswordReset({
+        email: 'admin@stjude.ems.local',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('If an institutional account exists');
+      expect((result as any).resetToken).toBeUndefined();
+      expect((result as any).devToken).toBeUndefined();
+      expect((result as any).devResetLink).toBeUndefined();
+    });
+
+    it('should fail closed without creating DB tokens if email service is not configured and dev tokens are disabled', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'NODE_ENV') return 'production';
+        if (key === 'EMAIL_SERVICE_ENABLED') return 'false';
+        if (key === 'SMTP_HOST') return null;
+        if (key === 'ENABLE_DEV_AUTH_TOKENS') return 'false';
+        return null;
+      });
+
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+
+      const result = await service.requestPasswordReset({
+        email: 'admin@stjude.ems.local',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('If an institutional account exists');
+      expect((result as any).devToken).toBeUndefined();
+      expect((result as any).resetToken).toBeUndefined();
+      // Verifies fail closed: no token created in DB
+      expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
+    });
+
+    it('should return identical generic response when requested account does not exist', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'NODE_ENV') return 'production';
+        return null;
+      });
+
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      const result = await service.requestPasswordReset({
+        email: 'unknown-user@notreal.local',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('If an institutional account exists');
+      expect((result as any).resetToken).toBeUndefined();
+      expect((result as any).devToken).toBeUndefined();
+      expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
+    });
+
+    it('should enforce rate limiting and reject more than 3 requests within 15 minutes', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'NODE_ENV') return 'development';
+        if (key === 'ENABLE_DEV_AUTH_TOKENS') return 'true';
+        return null;
+      });
+
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.passwordResetToken.create.mockResolvedValue({ id: 'token-1' });
+      prisma.auditLog.create.mockResolvedValue({ id: 'audit-1' });
+
+      const email = 'ratelimited@stjude.ems.local';
+
+      // 3 successful requests
+      await service.requestPasswordReset({ email });
+      await service.requestPasswordReset({ email });
+      await service.requestPasswordReset({ email });
+
+      // 4th request must throw 429
+      await expect(service.requestPasswordReset({ email })).rejects.toThrow(
+        /Too many password reset requests/,
+      );
+    });
+
+    it('should reject expired, already-used, or non-existent tokens during reset', async () => {
+      prisma.passwordResetToken.findUnique.mockResolvedValue({
+        id: 'token-id-1',
+        used: true,
+        expiresAt: new Date(Date.now() + 100000),
+        user: mockUser,
+      });
+
+      await expect(
+        service.resetPassword({
+          token: 'some-used-token',
+          password: 'NewValidPassword123!',
+        }),
+      ).rejects.toThrow(/Invalid, expired, or already-consumed/);
     });
   });
 });

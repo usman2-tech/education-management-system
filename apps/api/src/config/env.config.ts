@@ -25,10 +25,14 @@ export interface AppConfig {
   jwtExpiresIn: string;
   jwtRefreshSecret: string;
   jwtRefreshExpiresIn: string;
+  internalServiceSecret: string;
+  enableDevAuthTokens: boolean;
+  emailServiceEnabled: boolean;
 }
 
 const DEFAULT_JWT_SECRET = 'super_secret_jwt_access_key_ems_institutional_2026';
 const DEFAULT_JWT_REFRESH_SECRET = 'super_secret_jwt_refresh_key_ems_institutional_2026';
+const DEFAULT_INTERNAL_SERVICE_SECRET = 'dev_internal_secret_key_change_in_production';
 
 export const loadConfig = (): AppConfig => {
   const nodeEnv = process.env.NODE_ENV || 'development';
@@ -56,6 +60,16 @@ export const loadConfig = (): AppConfig => {
   const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '1h';
   const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || DEFAULT_JWT_REFRESH_SECRET;
   const jwtRefreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+  const internalServiceSecret =
+    process.env.INTERNAL_SERVICE_SECRET || DEFAULT_INTERNAL_SERVICE_SECRET;
+
+  // Development helper tokens are strictly disabled in production
+  const enableDevAuthTokens =
+    process.env.ENABLE_DEV_AUTH_TOKENS === 'true' && !isProduction;
+
+  // Out-of-band email delivery check
+  const emailServiceEnabled =
+    process.env.EMAIL_SERVICE_ENABLED === 'true' || Boolean(process.env.SMTP_HOST);
 
   // Production strict validations
   if (isProduction) {
@@ -68,6 +82,15 @@ export const loadConfig = (): AppConfig => {
     }
     if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEFAULT_JWT_REFRESH_SECRET) {
       missing.push('JWT_REFRESH_SECRET (must be configured and must not use development fallback)');
+    }
+    if (
+      !process.env.INTERNAL_SERVICE_SECRET ||
+      process.env.INTERNAL_SERVICE_SECRET === DEFAULT_INTERNAL_SERVICE_SECRET ||
+      process.env.INTERNAL_SERVICE_SECRET.trim().length < 16
+    ) {
+      missing.push(
+        'INTERNAL_SERVICE_SECRET (must be configured with at least 16 characters and must not use development fallback)',
+      );
     }
 
     if (missing.length > 0) {
@@ -95,6 +118,9 @@ export const loadConfig = (): AppConfig => {
     jwtExpiresIn,
     jwtRefreshSecret,
     jwtRefreshExpiresIn,
+    internalServiceSecret,
+    enableDevAuthTokens,
+    emailServiceEnabled,
   };
 };
 
