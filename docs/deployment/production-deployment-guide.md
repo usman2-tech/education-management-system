@@ -61,14 +61,20 @@ cp .env.example .env
 ```
 
 Ensure the following variables are strictly customized with high-entropy cryptographic keys:
-- `JWT_SECRET`: Generate using `openssl rand -base64 32`
-- `JWT_REFRESH_SECRET`: Generate using `openssl rand -base64 32`
-- `INTERNAL_SERVICE_SECRET`: Generate using `openssl rand -base64 32`
+- `JWT_SECRET`: Generate using `openssl rand -base64 32` (minimum 32 characters; dev fallbacks will cause startup abort)
+- `JWT_REFRESH_SECRET`: Generate using `openssl rand -base64 32` (minimum 32 characters)
+- `INTERNAL_SERVICE_SECRET`: Generate using `openssl rand -base64 32` (SEC-002: Minimum 16 characters; cannot match dev fallback; validated at startup and compared with timing-safe evaluation)
 - `POSTGRES_PASSWORD`: Strong master password for the database
 - `DATABASE_URL`: `postgresql://ems_user:<password>@postgres:5432/ems_database?schema=public`
 - `CORS_ORIGIN`: Exact production domain, e.g., `https://ems.yourdomain.com`
-- `SWAGGER_ENABLED`: `false` (enforces administrative isolation)
+- `SWAGGER_ENABLED`: `false` (default disabled in production; prevents administrative API schema exposure)
+- `SMTP_HOST` / `EMAIL_SERVICE_ENABLED`: (SEC-001: Required for institutional password recovery; production responses omit reset tokens and fail closed if unconfigured)
+- `ENABLE_DEV_AUTH_TOKENS`: Must be unset or `false` in production
 - `GEMINI_API_KEY`: Institutional Google Gemini API production key
+
+> **Security & Readiness References:**
+> - Complete Security Hardening & Remediation Audit: [docs/security/hardening.md](file:///docs/security/hardening.md)
+> - Staging Deployment Verification Checklist: [docs/deployment/staging-checklist.md](file:///docs/deployment/staging-checklist.md)
 
 ---
 

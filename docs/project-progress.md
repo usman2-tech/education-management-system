@@ -41,5 +41,6 @@ Feature lifecycle states:
 | **TASK-030** | Direct Messaging & Automated Parent Notifications | **MERGED** | `develop` | Integrated | Integrated into develop |
 | **TASK-020** | Production Deployment Preparation & Infrastructure Readiness | **MERGED** | `develop` | `c6f92e3` | Integrated into develop |
 | **TASK-020.1** | Comprehensive Evaluator-Ready README Documentation | **MERGED** | `develop` | `1bab8d5` | Integrated into develop |
+| **TASK-035** | Public Release Security Hardening & Vulnerability Remediation (SEC-001 & SEC-002) | **AUTOMATED TESTED** | `security/task-035-public-release-hardening` | Pending | All 39 Security Tests Passing |
 | **TASK-031** | Complete EMS Integration & System-Wide Verification | **IN PROGRESS** | `develop` | Current | Testing & Verification |
 

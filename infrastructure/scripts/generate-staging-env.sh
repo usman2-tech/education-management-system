@@ -70,6 +70,11 @@ JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
 JWT_REFRESH_EXPIRES_IN=7d
 INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
 
+# Production Authentication & Email Settings
+ENABLE_DEV_AUTH_TOKENS=false
+EMAIL_SERVICE_ENABLED=false
+SMTP_HOST=
+
 UPLOAD_DIR=/app/apps/api/uploads
 MAX_FILE_SIZE_BYTES=10485760
 
@@ -124,6 +129,6 @@ EOF
 chmod 600 "${ENV_FILE}"
 
 echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] .env created successfully with secure permissions (chmod 600)."
-echo "Database Password: ${POSTGRES_PASSWORD}"
+echo "Credentials:       [GENERATED CRYPTOGRAPHICALLY AND SECURED IN .env]"
 echo "Staging Domain:    ${DOMAIN} (${PROTOCOL})"
 echo "AI Mock Fallback:  true (Set GEMINI_API_KEY to activate live Gemini AI)"

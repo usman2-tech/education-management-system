@@ -25,6 +25,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiTags, ApiExcludeController } from '@nestjs/swagger';
+import * as crypto from 'crypto';
 import { AiToolsService } from './ai-tools.service';
 import { ExecuteAIToolDto } from './dto/ai-tool-query.dto';
 
@@ -37,6 +38,21 @@ export class AiInternalController {
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * Constant-time string comparison to prevent side-channel timing attacks
+   */
+  private safeCompareSecrets(provided: string, expected: string): boolean {
+    if (!provided || !expected) {
+      return false;
+    }
+    const bufProvided = Buffer.from(provided);
+    const bufExpected = Buffer.from(expected);
+    if (bufProvided.length !== bufExpected.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(bufProvided, bufExpected);
+  }
+
   @Post('tools/:toolName')
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -45,11 +61,25 @@ export class AiInternalController {
     @Headers('x-internal-secret') internalSecret: string,
     @Body() body: ExecuteAIToolDto,
   ) {
-    const expectedSecret =
-      this.configService.get<string>('INTERNAL_SERVICE_SECRET') ||
-      'dev_internal_secret_key_change_in_production';
+    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const configuredSecret = this.configService.get<string>('INTERNAL_SERVICE_SECRET');
 
-    if (!internalSecret || internalSecret !== expectedSecret) {
+    // In production, reject any fallback, missing, or short secret immediately
+    if (
+      isProduction &&
+      (!configuredSecret ||
+        configuredSecret === 'dev_internal_secret_key_change_in_production' ||
+        configuredSecret.trim().length < 16)
+    ) {
+      throw new UnauthorizedException(
+        'Internal service authorization secret is insecurely configured or using development fallback.',
+      );
+    }
+
+    const expectedSecret =
+      configuredSecret || 'dev_internal_secret_key_change_in_production';
+
+    if (!internalSecret || !this.safeCompareSecrets(internalSecret, expectedSecret)) {
       throw new UnauthorizedException('Invalid or missing internal service authorization secret.');
     }
 
